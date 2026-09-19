@@ -8,6 +8,7 @@ export const productSchema = z
     audience: z.enum(["men", "women", "kids", "unisex"]),
     price: z.coerce.number({ error: "Enter the price" }).positive({ error: "Price must be above 0" }),
     cost: z.coerce.number({ error: "Enter the cost" }).min(0, { error: "Cost cannot be negative" }),
+    discountPct: z.coerce.number().min(0, { error: "Discount cannot be negative" }).max(90, { error: "Discount is too big" }).default(0),
     colors: z.array(z.string().trim().min(1)).min(1, { error: "Add at least one colour" }),
     sizes: z.array(z.string()).min(1, { error: "Pick at least one size" }),
   })

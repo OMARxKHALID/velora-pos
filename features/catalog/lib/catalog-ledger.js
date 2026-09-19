@@ -20,6 +20,7 @@ export const applySaveProduct = (state, { productId = null, input, barcodes = {}
   const product = {
     ...(existing ?? { id: `p-${String(productSeq).padStart(2, "0")}`, code: String(productSeq).padStart(2, "0"), shopId: SHOP_ID, productType: "footwear", popularity: 3, status: "active" }),
     ...input,
+    discountPct: input.discountPct ?? existing?.discountPct ?? 0,
     sizes: input.sizes.map(String),
   }
 

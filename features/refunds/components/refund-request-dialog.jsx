@@ -20,7 +20,7 @@ const Choice = ({ active, children, onClick }) => (
     type="button"
     onClick={onClick}
     className={cn(
-      "h-8 border px-3 text-xs transition-colors",
+      "h-8 border px-3 text-xs transition-colors pointer-coarse:h-11",
       active ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/60"
     )}
   >

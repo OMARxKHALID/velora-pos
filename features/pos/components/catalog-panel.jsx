@@ -4,7 +4,7 @@ import { useDeferredValue, useState } from "react"
 import { MagnifyingGlassIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
-import { colorSwatches } from "@/features/catalog/lib/catalog"
+import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { CategoryIcon } from "@/features/catalog/components/category-icon"
 import { formatMoney, sumBy } from "@/lib/money"
@@ -16,7 +16,7 @@ const Chip = ({ active, children, onClick }) => (
     type="button"
     onClick={onClick}
     className={cn(
-      "h-7 shrink-0 border px-2.5 text-[0.6rem] font-semibold tracking-widest uppercase transition-colors",
+      "h-7 shrink-0 border px-2.5 pointer-coarse:h-10 pointer-coarse:px-3.5 text-[0.6rem] font-semibold tracking-widest uppercase transition-colors",
       active ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:border-primary/60 hover:text-foreground"
     )}
   >
@@ -50,7 +50,7 @@ const ProductCard = ({ product, available, onPick }) => {
           <span className="text-sm font-semibold text-gold tabular-nums">{formatMoney(product.price)}</span>
           <span className="flex gap-0.5">
             {product.colors.map((color) => (
-              <span key={color} title={color} className="size-2.5 rounded-full border border-foreground/20" style={{ backgroundColor: colorSwatches[color] }} />
+              <ColorDot key={color} color={color} className="size-2.5" />
             ))}
           </span>
         </div>
@@ -84,14 +84,14 @@ export const CatalogPanel = ({ availableFor, onPick }) => {
         </InputGroupAddon>
         <InputGroupInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search shoes, brands, categories…" />
       </InputGroup>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden">
         {brands.map((name) => (
           <Chip key={name} active={brand === name} onClick={() => setBrand(name)}>
             {name}
           </Chip>
         ))}
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden">
         {audiences.map((name) => (
           <Chip key={name} active={audience === name} onClick={() => setAudience(name)}>
             {name === "All" ? "Everyone" : name}

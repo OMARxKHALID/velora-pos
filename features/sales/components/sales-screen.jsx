@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { staff, staffName } from "@/features/demo/lib/staff"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { useBarcodeScanner } from "@/features/pos/hooks/use-barcode-scanner"
 import { DAY, formatDateTime, startOfToday } from "@/lib/dates"
 import { formatMoney } from "@/lib/money"
@@ -25,7 +27,9 @@ const ranges = [
 const cashiers = Object.values(staff).filter(({ role }) => role === "cashier")
 
 export const SalesScreen = ({ user }) => {
-  const sales = useDemoStore(({ sales }) => sales)
+  const allSales = useDemoStore(({ sales }) => sales)
+  const scope = useShopScope(user)
+  const sales = scope === ALL_SHOPS ? allSales : allSales.filter(({ shopId }) => shopId === scope)
   const refunds = useDemoStore(({ refunds }) => refunds)
   const [range, setRange] = useState("7d")
   const [cashier, setCashier] = useState(user.role === "cashier" ? user.id : "all")
@@ -80,7 +84,6 @@ export const SalesScreen = ({ user }) => {
             <TableRow>
               <TableHead>Sale</TableHead>
               {user.role !== "cashier" && <TableHead className="hidden md:table-cell">Cashier</TableHead>}
-              <TableHead className="hidden lg:table-cell">Items</TableHead>
               <TableHead className="text-right">Total</TableHead>
             </TableRow>
           </TableHeader>
@@ -92,10 +95,6 @@ export const SalesScreen = ({ user }) => {
                   <p className="text-xs text-muted-foreground">{formatDateTime(sale.soldAt)}</p>
                 </TableCell>
                 {user.role !== "cashier" && <TableCell className="hidden text-sm md:table-cell">{staffName(sale.cashierId)}</TableCell>}
-                <TableCell className="hidden max-w-64 truncate text-sm lg:table-cell">
-                  {sale.items[0].productName}
-                  {sale.items.length > 1 && <span className="text-muted-foreground"> +{sale.items.length - 1}</span>}
-                </TableCell>
                 <TableCell className="text-right">
                   <p className="font-semibold tabular-nums">{formatMoney(sale.total)}</p>
                   <div className="mt-1 flex justify-end">

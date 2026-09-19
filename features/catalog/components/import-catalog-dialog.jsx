@@ -10,6 +10,7 @@ import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { downloadFile } from "@/lib/download"
 import { formatMoney } from "@/lib/money"
 import { importTemplateCsv, parseCatalogImport } from "../lib/catalog-csv"
+import { ColorDot } from "./color-dot"
 
 export const ImportCatalogDialog = ({ user, onClose }) => {
   const importCatalog = useDemoStore(({ importCatalog }) => importCatalog)
@@ -94,7 +95,10 @@ export const ImportCatalogDialog = ({ user, onClose }) => {
                           {row.product} <span className="text-muted-foreground">· {row.brand}</span>
                         </TableCell>
                         <TableCell className="text-sm">
-                          {row.color} · EU {row.size}
+                          <span className="flex items-center gap-1.5">
+                            <ColorDot color={row.color} className="size-2.5" />
+                            {row.color} · EU {row.size}
+                          </span>
                         </TableCell>
                         <TableCell className="text-right text-sm tabular-nums">{formatMoney(row.price)}</TableCell>
                         <TableCell className="hidden text-right text-sm tabular-nums sm:table-cell">{row.stock}</TableCell>

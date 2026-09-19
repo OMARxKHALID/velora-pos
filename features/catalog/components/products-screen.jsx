@@ -208,7 +208,7 @@ export const ProductsScreen = ({ user }) => {
       </div>
       <p className="text-xs text-muted-foreground">Shoes that were ever sold can be archived but not deleted, so old receipts stay correct.</p>
 
-      {editing && <ProductFormDialog product={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <ProductFormDialog product={editing === "new" ? null : editing} user={user} onClose={() => setEditing(null)} />}
       {importing && <ImportCatalogDialog user={user} onClose={() => setImporting(false)} />}
       {labelling && <LabelsDialog product={labelling} onClose={() => setLabelling(null)} />}
       {deleting && <DeleteDialog product={deleting} onConfirm={handleDelete} onClose={() => setDeleting(null)} />}

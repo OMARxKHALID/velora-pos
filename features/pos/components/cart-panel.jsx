@@ -6,9 +6,10 @@ import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
-import { colorSwatches } from "@/features/catalog/lib/catalog"
+import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { MAX_CASHIER_DISCOUNT } from "@/features/demo/lib/ledger"
+import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { formatMoney } from "@/lib/money"
 import { cartTotals } from "../lib/cart-totals"
 import { useCartStore } from "../store/cart-store-provider"
@@ -57,7 +58,7 @@ const CartLine = ({ row, highlight, canAdd, onQuantity }) => (
     <div className="min-w-0 flex-1 space-y-1">
       <p className="truncate text-sm font-medium">{row.product.name}</p>
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span className="size-2.5 rounded-full border border-foreground/20" style={{ backgroundColor: colorSwatches[row.variant.attributes.color] }} />
+        <ColorDot color={row.variant.attributes.color} className="size-2.5" />
         {row.variant.attributes.color} · EU {row.variant.attributes.size}
         {row.entry === "manual" && <span className="text-[0.6rem] tracking-widest uppercase">· manual</span>}
       </p>
@@ -73,7 +74,8 @@ const CartLine = ({ row, highlight, canAdd, onQuantity }) => (
     </div>
     <div className="text-right text-sm tabular-nums">
       <p className="font-semibold">{formatMoney(row.total)}</p>
-      {row.discount > 0 && <p className="text-xs text-muted-foreground line-through">{formatMoney(row.gross)}</p>}
+      {(row.discount > 0 || row.productDiscount > 0) && <p className="text-xs text-muted-foreground line-through">{formatMoney(row.gross)}</p>}
+      {row.productDiscount > 0 && <p className="text-[0.6rem] font-semibold tracking-widest text-gold uppercase">on offer</p>}
     </div>
   </li>
 )
@@ -85,9 +87,10 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
   const setQuantity = useCartStore(({ setQuantity }) => setQuantity)
   const setDiscount = useCartStore(({ setDiscount }) => setDiscount)
   const clear = useCartStore(({ clear }) => clear)
+  const settings = useDemoStore(({ settings }) => settings)
   const [pendingDiscount, setPendingDiscount] = useState(null)
   const catalog = useCatalog()
-  const { rows, count, subtotal, discountTotal, total } = cartTotals(lines, discountPct, catalog)
+  const { rows, count, subtotal, discountTotal, taxRate, taxTotal, total } = cartTotals(lines, discountPct, catalog, settings)
 
   const handleDiscount = (pct) => {
     if (pct <= MAX_CASHIER_DISCOUNT * 100) return setDiscount(pct)
@@ -134,28 +137,30 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
       )}
 
       <div className="space-y-4 border-t p-4">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold tracking-[0.2em] text-muted-foreground uppercase">Discount</span>
-            {approvedBy && discountPct > 5 && <span className="text-gold">Approved by manager</span>}
+        {settings.cartDiscountEnabled && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold tracking-[0.2em] text-muted-foreground uppercase">Discount</span>
+              {approvedBy && discountPct > 5 && <span className="text-gold">Approved by manager</span>}
+            </div>
+            <div className="grid grid-cols-5 gap-1">
+              {discountSteps.map((pct) => (
+                <button
+                  key={pct}
+                  type="button"
+                  disabled={!rows.length}
+                  onClick={() => handleDiscount(pct)}
+                  className={cn(
+                    "h-8 border text-xs font-semibold tabular-nums transition-colors disabled:opacity-40 pointer-coarse:h-11",
+                    discountPct === pct ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/60"
+                  )}
+                >
+                  {pct ? `${pct}%` : "None"}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-5 gap-1">
-            {discountSteps.map((pct) => (
-              <button
-                key={pct}
-                type="button"
-                disabled={!rows.length}
-                onClick={() => handleDiscount(pct)}
-                className={cn(
-                  "h-8 border text-xs font-semibold tabular-nums transition-colors disabled:opacity-40",
-                  discountPct === pct ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/60"
-                )}
-              >
-                {pct ? `${pct}%` : "None"}
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
 
         <dl className="space-y-1.5 text-sm tabular-nums">
           <div className="flex justify-between text-muted-foreground">
@@ -166,6 +171,12 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
             <dt>Discount</dt>
             <dd>{discountTotal ? `− ${formatMoney(discountTotal)}` : "—"}</dd>
           </div>
+          {taxTotal > 0 && (
+            <div className="flex justify-between text-muted-foreground">
+              <dt>Tax {taxRate ? `(${taxRate}%)` : ""}</dt>
+              <dd>{formatMoney(taxTotal)}</dd>
+            </div>
+          )}
           <div className="flex items-end justify-between border-t pt-2">
             <dt className="text-xs font-semibold tracking-[0.2em] uppercase">Total</dt>
             <dd className="font-heading text-2xl font-bold text-gold">{formatMoney(total)}</dd>

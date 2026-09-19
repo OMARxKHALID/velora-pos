@@ -45,7 +45,7 @@ export const Receipt = ({ sale, ref }) => {
       <div className="my-3 border-t border-dashed border-black" />
       <Row label="Subtotal" value={formatMoney(sale.subtotal)} />
       {sale.discountTotal > 0 && <Row label="Discount" value={`-${formatMoney(sale.discountTotal)}`} />}
-      <Row label="Tax" value={formatMoney(sale.taxTotal)} />
+      {sale.taxTotal > 0 && <Row label={sale.taxRate ? `Tax (${sale.taxRate}%)` : "Tax"} value={formatMoney(sale.taxTotal)} />}
       <Row label="TOTAL" value={formatMoney(sale.total)} strong />
       <div className="my-3 border-t border-dashed border-black" />
       {sale.payments.map((payment) => (

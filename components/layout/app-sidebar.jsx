@@ -29,7 +29,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { logout } from "@/features/auth/actions"
-import { SHOP_NAME, roleLabels } from "@/features/auth/lib/demo-users"
+import { roleLabels } from "@/features/auth/lib/demo-users"
+import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ALL_SHOPS, shopName, shops } from "@/features/shops/lib/shops"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { navItems } from "./nav-items"
 import { ThemeToggle } from "./theme-toggle"
@@ -37,34 +39,43 @@ import { VeloraLogo } from "./velora-logo"
 
 const initials = (name) => name.split(" ").map((part) => part[0]).join("")
 
-const ShopSwitcher = ({ canSwitch }) => (
-  <DropdownMenu>
-    <DropdownMenuTrigger
-      disabled={!canSwitch}
-      render={<SidebarMenuButton size="lg" tooltip={SHOP_NAME} className="border border-sidebar-border group-data-[collapsible=icon]:border-0" />}
-    >
-      <StorefrontIcon className="text-gold" />
-      <span className="flex-1 truncate text-left text-sm font-semibold group-data-[collapsible=icon]:hidden">{SHOP_NAME}</span>
-      {canSwitch && <CaretUpDownIcon className="ml-auto group-data-[collapsible=icon]:hidden" />}
-    </DropdownMenuTrigger>
-    <DropdownMenuContent className="min-w-60" align="start">
-      <DropdownMenuGroup>
-        <DropdownMenuLabel>Shops</DropdownMenuLabel>
-        <DropdownMenuItem>
-          <StorefrontIcon />
-          {SHOP_NAME}
-          <CheckIcon className="ml-auto text-gold" />
+const ShopSwitcher = ({ user }) => {
+  const scope = useShopScope(user)
+  const setShopScope = useDemoStore(({ setShopScope }) => setShopScope)
+  const canSwitch = user.role === "admin"
+  const options = [{ id: ALL_SHOPS, name: "All shops" }, ...shops]
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        disabled={!canSwitch}
+        render={<SidebarMenuButton size="lg" tooltip={shopName(scope)} className="border border-sidebar-border group-data-[collapsible=icon]:border-0" />}
+      >
+        <StorefrontIcon className="text-gold" />
+        <span className="flex-1 truncate text-left text-sm font-semibold group-data-[collapsible=icon]:hidden">{shopName(scope)}</span>
+        {canSwitch && <CaretUpDownIcon className="ml-auto group-data-[collapsible=icon]:hidden" />}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="min-w-60" align="start">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Show</DropdownMenuLabel>
+          {options.map(({ id, name }) => (
+            <DropdownMenuItem key={id} onClick={() => setShopScope(id)}>
+              <StorefrontIcon />
+              {name}
+              {scope === id && <CheckIcon className="ml-auto text-gold" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem disabled>
+          <PlusIcon />
+          Add shop
+          <span className="ml-auto text-[0.65rem] tracking-widest uppercase">Phase 2</span>
         </DropdownMenuItem>
-      </DropdownMenuGroup>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem disabled>
-        <PlusIcon />
-        Add shop
-        <span className="ml-auto text-[0.65rem] tracking-widest uppercase">Phase 2</span>
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  </DropdownMenu>
-)
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 export const AppSidebar = ({ user }) => {
   const pathname = usePathname()
@@ -92,7 +103,7 @@ export const AppSidebar = ({ user }) => {
         </Link>
         <SidebarMenu>
           <SidebarMenuItem>
-            <ShopSwitcher canSwitch={user.role === "admin"} />
+            <ShopSwitcher user={user} />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

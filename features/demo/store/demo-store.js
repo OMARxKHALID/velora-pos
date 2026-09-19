@@ -13,6 +13,7 @@ import {
 } from "@/features/demo/lib/ledger"
 import { createSeed } from "@/features/demo/lib/seed"
 import { applyDeleteProduct, applyImportCatalog, applySaveProduct, applySetProductStatus } from "@/features/catalog/lib/catalog-ledger"
+import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 
 const ledgerKeys = Object.keys(emptyLedger())
 
@@ -30,7 +31,9 @@ export const createDemoStore = () =>
           ...emptyLedger(),
           hydrated: false,
           offline: false,
-          recordSale: (input) => run(applySale)({ offline: get().offline, ...input }),
+          shopScope: "all",
+          settings: defaultPricingSettings(),
+          recordSale: (input) => run(applySale)({ settings: get().settings, offline: get().offline, ...input }),
           requestRefund: run(applyRefundRequest),
           decideRefund: run(applyRefundDecision),
           openShift: run(applyOpenShift),
@@ -43,16 +46,18 @@ export const createDemoStore = () =>
           deleteProduct: run(applyDeleteProduct),
           importCatalog: run(applyImportCatalog),
           setOffline: (offline) => set({ offline }),
-          resetDemo: () => set({ ...createSeed(), offline: false }),
+          setShopScope: (shopScope) => set({ shopScope }),
+          setSettings: (patch) => set(({ settings }) => ({ settings: { ...settings, ...patch } })),
+          resetDemo: () => set({ ...createSeed(), offline: false, settings: get().settings }),
         }
       },
       {
         name: "velora-demo",
-        version: 3,
+        version: 4,
         migrate: () => ({}),
         skipHydration: true,
         storage: createJSONStorage(() => localStorage),
-        partialize: (state) => Object.fromEntries([...ledgerKeys, "offline"].map((key) => [key, state[key]])),
+        partialize: (state) => Object.fromEntries([...ledgerKeys, "offline", "shopScope", "settings"].map((key) => [key, state[key]])),
       }
     )
   )

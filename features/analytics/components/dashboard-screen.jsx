@@ -6,8 +6,11 @@ import { ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, CheckCircleIcon, 
 import { cn } from "cn"
 import { Segmented } from "@/components/ui/segmented"
 import { StatStrip } from "@/components/ui/stat-strip"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { staff, staffName } from "@/features/demo/lib/staff"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ALL_SHOPS, scopeState, shops } from "@/features/shops/lib/shops"
 import { formatMoney, sumBy } from "@/lib/money"
 import {
   brandPerformance,
@@ -76,8 +79,10 @@ const List = ({ rows, empty }) =>
     <p className="px-4 py-8 text-center text-sm text-muted-foreground">{empty}</p>
   )
 
-export const DashboardScreen = () => {
-  const state = useDemoStore((store) => store)
+export const DashboardScreen = ({ user }) => {
+  const fullState = useDemoStore((store) => store)
+  const scope = useShopScope(user)
+  const state = scopeState(fullState, scope)
   const [range, setRange] = useState("7d")
   const period = periodFor(range)
   const current = summarize(state, period.from, period.to)
@@ -100,6 +105,17 @@ export const DashboardScreen = () => {
   const firstSale = state.sales[0] ? new Date(state.sales[0].soldAt).getTime() : Infinity
   const comparable = firstSale <= period.prevFrom + 24 * 60 * 60 * 1000
   const label = compare[range]
+  const shopRows = shops.map((shop) => {
+    const shopState = scopeState(fullState, shop.id)
+    const summary = summarize(shopState, period.from, period.to)
+    const closed = within(shopState.shifts.filter(({ status }) => status === "closed"), "closedAt", period.from, period.to)
+    return {
+      shop,
+      summary,
+      short: sumBy(closed.filter(({ difference }) => difference < 0), ({ difference }) => -difference),
+      stock: stockValue(shopState).value,
+    }
+  })
 
   return (
     <>
@@ -127,6 +143,33 @@ export const DashboardScreen = () => {
           <TrendChart data={trend} byHour={byHour} />
         </div>
       </Panel>
+
+      {user.role === "admin" && scope === ALL_SHOPS && (
+        <Panel title="Shops" description="Each shop side by side. New shops appear here as they open.">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Shop</TableHead>
+                <TableHead className="text-right">Sales</TableHead>
+                <TableHead className="hidden text-right sm:table-cell">Profit</TableHead>
+                <TableHead className="text-right">Cash short</TableHead>
+                <TableHead className="hidden text-right md:table-cell">Stock value</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {shopRows.map(({ shop, summary, short, stock: value }) => (
+                <TableRow key={shop.id}>
+                  <TableCell className="text-sm font-medium">{shop.name}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatMoney(summary.revenue)}</TableCell>
+                  <TableCell className="hidden text-right tabular-nums sm:table-cell">{formatMoney(summary.profit)}</TableCell>
+                  <TableCell className={cn("text-right tabular-nums", short > 0 && "text-destructive")}>{formatMoney(short)}</TableCell>
+                  <TableCell className="hidden text-right text-muted-foreground tabular-nums md:table-cell">{formatMoney(value)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Panel>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Panel title="Best sellers" description="Most pairs sold">
@@ -173,7 +216,7 @@ export const DashboardScreen = () => {
             ))}
           </ul>
         </Panel>
-        <Panel title="Staff" description="Anything worth a closer look" action={<LinkAction href="/staff">Manage access</LinkAction>}>
+        <Panel title="Staff" description="Anything worth a closer look" action={user.role === "admin" && <LinkAction href="/staff">Manage access</LinkAction>}>
           <List
             empty="No staff activity."
             rows={cashiers.map((stats) => {

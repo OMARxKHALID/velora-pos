@@ -4,13 +4,13 @@ import { requireRole } from "@/features/auth/lib/session"
 import { DemoReady } from "@/features/demo/components/demo-ready"
 
 const DashboardPage = async () => {
-  await requireRole("admin")
+  const user = await requireRole("admin")
 
   return (
     <>
-      <PageHeader title="Overview" description="How the Shoe Shop is doing." />
+      <PageHeader title="Overview" description="How your shops are doing." />
       <DemoReady>
-        <DashboardScreen />
+        <DashboardScreen user={user} />
       </DemoReady>
     </>
   )

@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { colorSwatches } from "@/features/catalog/lib/catalog"
+import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { formatMoney } from "@/lib/money"
 
@@ -81,16 +81,13 @@ export const VariantPickerDialog = ({
                   type="button"
                   onClick={() => setColor(name)}
                   className={cn(
-                    "flex h-9 items-center gap-2 border px-3 text-xs transition-colors",
+                    "flex h-9 items-center gap-2 border px-3 text-xs transition-colors pointer-coarse:h-11",
                     color === name
                       ? "border-primary bg-accent/60"
                       : "hover:border-primary/60"
                   )}
                 >
-                  <span
-                    className="size-3.5 rounded-full border border-foreground/20"
-                    style={{ backgroundColor: colorSwatches[name] }}
-                  />
+                  <ColorDot color={name} className="size-3.5" />
                   {name}
                 </button>
               ))}

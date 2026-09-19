@@ -118,14 +118,28 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
                   </li>
                 ))}
               </ul>
-              <div className="flex justify-between border bg-muted/50 px-3 py-2 text-sm">
-                <span className="font-semibold tracking-[0.2em] uppercase">
-                  Total
-                </span>
-                <span className="font-heading text-lg font-bold text-gold">
-                  {formatMoney(sale.total)}
-                </span>
-              </div>
+              <dl className="space-y-1 border bg-muted/50 px-3 py-2 text-sm tabular-nums">
+                <div className="flex justify-between text-muted-foreground">
+                  <dt>Subtotal</dt>
+                  <dd>{formatMoney(sale.subtotal)}</dd>
+                </div>
+                {sale.discountTotal > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <dt>Discount</dt>
+                    <dd>− {formatMoney(sale.discountTotal)}</dd>
+                  </div>
+                )}
+                {sale.taxTotal > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <dt>Tax {sale.taxRate ? `(${sale.taxRate}%)` : ""}</dt>
+                    <dd>{formatMoney(sale.taxTotal)}</dd>
+                  </div>
+                )}
+                <div className="flex justify-between border-t pt-1.5">
+                  <dt className="font-semibold tracking-[0.2em] uppercase">Total</dt>
+                  <dd className="font-heading text-lg font-bold text-gold">{formatMoney(sale.total)}</dd>
+                </div>
+              </dl>
             </div>
 
             <div className="space-y-2">

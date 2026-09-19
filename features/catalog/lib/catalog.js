@@ -92,6 +92,7 @@ export const seedCatalog = () => {
     sizes: sizeRuns[audience].map(String),
     price: rupees * 100,
     cost: Math.round(rupees * 100 * (brand === "Velora" ? 0.45 : 0.7)),
+    discountPct: 0,
     popularity,
     status: "active",
   }))

@@ -3,6 +3,8 @@ import { sumBy } from "@/lib/money"
 
 export const MAX_CASHIER_DISCOUNT = 0.05
 
+const pricingDefaults = { taxEnabled: false, taxRate: 0, productDiscountEnabled: true, cartDiscountEnabled: true }
+
 export const emptyLedger = () => ({
   products: [],
   variants: [],
@@ -35,18 +37,19 @@ const moveStock = (state, { variantId, quantity, type, ref, userId, unitCost, re
 
 export const openShiftFor = (state) => state.shifts.find(({ status, registerId }) => status === "open" && registerId === REGISTER_ID)
 
-export const applySale = (state, { lines, payments, cashierId, shiftId, at, offline = false, approvedBy = null }) => {
+export const applySale = (state, { lines, payments, cashierId, shiftId, at, offline = false, approvedBy = null, settings = pricingDefaults }) => {
   if (!lines.length) throw new Error("Cart is empty")
   if (!shiftId) throw new Error("Open a shift before selling")
 
   const { productById, variantById } = indexCatalog(state)
-  const items = lines.map(({ variantId, quantity, discount = 0, entry = "scan" }) => {
+  const items = lines.map(({ variantId, quantity, discount = 0, productDiscount = 0, entry = "scan" }) => {
     const variant = variantById[variantId]
     if (!variant) throw new Error("Unknown item")
     if (!variant.active || productById[variant.productId].status !== "active") throw new Error("This item is archived and cannot be sold")
     if (quantity < 1) throw new Error("Quantity must be at least 1")
     const gross = variant.price * quantity
     if (discount < 0 || discount > gross) throw new Error("Invalid discount")
+    if (productDiscount < 0 || productDiscount > gross - discount) throw new Error("Invalid product discount")
     return {
       variantId,
       productName: productById[variant.productId].name,
@@ -55,23 +58,27 @@ export const applySale = (state, { lines, payments, cashierId, shiftId, at, offl
       quantity,
       unitPrice: variant.price,
       unitCost: variant.cost,
+      productDiscount,
       discount,
       tax: 0,
-      total: gross - discount,
+      total: gross - discount - productDiscount,
       entry,
     }
   })
 
   const subtotal = sumBy(items, ({ unitPrice, quantity }) => unitPrice * quantity)
-  const discountTotal = sumBy(items, ({ discount }) => discount)
-  const total = subtotal - discountTotal
+  const cartDiscount = sumBy(items, ({ discount }) => discount)
+  const discountTotal = cartDiscount + sumBy(items, ({ productDiscount }) => productDiscount)
+  const taxRate = settings.taxEnabled ? Number(settings.taxRate) || 0 : 0
+  const taxTotal = taxRate > 0 ? Math.round(((subtotal - discountTotal) * taxRate) / 100) : 0
+  const total = subtotal - discountTotal + taxTotal
   const paid = sumBy(payments, ({ amount }) => amount)
   const cashPaid = sumBy(payments.filter(({ method }) => method === "cash"), ({ amount }) => amount)
   const change = paid - total
 
   if (change < 0) throw new Error("Payment is short")
   if (change > cashPaid) throw new Error("Change can only be given from cash")
-  if (discountTotal > subtotal * MAX_CASHIER_DISCOUNT && !approvedBy) throw new Error("Manager approval needed for this discount")
+  if (cartDiscount > subtotal * MAX_CASHIER_DISCOUNT && !approvedBy) throw new Error("Manager approval needed for this discount")
 
   const receiptSeq = state.receiptSeq + 1
   const sale = {
@@ -85,7 +92,9 @@ export const applySale = (state, { lines, payments, cashierId, shiftId, at, offl
     items,
     subtotal,
     discountTotal,
-    taxTotal: 0,
+    cartDiscount,
+    taxRate,
+    taxTotal,
     total,
     payments,
     change,
@@ -111,7 +120,7 @@ export const applySale = (state, { lines, payments, cashierId, shiftId, at, offl
   }
 
   if (items.some(({ variantId }) => next.stock[variantId] < 0)) sale.flags.push("negative_stock")
-  if (discountTotal > subtotal * MAX_CASHIER_DISCOUNT) sale.flags.push("big_discount")
+  if (cartDiscount > subtotal * MAX_CASHIER_DISCOUNT) sale.flags.push("big_discount")
 
   return {
     state: {

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
+import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { beep } from "@/features/pos/lib/beep"
@@ -131,7 +132,8 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
                       <li key={line.id} className="flex items-center gap-3 px-3 py-2">
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm">{productById[variant.productId].name}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <ColorDot color={variant.attributes.color} className="size-2.5" />
                             {variant.attributes.color} · EU {variant.attributes.size} · {stock[variant.id] ?? 0} on hand
                           </p>
                         </div>

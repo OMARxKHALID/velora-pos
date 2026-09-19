@@ -4,13 +4,13 @@ import { DemoReady } from "@/features/demo/components/demo-ready"
 import { MovementsScreen } from "@/features/inventory/components/movements-screen"
 
 const MovementsPage = async () => {
-  await requireRole("admin", "manager")
+  const user = await requireRole("admin", "manager")
 
   return (
     <>
       <PageHeader title="Stock history" description="Every pair in and out, with who did it and why." />
       <DemoReady>
-        <MovementsScreen />
+        <MovementsScreen user={user} />
       </DemoReady>
     </>
   )

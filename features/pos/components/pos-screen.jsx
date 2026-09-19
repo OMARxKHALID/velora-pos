@@ -41,6 +41,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const stock = useDemoStore(({ stock }) => stock)
   const offline = useDemoStore(({ offline }) => offline)
   const waiting = useDemoStore(({ outbox }) => outbox.length)
+  const settings = useDemoStore(({ settings }) => settings)
   const catalog = useCatalog()
   const { productById, variantByBarcode } = catalog
   const recordSale = useDemoStore(({ recordSale }) => recordSale)
@@ -82,10 +83,10 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   }
 
   const handlePay = (payments) => {
-    const { rows } = cartTotals(lines, discountPct, catalog)
+    const { rows } = cartTotals(lines, discountPct, catalog, settings)
     try {
       const sale = recordSale({
-        lines: rows.map(({ variantId, quantity, discount, entry }) => ({ variantId, quantity, discount, entry })),
+        lines: rows.map(({ variantId, quantity, discount, productDiscount, entry }) => ({ variantId, quantity, discount, productDiscount, entry })),
         payments,
         cashierId: user.id,
         shiftId: shift.id,
@@ -100,7 +101,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
     }
   }
 
-  const { total, count } = cartTotals(lines, discountPct, catalog)
+  const { total, count } = cartTotals(lines, discountPct, catalog, settings)
 
   const handleCharge = () => {
     if (!lines.length) return
@@ -160,23 +161,44 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
           <LockKeyIcon />
           <span className="hidden sm:inline">Close shift</span>
         </Button>
-        <Button size="sm" variant={wide && cartOpen ? "outline" : "default"} className="shrink-0" onClick={handleToggleCart}>
-          {wide && cartOpen ? <SidebarSimpleIcon className="-scale-x-100" /> : <ShoppingBagIcon />}
-          {wide && cartOpen ? (
-            "Hide cart"
-          ) : (
-            <>
-              Cart · {count}
-              <span className="hidden sm:inline"> · {formatMoney(total)}</span>
-            </>
-          )}
-        </Button>
+        {wide && (
+          <Button size="sm" variant={cartOpen ? "outline" : "default"} className="shrink-0" onClick={handleToggleCart}>
+            {cartOpen ? <SidebarSimpleIcon className="-scale-x-100" /> : <ShoppingBagIcon />}
+            {cartOpen ? "Hide cart" : `Cart · ${count} · ${formatMoney(total)}`}
+          </Button>
+        )}
       </div>
 
       <div className="flex min-h-0 flex-1 gap-3">
         <CatalogPanel availableFor={availableFor} onPick={setPicking} />
         {wide && cartOpen && cartPanel("w-[340px] shrink-0 border")}
       </div>
+
+      {!wide && (
+        <div className="flex shrink-0 items-center gap-2 border bg-card p-2">
+          <button
+            type="button"
+            onClick={() => setCartSheetOpen(true)}
+            className="flex min-w-0 flex-1 items-center gap-3 px-2 py-1 text-left"
+          >
+            <span className="relative flex size-10 shrink-0 items-center justify-center border border-primary/40 text-gold">
+              <ShoppingBagIcon className="size-5" />
+              {count > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center bg-primary text-[0.65rem] font-bold text-primary-foreground tabular-nums">
+                  {count}
+                </span>
+              )}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-xs text-muted-foreground">{count ? `${count} ${count === 1 ? "item" : "items"} · tap to view` : "Cart is empty"}</span>
+              <span className="block font-heading text-lg font-bold text-gold tabular-nums">{formatMoney(total)}</span>
+            </span>
+          </button>
+          <Button size="lg" className="h-12 shrink-0 px-6" disabled={!count} onClick={handleCharge}>
+            Charge
+          </Button>
+        </div>
+      )}
 
       {!wide && (
         <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>

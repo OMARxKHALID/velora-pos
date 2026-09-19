@@ -10,6 +10,8 @@ import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { staffName } from "@/features/demo/lib/staff"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { DAY, formatDateTime, startOfToday } from "@/lib/dates"
 import { addReasons, removeReasons } from "../schemas"
 
@@ -35,8 +37,10 @@ const referenceFor = (movement) => {
   return movement.ref?.number ?? "—"
 }
 
-export const MovementsScreen = () => {
-  const movements = useDemoStore(({ movements }) => movements)
+export const MovementsScreen = ({ user }) => {
+  const allMovements = useDemoStore(({ movements }) => movements)
+  const scope = useShopScope(user)
+  const movements = scope === ALL_SHOPS ? allMovements : allMovements.filter(({ shopId }) => shopId === scope)
   const { productById, variantById } = useCatalog()
   const [type, setType] = useState("all")
   const [range, setRange] = useState("7d")

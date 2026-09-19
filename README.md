@@ -10,19 +10,20 @@ Pick a role on the start page:
 
 | Role | Sees |
 | --- | --- |
-| Admin | Everything, including the shop switcher |
-| Manager | Dashboard, POS, sales, refunds, products, stock, movements |
-| Cashier | POS and their own sales only |
+| Owner | Overview (analytics), Sales, Stock, Stock history, Staff access. No POS; stock is read-only |
+| Supervisor | Sell, Sales, Returns, Products, Stock, Stock history (their own shop only) |
+| Cashier | Sell and their own sales only |
 
-Manager PIN for discounts above 5%: `1234`.
+Supervisor PIN for discounts above 5%: `1234`.
 
 ## What is in the demo
 
 - **POS**: barcode scanning (USB scanner or "Test scan"), size and colour picker, discounts with manager approval, cash and card payment, 80mm receipt with barcode, `F2` to charge
 - **Shifts**: open with a cash float, close with a blind count, shortage and overage report
-- **Sales and refunds**: finished sales are locked; refunds are requested by cashiers and approved by managers
+- **Sales and refunds**: finished sales are locked; refunds are requested by cashiers and approved by supervisors
 - **Products**: add, edit, archive, CSV import and export, barcode labels
 - **Stock**: per size and colour, receive deliveries, adjustments with reasons, append-only movement history
+- **Settings**: switchable sales tax (rate + name) and discounts — per-product offers and whole-cart %, applied on the cart, receipt, history and reports
 - **Dashboard**: revenue, profit, busiest hours, top and slow sellers, low stock, cashier watch (discounts, refunds, cash differences)
 - **Offline**: sales keep working without internet and sync once when the connection returns
 - Dark and light mode, responsive down to phone width

@@ -1,4 +1,5 @@
 import { indexCatalog } from "@/features/catalog/lib/catalog"
+import { netRevenue } from "@/features/pricing/lib/pricing"
 import { sumBy } from "@/lib/money"
 
 const DAY = 24 * 60 * 60 * 1000
@@ -33,7 +34,7 @@ export const summarize = (state, from, to) => {
     to
   )
   const impacts = refunds.map((refund) => refundImpact(state, refund))
-  const grossRevenue = sumBy(sales, ({ total }) => total)
+  const grossRevenue = sumBy(sales, netRevenue)
   const revenue = grossRevenue - sumBy(impacts, ({ revenue: amount }) => amount)
   const profit = sumBy(sales, ({ items }) => sumBy(items, itemProfit)) - sumBy(impacts, ({ profit: amount }) => amount)
 
@@ -55,7 +56,7 @@ export const dailySeries = (sales, from, days) =>
     const inDay = within(sales, "soldAt", start, start + DAY)
     return {
       day: start,
-      revenue: sumBy(inDay, ({ total }) => total) / 100,
+      revenue: sumBy(inDay, netRevenue) / 100,
       profit: sumBy(inDay, ({ items }) => sumBy(items, itemProfit)) / 100,
     }
   })
@@ -67,7 +68,7 @@ export const hourlySeries = (sales, fromHour = 10, toHour = 22) =>
     return {
       hour,
       sales: inHour.length,
-      revenue: sumBy(inHour, ({ total }) => total) / 100,
+      revenue: sumBy(inHour, netRevenue) / 100,
       profit: sumBy(inHour, ({ items }) => sumBy(items, itemProfit)) / 100,
     }
   })
@@ -111,7 +112,7 @@ export const cashierStats = (state, sales, refunds, from, to, cashierIds) => {
     const discounts = sumBy(mine, ({ discountTotal }) => discountTotal)
     const myRefunds = refunds.filter(({ requestedBy }) => requestedBy === cashierId)
     const myShifts = shifts.filter((shift) => shift.cashierId === cashierId)
-    const revenue = sumBy(mine, ({ total }) => total)
+    const revenue = sumBy(mine, netRevenue)
     return {
       cashierId,
       count: mine.length,

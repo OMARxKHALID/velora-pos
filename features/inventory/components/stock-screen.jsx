@@ -8,9 +8,11 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TablePagination, paginate } from "@/components/ui/table-pagination"
-import { colorSwatches } from "@/features/catalog/lib/catalog"
+import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { stockRows } from "../lib/stock-rows"
 import { AdjustStockDialog } from "./adjust-stock-dialog"
 import { ReceiveStockDialog } from "./receive-stock-dialog"
@@ -46,7 +48,8 @@ export const StockScreen = ({ user }) => {
   const [adjusting, setAdjusting] = useState(null)
   const search = useDeferredValue(query.trim().toLowerCase())
   const catalog = useCatalog()
-  const rows = stockRows(stock, catalog)
+  const scope = useShopScope(user)
+  const rows = stockRows(stock, catalog).filter(({ product }) => scope === ALL_SHOPS || product.shopId === scope)
   const canEdit = user.role !== "admin"
 
   const visible = rows.filter(
@@ -95,7 +98,7 @@ export const StockScreen = ({ user }) => {
               <TableRow key={row.key} className={cn(canEdit && "cursor-pointer")} onClick={() => canEdit && setAdjusting(row)}>
                 <TableCell>
                   <div className="flex items-center gap-2.5">
-                    <span className="size-3 shrink-0 rounded-full border border-foreground/20" style={{ backgroundColor: colorSwatches[row.color] }} />
+                    <ColorDot color={row.color} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{row.product.name}</p>
                       <p className="text-xs text-muted-foreground">

@@ -82,7 +82,7 @@ const AdjustForm = ({ row, size, onHand, user, onDone }) => {
                     key={key}
                     type="button"
                     onClick={() => field.onChange(key)}
-                    className={cn("h-8 border px-3 text-xs transition-colors", field.value === key ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/60")}
+                    className={cn("h-8 border px-3 text-xs transition-colors pointer-coarse:h-11", field.value === key ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/60")}
                   >
                     {label}
                   </button>
