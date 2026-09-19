@@ -142,9 +142,24 @@
     @apply border-border outline-ring/50 [scrollbar-width:thin] [scrollbar-color:color-mix(in_oklch,var(--muted-foreground)_35%,transparent)_transparent];
     }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground [-webkit-tap-highlight-color:transparent];
     }
   html {
     @apply font-sans;
     }
+  button, a, input, select, textarea, label, [role=button], [role=menuitem], [role=tab] {
+    @apply touch-manipulation;
+  }
+  button:not(:disabled),
+  a[href],
+  [role=button]:not(:disabled),
+  [role=menuitem]:not(:disabled),
+  [role=tab]:not(:disabled),
+  select:not(:disabled),
+  label[for],
+  summary,
+  input[type=checkbox]:not(:disabled),
+  input[type=radio]:not(:disabled) {
+    cursor: pointer;
+  }
 }
