@@ -1,0 +1,64 @@
+"use client"
+
+import { useEffect, useRef } from "react"
+import JsBarcode from "jsbarcode"
+import { staffName } from "@/features/demo/lib/staff"
+import { formatMoney } from "@/lib/money"
+
+const when = new Intl.DateTimeFormat("en-PK", { dateStyle: "medium", timeStyle: "short" })
+
+const Row = ({ label, value, strong }) => (
+  <div className={strong ? "flex justify-between text-sm font-bold" : "flex justify-between"}>
+    <span>{label}</span>
+    <span>{value}</span>
+  </div>
+)
+
+export const Receipt = ({ sale, ref }) => {
+  const barcode = useRef(null)
+
+  useEffect(() => {
+    JsBarcode(barcode.current, sale.number, { format: "CODE128", height: 42, width: 1.4, fontSize: 11, margin: 0, displayValue: true })
+  }, [sale.number])
+
+  return (
+    <div ref={ref} className="mx-auto w-[302px] bg-white px-4 py-5 font-mono text-[11px] leading-relaxed text-black">
+      <div className="text-center">
+        <p className="font-heading text-xl font-bold tracking-[0.3em]">VELORA</p>
+        <p className="text-[9px] tracking-[0.4em]">GROUP · SHOES</p>
+        <p className="mt-2">Velora Shoes · Counter {sale.number.split("-").slice(0, 2).join("-")}</p>
+      </div>
+      <div className="my-3 border-t border-dashed border-black" />
+      <Row label="Receipt" value={sale.number} />
+      <Row label="Date" value={when.format(new Date(sale.soldAt))} />
+      <Row label="Cashier" value={staffName(sale.cashierId)} />
+      <div className="my-3 border-t border-dashed border-black" />
+      <div className="space-y-2">
+        {sale.items.map((item) => (
+          <div key={item.variantId}>
+            <p className="font-bold">{item.productName}</p>
+            <Row label={`${item.attributes.color} / EU ${item.attributes.size}  ${item.quantity} × ${formatMoney(item.unitPrice)}`} value={formatMoney(item.unitPrice * item.quantity)} />
+            {item.discount > 0 && <Row label="  Discount" value={`-${formatMoney(item.discount)}`} />}
+          </div>
+        ))}
+      </div>
+      <div className="my-3 border-t border-dashed border-black" />
+      <Row label="Subtotal" value={formatMoney(sale.subtotal)} />
+      {sale.discountTotal > 0 && <Row label="Discount" value={`-${formatMoney(sale.discountTotal)}`} />}
+      <Row label="Tax" value={formatMoney(sale.taxTotal)} />
+      <Row label="TOTAL" value={formatMoney(sale.total)} strong />
+      <div className="my-3 border-t border-dashed border-black" />
+      {sale.payments.map((payment) => (
+        <Row key={payment.method} label={`Paid · ${payment.method}${payment.reference ? ` ••${payment.reference}` : ""}`} value={formatMoney(payment.amount)} />
+      ))}
+      {sale.change > 0 && <Row label="Change" value={formatMoney(sale.change)} />}
+      <div className="my-3 border-t border-dashed border-black" />
+      {!sale.syncedAt && <p className="text-center text-[10px] font-bold">SAVED OFFLINE · SYNCS AUTOMATICALLY</p>}
+      <p className="text-center text-[10px]">FBR invoice: connected in Phase 2</p>
+      <div className="mt-3 flex justify-center">
+        <svg ref={barcode} />
+      </div>
+      <p className="mt-3 text-center">Thank you for shopping at Velora</p>
+    </div>
+  )
+}
