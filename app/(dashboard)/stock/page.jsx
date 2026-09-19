@@ -8,7 +8,7 @@ const StockPage = async () => {
 
   return (
     <>
-      <PageHeader title="Stock" description="Pairs on hand per size and colour at Velora Shoes." />
+      <PageHeader title="Stock" description="Pairs on hand for every shoe and size." />
       <DemoReady>
         <StockScreen user={user} />
       </DemoReady>

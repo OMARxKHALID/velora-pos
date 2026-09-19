@@ -4,11 +4,11 @@ import { ProductsScreen } from "@/features/catalog/components/products-screen"
 import { DemoReady } from "@/features/demo/components/demo-ready"
 
 const ProductsPage = async () => {
-  const user = await requireRole("admin", "manager")
+  const user = await requireRole("manager")
 
   return (
     <>
-      <PageHeader title="Products" description="The shoes Velora Shoes sells: prices, colours, sizes and barcodes." />
+      <PageHeader title="Products" description="What the shop sells, with prices, colours and sizes." />
       <DemoReady>
         <ProductsScreen user={user} />
       </DemoReady>

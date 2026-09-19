@@ -4,7 +4,7 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 
 const config = {
-  revenue: { label: "Revenue", color: "var(--chart-1)" },
+  revenue: { label: "Sales", color: "var(--chart-1)" },
   profit: { label: "Profit", color: "var(--chart-2)" },
 }
 

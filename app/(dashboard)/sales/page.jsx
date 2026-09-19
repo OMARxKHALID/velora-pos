@@ -10,7 +10,7 @@ const SalesPage = async () => {
     <>
       <PageHeader
         title="Sales"
-        description={user.role === "cashier" ? "Your sales. Finished sales are locked; use a refund to correct one." : "Every sale at Velora Shoes. Finished sales are locked; corrections go through refunds."}
+        description={user.role === "cashier" ? "Your sales. Finished sales cannot be changed." : "Every sale at the Shoe Shop. Finished sales cannot be changed."}
       />
       <DemoReady>
         <SalesScreen user={user} />

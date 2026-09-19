@@ -52,10 +52,10 @@ const catalog = [
   ["Servis Cheetah Kids", "Servis", "Kids", "kids", 3299, ["Blue", "Red"], 6],
   ["Servis Calza Peshawari", "Servis", "Traditional", "men", 6499, ["Brown", "Black"], 4],
   ["Velora Khussa Zari", "Velora", "Traditional", "women", 8900, ["Gold", "Maroon"], 5],
-  ["Velora Monarch Chelsea Boot", "Velora", "Boots", "men", 21500, ["Black", "Brown"], 2],
+  ["Velora Monarch Chelsea Boot", "Velora", "Boots", "men", 21500, ["Black", "Brown"], 0],
   ["Velora Tide Slide", "Velora", "Sandals", "unisex", 3900, ["Black", "Olive"], 4],
   ["Skechers Go Walk 7", "Skechers", "Sports", "women", 18900, ["Navy", "Grey"], 3],
-  ["Velora Scout Kids Boot", "Velora", "Kids", "kids", 7900, ["Brown", "Black"], 1],
+  ["Velora Scout Kids Boot", "Velora", "Kids", "kids", 7900, ["Brown", "Black"], 0],
 ]
 
 const slug = (text) => text.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3)

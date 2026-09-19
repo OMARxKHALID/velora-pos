@@ -167,6 +167,8 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
             </p>
           </div>
 
+          {user.role !== "admin" && (
+
           <SheetFooter className="mt-auto flex-row border-t">
             <Button
               variant="outline"
@@ -185,6 +187,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
               Request refund
             </Button>
           </SheetFooter>
+        )}
 
           <div className="hidden">
             <Receipt sale={sale} ref={receipt} />

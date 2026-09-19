@@ -4,11 +4,11 @@ import { DemoReady } from "@/features/demo/components/demo-ready"
 import { RefundsScreen } from "@/features/refunds/components/refunds-screen"
 
 const RefundsPage = async () => {
-  const user = await requireRole("admin", "manager")
+  const user = await requireRole("manager")
 
   return (
     <>
-      <PageHeader title="Refunds" description="Cashiers request, managers approve. Stock goes back only after approval." />
+      <PageHeader title="Returns" description="Approve or reject returns requested by cashiers." />
       <DemoReady>
         <RefundsScreen user={user} />
       </DemoReady>

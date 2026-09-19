@@ -1,17 +1,16 @@
 "use client"
 
 import { useDeferredValue, useState } from "react"
-import { CreditCardIcon, MagnifyingGlassIcon, MoneyIcon } from "@phosphor-icons/react"
+import { MagnifyingGlassIcon } from "@phosphor-icons/react"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
-import { StatStrip } from "@/components/ui/stat-strip"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { staff, staffName } from "@/features/demo/lib/staff"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { useBarcodeScanner } from "@/features/pos/hooks/use-barcode-scanner"
 import { DAY, formatDateTime, startOfToday } from "@/lib/dates"
-import { formatMoney, sumBy } from "@/lib/money"
+import { formatMoney } from "@/lib/money"
 import { refundsBySale, saleRefundState } from "../lib/sale-status"
 import { SaleDetailSheet } from "./sale-detail-sheet"
 import { SaleStatusBadges } from "./sale-status-badges"
@@ -46,7 +45,6 @@ export const SalesScreen = ({ user }) => {
     )
     .toReversed()
 
-  const revenue = sumBy(visible, ({ total }) => total)
   const pagination = paginate(visible, page)
 
   const withReset = (setter) => (value) => {
@@ -63,15 +61,6 @@ export const SalesScreen = ({ user }) => {
 
   return (
     <>
-      <StatStrip
-        stats={[
-          { label: "Sales", value: visible.length },
-          { label: "Revenue", value: formatMoney(revenue) },
-          { label: "Avg. basket", value: formatMoney(visible.length ? Math.round(revenue / visible.length) : 0) },
-          { label: "Pairs sold", value: sumBy(visible, ({ items }) => sumBy(items, ({ quantity }) => quantity)) },
-        ]}
-      />
-
       <div className="flex flex-wrap items-center gap-2">
         <InputGroup className="h-9 w-full sm:w-72">
           <InputGroupAddon>
@@ -83,43 +72,35 @@ export const SalesScreen = ({ user }) => {
         {user.role !== "cashier" && (
           <Segmented options={[{ key: "all", label: "All cashiers" }, ...cashiers.map(({ id, name }) => ({ key: id, label: name.split(" ")[0] }))]} value={cashier} onChange={withReset(setCashier)} />
         )}
-        <span className="ml-auto hidden text-xs text-muted-foreground lg:inline">Scan a receipt barcode to open it</span>
       </div>
 
       <div className="border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Receipt</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="hidden md:table-cell">Cashier</TableHead>
+              <TableHead>Sale</TableHead>
+              {user.role !== "cashier" && <TableHead className="hidden md:table-cell">Cashier</TableHead>}
               <TableHead className="hidden lg:table-cell">Items</TableHead>
-              <TableHead className="hidden sm:table-cell">Status</TableHead>
               <TableHead className="text-right">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pagination.rows.map((sale) => (
               <TableRow key={sale.id} className="cursor-pointer" onClick={() => setOpenId(sale.id)}>
-                <TableCell className="font-mono text-xs">{sale.number}</TableCell>
-                <TableCell className="text-xs whitespace-nowrap text-muted-foreground">{formatDateTime(sale.soldAt)}</TableCell>
-                <TableCell className="hidden text-sm md:table-cell">{staffName(sale.cashierId)}</TableCell>
+                <TableCell>
+                  <p className="font-mono text-xs">{sale.number}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateTime(sale.soldAt)}</p>
+                </TableCell>
+                {user.role !== "cashier" && <TableCell className="hidden text-sm md:table-cell">{staffName(sale.cashierId)}</TableCell>}
                 <TableCell className="hidden max-w-64 truncate text-sm lg:table-cell">
                   {sale.items[0].productName}
                   {sale.items.length > 1 && <span className="text-muted-foreground"> +{sale.items.length - 1}</span>}
                 </TableCell>
-                <TableCell className="hidden sm:table-cell">
-                  <SaleStatusBadges sale={sale} refundState={saleRefundState(sale, byId[sale.id])} />
-                </TableCell>
                 <TableCell className="text-right">
-                  <span className="inline-flex items-center gap-1.5 font-semibold tabular-nums">
-                    {sale.payments[0].method === "card" ? (
-                      <CreditCardIcon className="size-3.5 text-muted-foreground" />
-                    ) : (
-                      <MoneyIcon className="size-3.5 text-muted-foreground" />
-                    )}
-                    {formatMoney(sale.total)}
-                  </span>
+                  <p className="font-semibold tabular-nums">{formatMoney(sale.total)}</p>
+                  <div className="mt-1 flex justify-end">
+                    <SaleStatusBadges sale={sale} refundState={saleRefundState(sale, byId[sale.id])} />
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

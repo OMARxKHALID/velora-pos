@@ -1,22 +1,23 @@
 import {
   ArrowUUpLeftIcon,
   CashRegisterIcon,
+  ChartLineUpIcon,
   ClockCounterClockwiseIcon,
   PackageIcon,
   ReceiptIcon,
-  SquaresFourIcon,
   TagIcon,
+  UsersThreeIcon,
 } from "@phosphor-icons/react"
 
 export const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: SquaresFourIcon, roles: ["admin", "manager"] },
-  { href: "/pos", label: "Point of Sale", icon: CashRegisterIcon, roles: ["admin", "manager", "cashier"] },
+  { href: "/dashboard", label: "Overview", icon: ChartLineUpIcon, roles: ["admin"] },
+  { href: "/pos", label: "Sell", icon: CashRegisterIcon, roles: ["manager", "cashier"] },
   { href: "/sales", label: "Sales", icon: ReceiptIcon, roles: ["admin", "manager", "cashier"] },
-  { href: "/refunds", label: "Refunds", icon: ArrowUUpLeftIcon, roles: ["admin", "manager"] },
-  { href: "/products", label: "Products", icon: TagIcon, roles: ["admin", "manager"] },
+  { href: "/refunds", label: "Returns", icon: ArrowUUpLeftIcon, roles: ["manager"] },
+  { href: "/products", label: "Products", icon: TagIcon, roles: ["manager"] },
   { href: "/stock", label: "Stock", icon: PackageIcon, roles: ["admin", "manager"] },
-  { href: "/movements", label: "Stock Movements", icon: ClockCounterClockwiseIcon, roles: ["admin", "manager"] },
+  { href: "/movements", label: "Stock history", icon: ClockCounterClockwiseIcon, roles: ["admin", "manager"] },
+  { href: "/staff", label: "Staff", icon: UsersThreeIcon, roles: ["admin"] },
 ]
 
-export const titleFor = (pathname) =>
-  navItems.find(({ href }) => pathname.startsWith(href))?.label ?? ""
+export const titleFor = (pathname) => navItems.find(({ href }) => pathname.startsWith(href))?.label ?? ""

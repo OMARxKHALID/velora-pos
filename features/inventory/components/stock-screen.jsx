@@ -6,13 +6,11 @@ import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
-import { StatStrip } from "@/components/ui/stat-strip"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { colorSwatches } from "@/features/catalog/lib/catalog"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
-import { formatMoney, sumBy } from "@/lib/money"
 import { stockRows } from "../lib/stock-rows"
 import { AdjustStockDialog } from "./adjust-stock-dialog"
 import { ReceiveStockDialog } from "./receive-stock-dialog"
@@ -49,6 +47,7 @@ export const StockScreen = ({ user }) => {
   const search = useDeferredValue(query.trim().toLowerCase())
   const catalog = useCatalog()
   const rows = stockRows(stock, catalog)
+  const canEdit = user.role !== "admin"
 
   const visible = rows.filter(
     (row) =>
@@ -66,15 +65,6 @@ export const StockScreen = ({ user }) => {
 
   return (
     <>
-      <StatStrip
-        stats={[
-          { label: "Pairs in stock", value: sumBy(rows, ({ total }) => total).toLocaleString("en-PK") },
-          { label: "Stock value (cost)", value: formatMoney(sumBy(rows, ({ value }) => value)) },
-          { label: "Low sizes", value: sumBy(rows, ({ low }) => low), tone: "warning" },
-          { label: "Sold-out sizes", value: sumBy(rows, ({ out }) => out), tone: "destructive" },
-        ]}
-      />
-
       <div className="flex flex-wrap items-center gap-2">
         <InputGroup className="h-9 w-full sm:w-72">
           <InputGroupAddon>
@@ -83,10 +73,12 @@ export const StockScreen = ({ user }) => {
           <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Shoe, brand, SKU or barcode" />
         </InputGroup>
         <Segmented options={filters} value={filter} onChange={withReset(setFilter)} />
-        <Button size="sm" className="ml-auto" onClick={() => setReceiving(true)}>
-          <PackageIcon />
-          Receive delivery
-        </Button>
+        {canEdit && (
+          <Button size="sm" className="ml-auto" onClick={() => setReceiving(true)}>
+            <PackageIcon />
+            Receive delivery
+          </Button>
+        )}
       </div>
 
       <div className="border bg-card">
@@ -96,19 +88,18 @@ export const StockScreen = ({ user }) => {
               <TableHead>Shoe</TableHead>
               <TableHead className="hidden md:table-cell">Stock by size (EU)</TableHead>
               <TableHead className="text-right">Pairs</TableHead>
-              <TableHead className="hidden text-right sm:table-cell">Value</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pagination.rows.map((row) => (
-              <TableRow key={row.key} className="cursor-pointer" onClick={() => setAdjusting(row)}>
+              <TableRow key={row.key} className={cn(canEdit && "cursor-pointer")} onClick={() => canEdit && setAdjusting(row)}>
                 <TableCell>
                   <div className="flex items-center gap-2.5">
                     <span className="size-3 shrink-0 rounded-full border border-foreground/20" style={{ backgroundColor: colorSwatches[row.color] }} />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{row.product.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {row.product.brand} · {row.color}
+                        {row.color}
                         {row.low > 0 && <span className="text-warning"> · {row.low} low</span>}
                         {row.out > 0 && <span className="text-destructive"> · {row.out} out</span>}
                       </p>
@@ -119,7 +110,6 @@ export const StockScreen = ({ user }) => {
                   <SizeChips sizes={row.sizes} />
                 </TableCell>
                 <TableCell className="text-right font-semibold tabular-nums">{row.total}</TableCell>
-                <TableCell className="hidden text-right text-sm text-muted-foreground tabular-nums sm:table-cell">{formatMoney(row.value)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -127,7 +117,7 @@ export const StockScreen = ({ user }) => {
         {!visible.length && <p className="py-12 text-center text-sm text-muted-foreground">Nothing matches.</p>}
         <TablePagination {...pagination} onPageChange={setPage} />
       </div>
-      <p className="text-xs text-muted-foreground">Tap a row to correct stock. Stock never changes silently: every change is a movement with a name and reason.</p>
+      {canEdit && <p className="text-xs text-muted-foreground">Tap a shoe to fix its stock. Every change is saved with your name and a reason.</p>}
 
       {receiving && <ReceiveStockDialog user={user} onClose={() => setReceiving(false)} />}
       {adjusting && <AdjustStockDialog row={adjusting} user={user} onClose={() => setAdjusting(null)} />}

@@ -5,7 +5,6 @@ import { toast } from "sonner"
 import { CheckIcon, XIcon } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Segmented } from "@/components/ui/segmented"
-import { StatStrip } from "@/components/ui/stat-strip"
 import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { staffName } from "@/features/demo/lib/staff"
@@ -13,10 +12,10 @@ import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { SaleDetailSheet } from "@/features/sales/components/sale-detail-sheet"
 import { StatusBadge } from "@/features/sales/components/sale-status-badges"
 import { formatDateTime, timeAgo } from "@/lib/dates"
-import { formatMoney, sumBy } from "@/lib/money"
+import { formatMoney } from "@/lib/money"
 
 const tabs = [
-  { key: "pending", label: "Waiting" },
+  { key: "pending", label: "To approve" },
   { key: "approved", label: "Approved" },
   { key: "rejected", label: "Rejected" },
 ]
@@ -117,15 +116,6 @@ export const RefundsScreen = ({ user }) => {
 
   return (
     <>
-      <StatStrip
-        stats={[
-          { label: "Waiting", value: counts.pending?.length ?? 0, tone: counts.pending?.length ? "warning" : undefined },
-          { label: "Waiting amount", value: formatMoney(sumBy(counts.pending ?? [], ({ total }) => total)) },
-          { label: "Approved", value: counts.approved?.length ?? 0 },
-          { label: "Refunded amount", value: formatMoney(sumBy(counts.approved ?? [], ({ total }) => total)) },
-        ]}
-      />
-
       <Segmented
         options={tabs.map(({ key, label }) => ({ key, label: `${label} · ${counts[key]?.length ?? 0}` }))}
         value={tab}

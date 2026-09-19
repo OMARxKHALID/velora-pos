@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
-import { StatStrip } from "@/components/ui/stat-strip"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
@@ -33,7 +32,6 @@ import { StatusBadge } from "@/features/sales/components/sale-status-badges"
 import { downloadFile } from "@/lib/download"
 import { formatMoney, sumBy } from "@/lib/money"
 import { useCatalog } from "../hooks/use-catalog"
-import { colorSwatches } from "../lib/catalog"
 import { exportCatalogCsv } from "../lib/catalog-csv"
 import { canDeleteProduct } from "../lib/catalog-ledger"
 import { ImportCatalogDialog } from "./import-catalog-dialog"
@@ -45,8 +43,6 @@ const statuses = [
   { key: "archived", label: "Archived" },
   { key: "all", label: "All" },
 ]
-
-const marginOf = ({ price, cost }) => Math.round(((price - cost) / price) * 100)
 
 const sizeRange = (sizes) => (sizes.length > 1 ? `${sizes[0]}–${sizes.at(-1)}` : sizes[0])
 
@@ -120,15 +116,6 @@ export const ProductsScreen = ({ user }) => {
 
   return (
     <>
-      <StatStrip
-        stats={[
-          { label: "Active products", value: active.length },
-          { label: "Sellable sizes", value: variants.filter((variant) => variant.active && active.some(({ id }) => id === variant.productId)).length },
-          { label: "Average margin", value: `${active.length ? Math.round(sumBy(active, marginOf) / active.length) : 0}%` },
-          { label: "Archived", value: products.length - active.length },
-        ]}
-      />
-
       <div className="flex flex-wrap items-center gap-2">
         <InputGroup className="h-9 w-full sm:w-72">
           <InputGroupAddon>
@@ -158,10 +145,7 @@ export const ProductsScreen = ({ user }) => {
           <TableHeader>
             <TableRow>
               <TableHead>Product</TableHead>
-              <TableHead className="hidden md:table-cell">Colours</TableHead>
-              <TableHead className="hidden md:table-cell">Sizes</TableHead>
               <TableHead className="text-right">Price</TableHead>
-              <TableHead className="hidden text-right lg:table-cell">Margin</TableHead>
               <TableHead className="hidden text-right sm:table-cell">Pairs</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -174,22 +158,11 @@ export const ProductsScreen = ({ user }) => {
                     <p className="truncate text-sm font-medium">{product.name}</p>
                     {product.status === "archived" && <StatusBadge>Archived</StatusBadge>}
                   </div>
-                  <p className="text-xs text-muted-foreground capitalize">
-                    {product.brand} · {product.category} · {product.audience}
+                  <p className="text-xs text-muted-foreground">
+                    {product.brand} · {product.colors.length} {product.colors.length === 1 ? "colour" : "colours"} · sizes {sizeRange(product.sizes)}
                   </p>
                 </TableCell>
-                <TableCell className="hidden md:table-cell">
-                  <div className="flex gap-1">
-                    {product.colors.map((color) => (
-                      <span key={color} title={color} className="size-3.5 rounded-full border border-foreground/20" style={{ backgroundColor: colorSwatches[color] ?? "transparent" }} />
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell className="hidden text-sm text-muted-foreground tabular-nums md:table-cell">
-                  {sizeRange(product.sizes)} <span className="text-xs">· {product.sizes.length}</span>
-                </TableCell>
                 <TableCell className="text-right text-sm font-semibold tabular-nums">{formatMoney(product.price)}</TableCell>
-                <TableCell className="hidden text-right text-sm text-muted-foreground tabular-nums lg:table-cell">{marginOf(product)}%</TableCell>
                 <TableCell className="hidden text-right text-sm tabular-nums sm:table-cell">{pairsOf(product)}</TableCell>
                 <TableCell onClick={(event) => event.stopPropagation()}>
                   <DropdownMenu>
@@ -233,7 +206,7 @@ export const ProductsScreen = ({ user }) => {
         {!visible.length && <p className="py-12 text-center text-sm text-muted-foreground">No products here.</p>}
         <TablePagination {...pagination} onPageChange={setPage} />
       </div>
-      <p className="text-xs text-muted-foreground">Products with sales or stock history can only be archived, so old receipts and the audit trail stay complete.</p>
+      <p className="text-xs text-muted-foreground">Shoes that were ever sold can be archived but not deleted, so old receipts stay correct.</p>
 
       {editing && <ProductFormDialog product={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
       {importing && <ImportCatalogDialog user={user} onClose={() => setImporting(false)} />}

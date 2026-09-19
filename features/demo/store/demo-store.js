@@ -48,7 +48,7 @@ export const createDemoStore = () =>
       },
       {
         name: "velora-demo",
-        version: 2,
+        version: 3,
         migrate: () => ({}),
         skipHydration: true,
         storage: createJSONStorage(() => localStorage),

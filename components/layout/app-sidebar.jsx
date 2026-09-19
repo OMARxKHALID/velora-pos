@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { logout } from "@/features/auth/actions"
+import { SHOP_NAME, roleLabels } from "@/features/auth/lib/demo-users"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { navItems } from "./nav-items"
 import { ThemeToggle } from "./theme-toggle"
@@ -40,13 +41,10 @@ const ShopSwitcher = ({ canSwitch }) => (
   <DropdownMenu>
     <DropdownMenuTrigger
       disabled={!canSwitch}
-      render={<SidebarMenuButton size="lg" tooltip="Velora Shoes" className="border border-sidebar-border group-data-[collapsible=icon]:border-0" />}
+      render={<SidebarMenuButton size="lg" tooltip={SHOP_NAME} className="border border-sidebar-border group-data-[collapsible=icon]:border-0" />}
     >
       <StorefrontIcon className="text-gold" />
-      <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
-        <span className="truncate text-sm font-semibold">Velora Shoes</span>
-        <span className="truncate text-xs text-muted-foreground">Shop 1 · Counter 1</span>
-      </div>
+      <span className="flex-1 truncate text-left text-sm font-semibold group-data-[collapsible=icon]:hidden">{SHOP_NAME}</span>
       {canSwitch && <CaretUpDownIcon className="ml-auto group-data-[collapsible=icon]:hidden" />}
     </DropdownMenuTrigger>
     <DropdownMenuContent className="min-w-60" align="start">
@@ -54,7 +52,7 @@ const ShopSwitcher = ({ canSwitch }) => (
         <DropdownMenuLabel>Shops</DropdownMenuLabel>
         <DropdownMenuItem>
           <StorefrontIcon />
-          Velora Shoes
+          {SHOP_NAME}
           <CheckIcon className="ml-auto text-gold" />
         </DropdownMenuItem>
       </DropdownMenuGroup>
@@ -141,7 +139,7 @@ export const AppSidebar = ({ user }) => {
               </DropdownMenuTrigger>
               <DropdownMenuContent className="min-w-56" side="top" align="start">
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel>Signed in as {user.role}</DropdownMenuLabel>
+                  <DropdownMenuLabel>Signed in as {roleLabels[user.role]}</DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleReset}>

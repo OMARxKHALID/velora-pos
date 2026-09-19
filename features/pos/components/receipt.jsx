@@ -25,8 +25,8 @@ export const Receipt = ({ sale, ref }) => {
     <div ref={ref} className="mx-auto w-[302px] bg-white px-4 py-5 font-mono text-[11px] leading-relaxed text-black">
       <div className="text-center">
         <p className="font-heading text-xl font-bold tracking-[0.3em]">VELORA</p>
-        <p className="text-[9px] tracking-[0.4em]">GROUP · SHOES</p>
-        <p className="mt-2">Velora Shoes · Counter {sale.number.split("-").slice(0, 2).join("-")}</p>
+        <p className="text-[9px] tracking-[0.4em]">SHOE SHOP</p>
+        <p className="mt-2">Counter {sale.number.split("-").slice(0, 2).join("-")}</p>
       </div>
       <div className="my-3 border-t border-dashed border-black" />
       <Row label="Receipt" value={sale.number} />

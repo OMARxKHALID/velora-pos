@@ -18,7 +18,6 @@ export const SaleStatusBadges = ({ sale, refundState }) => (
   <div className="flex flex-wrap gap-1">
     {refundState.pending && <StatusBadge tone="warning">Refund pending</StatusBadge>}
     {refundState.refunded && <StatusBadge tone="destructive">{refundState.refunded === "full" ? "Refunded" : "Part refunded"}</StatusBadge>}
-    {sale.flags.includes("big_discount") && <StatusBadge tone="gold">Discount</StatusBadge>}
     {!sale.syncedAt && <StatusBadge tone="info">Not synced</StatusBadge>}
   </div>
 )

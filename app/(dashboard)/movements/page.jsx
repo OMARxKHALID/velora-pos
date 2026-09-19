@@ -8,7 +8,7 @@ const MovementsPage = async () => {
 
   return (
     <>
-      <PageHeader title="Stock movements" description="Every pair in and out: sales, returns, deliveries and adjustments, with who and why." />
+      <PageHeader title="Stock history" description="Every pair in and out, with who did it and why." />
       <DemoReady>
         <MovementsScreen />
       </DemoReady>

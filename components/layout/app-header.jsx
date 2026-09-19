@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
+import { SHOP_NAME } from "@/features/auth/lib/demo-users"
 import { ConnectionStatus } from "./connection-status"
 import { titleFor } from "./nav-items"
 
@@ -16,7 +17,7 @@ export const AppHeader = () => {
       <SidebarTrigger />
       <Separator orientation="vertical" className="h-5" />
       <nav className="flex min-w-0 items-center gap-2 text-sm">
-        <span className="hidden text-muted-foreground sm:inline">Velora Shoes</span>
+        <span className="hidden text-muted-foreground sm:inline">{SHOP_NAME}</span>
         <span className="hidden text-muted-foreground sm:inline">/</span>
         <span className="truncate font-medium text-gold">{titleFor(pathname)}</span>
       </nav>

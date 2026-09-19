@@ -134,3 +134,37 @@ export const signalsFor = (stats) =>
     stats.refundRate > 0.03 && { tone: "warning", label: "Frequent refunds" },
     stats.shortShifts > 1 && { tone: "destructive", label: "Cash short" },
   ].filter(Boolean)
+
+export const brandPerformance = (state, sales) => {
+  const { productById, variantById } = indexCatalog(state)
+  const brands = {}
+  for (const sale of sales) {
+    for (const item of sale.items) {
+      const brand = productById[variantById[item.variantId]?.productId]?.brand ?? "Other"
+      brands[brand] ??= { brand, revenue: 0, pairs: 0 }
+      brands[brand].revenue += item.total
+      brands[brand].pairs += item.quantity
+    }
+  }
+  return Object.values(brands).toSorted((a, b) => b.revenue - a.revenue)
+}
+
+export const notSelling = (state, days = 14, now = Date.now()) => {
+  const since = within(state.sales, "soldAt", now - days * DAY, now)
+  return productPerformance(state, since)
+    .filter(({ pairs, stock }) => pairs === 0 && stock > 0)
+    .map((row) => ({ ...row, value: row.stock * row.product.cost }))
+    .toSorted((a, b) => b.value - a.value)
+}
+
+export const paymentSplit = (sales) => {
+  const cash = sumBy(sales, ({ payments, change }) => sumBy(payments.filter(({ method }) => method === "cash"), ({ amount }) => amount) - change)
+  const card = sumBy(sales, ({ payments }) => sumBy(payments.filter(({ method }) => method === "card"), ({ amount }) => amount))
+  return { cash, card, cashShare: cash + card ? cash / (cash + card) : 0 }
+}
+
+export const stockValue = (state) => {
+  const { variantById } = indexCatalog(state)
+  const rows = Object.entries(state.stock).filter(([id, quantity]) => quantity > 0 && variantById[id]?.active)
+  return { value: sumBy(rows, ([id, quantity]) => quantity * variantById[id].cost), pairs: sumBy(rows, ([, quantity]) => quantity) }
+}
