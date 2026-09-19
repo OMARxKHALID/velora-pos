@@ -32,6 +32,8 @@ export const Receipt = ({ sale, ref }) => {
       <Row label="Receipt" value={sale.number} />
       <Row label="Date" value={when.format(new Date(sale.soldAt))} />
       <Row label="Cashier" value={staffName(sale.cashierId)} />
+      {sale.customerName && <Row label="Customer" value={sale.customerName} />}
+      {sale.customerPhone && <Row label="Phone" value={sale.customerPhone} />}
       <div className="my-3 border-t border-dashed border-black" />
       <div className="space-y-2">
         {sale.items.map((item) => (

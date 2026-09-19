@@ -27,13 +27,15 @@ export const createDemoStore = () =>
           return record
         }
 
-        return {
-          ...emptyLedger(),
-          hydrated: false,
-          offline: false,
-          shopScope: "all",
-          settings: defaultPricingSettings(),
-          recordSale: (input) => run(applySale)({ settings: get().settings, offline: get().offline, ...input }),
+return {
+  ...emptyLedger(),
+  hydrated: false,
+  offline: false,
+  shopScope: "all",
+  customerName: "",
+  customerPhone: "",
+  settings: defaultPricingSettings(),
+  recordSale: (input) => run(applySale)({ settings: get().settings, offline: get().offline, customerName: get().customerName, customerPhone: get().customerPhone, ...input }),
           requestRefund: run(applyRefundRequest),
           decideRefund: run(applyRefundDecision),
           openShift: run(applyOpenShift),
@@ -57,7 +59,7 @@ export const createDemoStore = () =>
         migrate: () => ({}),
         skipHydration: true,
         storage: createJSONStorage(() => localStorage),
-        partialize: (state) => Object.fromEntries([...ledgerKeys, "offline", "shopScope", "settings"].map((key) => [key, state[key]])),
+        partialize: (state) => Object.fromEntries([...ledgerKeys, "offline", "shopScope", "settings", "customerName", "customerPhone"].map((key) => [key, state[key]])),
       }
     )
   )

@@ -58,6 +58,8 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const [cartSheetOpen, setCartSheetOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const wide = useMediaQuery("(min-width: 1280px)")
+  const [customerName, setCustomerName] = useState("")
+  const [customerPhone, setCustomerPhone] = useState("")
 
   const availableFor = (variantId) => (stock[variantId] ?? 0) - (lines.find((line) => line.variantId === variantId)?.quantity ?? 0)
 
@@ -91,11 +93,15 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
         cashierId: user.id,
         shiftId: shift.id,
         approvedBy,
+        customerName,
+        customerPhone,
       })
       clear()
       setLastAdded(null)
       setPaying(false)
       setCompleted(sale)
+      setCustomerName("")
+      setCustomerPhone("")
     } catch (error) {
       toast.error(error.message)
     }
@@ -169,6 +175,24 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
         )}
       </div>
 
+      {user.role !== "admin" && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2">
+          <span className="mr-2">Customer:</span>
+          <input
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            placeholder="Name"
+            className="border rounded w-24 tabular-nums"
+          />
+          <span className="ml-2">Phone:</span>
+          <input
+            value={customerPhone}
+            onChange={(e) => setCustomerPhone(e.target.value)}
+            placeholder="Phone"
+            className="border rounded w-16 tabular-nums"
+          />
+        </div>
+)}
       <div className="flex min-h-0 flex-1 gap-3">
         <CatalogPanel availableFor={availableFor} onPick={setPicking} />
         {wide && cartOpen && cartPanel("w-[340px] shrink-0 border")}

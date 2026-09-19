@@ -76,6 +76,8 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
           <div className="space-y-6 p-4">
             <dl className="grid grid-cols-2 gap-4">
               <Meta label="Cashier">{staffName(sale.cashierId)}</Meta>
+              <Meta label="Customer">{sale.customerName ?? ""}</Meta>
+              <Meta label="Phone">{sale.customerPhone ?? ""}</Meta>
               <Meta label="Payment">
                 {sale.payments
                   .map(

@@ -37,7 +37,7 @@ const moveStock = (state, { variantId, quantity, type, ref, userId, unitCost, re
 
 export const openShiftFor = (state) => state.shifts.find(({ status, registerId }) => status === "open" && registerId === REGISTER_ID)
 
-export const applySale = (state, { lines, payments, cashierId, shiftId, at, offline = false, approvedBy = null, settings = pricingDefaults }) => {
+export const applySale = (state, { lines, payments, cashierId, shiftId, at, offline = false, approvedBy = null, settings = pricingDefaults, customerName, customerPhone }) => {
   if (!lines.length) throw new Error("Cart is empty")
   if (!shiftId) throw new Error("Open a shift before selling")
 
@@ -103,6 +103,8 @@ export const applySale = (state, { lines, payments, cashierId, shiftId, at, offl
     syncedAt: offline ? null : at,
     offline,
     flags: [],
+    ...(customerName ? { customerName } : null),
+    ...(customerPhone ? { customerPhone } : null),
   }
 
   let next = { ...state, receiptSeq }
