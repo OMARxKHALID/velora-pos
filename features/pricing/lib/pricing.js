@@ -6,6 +6,7 @@ export const defaultPricingSettings = () => ({
   taxRate: 0,
   productDiscountEnabled: true,
   cartDiscountEnabled: true,
+  customerInfoEnabled: true,
 })
 
 export const effectiveRate = (settings) => (settings.taxEnabled && Number(settings.taxRate) > 0 ? Number(settings.taxRate) : 0)
@@ -25,6 +26,7 @@ export const cartTotals = (lines, cartDiscountPct, { productById, variantById },
   const discountTotal = sumBy(rows, ({ productDiscount, discount }) => productDiscount + discount)
   const net = subtotal - discountTotal
   const taxRate = effectiveRate(settings)
+  const taxLabel = settings.taxLabel || "Tax"
   const taxTotal = taxRate > 0 ? Math.round((net * taxRate) / 100) : 0
   return {
     rows,
@@ -32,6 +34,7 @@ export const cartTotals = (lines, cartDiscountPct, { productById, variantById },
     subtotal,
     discountTotal,
     taxRate,
+    taxLabel,
     taxTotal,
     total: net + taxTotal,
   }

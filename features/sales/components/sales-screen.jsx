@@ -45,7 +45,11 @@ export const SalesScreen = ({ user }) => {
       (sale) =>
         new Date(sale.soldAt).getTime() >= from &&
         (cashier === "all" || sale.cashierId === cashier) &&
-        (!search || sale.number.toLowerCase().includes(search) || sale.items.some(({ productName }) => productName.toLowerCase().includes(search)))
+        (!search ||
+          sale.number.toLowerCase().includes(search) ||
+          sale.customerName?.toLowerCase().includes(search) ||
+          sale.customerPhone?.toLowerCase().includes(search) ||
+          sale.items.some(({ productName }) => productName.toLowerCase().includes(search)))
     )
     .toReversed()
 
@@ -66,11 +70,11 @@ export const SalesScreen = ({ user }) => {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <InputGroup className="h-9 w-full sm:w-72">
+        <InputGroup className="h-9 w-full sm:w-80">
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Receipt no. or shoe name" />
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Receipt no, customer, or shoe name" />
         </InputGroup>
         <Segmented options={ranges} value={range} onChange={withReset(setRange)} />
         {user.role !== "cashier" && (
@@ -92,7 +96,10 @@ export const SalesScreen = ({ user }) => {
               <TableRow key={sale.id} className="cursor-pointer" onClick={() => setOpenId(sale.id)}>
                 <TableCell>
                   <p className="font-mono text-xs">{sale.number}</p>
-                  <p className="text-xs text-muted-foreground">{formatDateTime(sale.soldAt)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDateTime(sale.soldAt)}
+                    {sale.customerName && <span className="font-medium text-foreground/85"> · {sale.customerName}</span>}
+                  </p>
                 </TableCell>
                 {user.role !== "cashier" && <TableCell className="hidden text-sm md:table-cell">{staffName(sale.cashierId)}</TableCell>}
                 <TableCell className="text-right">

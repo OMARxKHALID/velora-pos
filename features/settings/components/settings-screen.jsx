@@ -2,9 +2,9 @@
 
 import { toast } from "sonner"
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Segmented } from "@/components/ui/segmented"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { Panel } from "@/features/analytics/components/panel"
@@ -29,7 +29,14 @@ const Toggle = ({ on, onChange, label, description }) => (
 export const SettingsScreen = () => {
   const settings = useDemoStore(({ settings }) => settings)
   const setSettings = useDemoStore(({ setSettings }) => setSettings)
+  const resetDemo = useDemoStore(({ resetDemo }) => resetDemo)
+  const [prevTaxRate, setPrevTaxRate] = useState(settings.taxRate)
   const [rateDraft, setRateDraft] = useState(String(settings.taxRate || ""))
+
+  if (settings.taxRate !== prevTaxRate) {
+    setPrevTaxRate(settings.taxRate)
+    setRateDraft(settings.taxRate ? String(settings.taxRate) : "")
+  }
 
   const update = (patch, message) => {
     setSettings(patch)
@@ -37,7 +44,7 @@ export const SettingsScreen = () => {
   }
 
   const handleRate = (next) => {
-    if (next && !/^\d{0,2}(\.\d{0,2})?$/.test(next)) return
+    if (next && !/^(100(\.0{0,2})?|\d{0,2}(\.\d{0,2})?)$/.test(next)) return
     setRateDraft(next)
     const value = next === "" ? 0 : Number(next)
     if (value !== settings.taxRate) update({ taxRate: value })
@@ -59,12 +66,14 @@ export const SettingsScreen = () => {
             <div className="space-y-4 border-t pt-4">
               <Field>
                 <FieldLabel>Tax name</FieldLabel>
-                <Input
-                  value={settings.taxLabel}
-                  onChange={(event) => update({ taxLabel: event.target.value })}
-                  placeholder="Sales tax"
-                  aria-label="Tax name"
-                />
+                <InputGroup>
+                  <InputGroupInput
+                    value={settings.taxLabel || ""}
+                    onChange={(event) => update({ taxLabel: event.target.value })}
+                    placeholder="e.g. Sales tax, GST, VAT"
+                    aria-label="Tax name"
+                  />
+                </InputGroup>
               </Field>
               <Field data-invalid={!rateValid}>
                 <FieldLabel>Tax rate</FieldLabel>
@@ -113,9 +122,45 @@ export const SettingsScreen = () => {
         </div>
       </Panel>
 
-      <div className="lg:col-span-2">
+      <Panel title="Checkout & counter" description="Configure counter behavior, receipt details, and demo data.">
+        <div className="space-y-5 p-4">
+          <Toggle
+            on={settings.customerInfoEnabled !== false}
+            onChange={(customerInfoEnabled) =>
+              update({ customerInfoEnabled }, customerInfoEnabled ? "Customer details enabled" : "Customer details disabled")
+            }
+            label="Customer details at checkout"
+            description="Collect optional customer name and phone number during checkout for receipt printing and returns."
+          />
+          <div className="border-t" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Reset demo data</p>
+              <p className="text-xs text-muted-foreground">
+                Restore 30 days of clean seeded sales, inventory, and shifts.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                resetDemo()
+                toast.success("Demo data reset", { description: "30 days of fresh sales, shifts and refunds." })
+              }}
+            >
+              Reset data
+            </Button>
+          </div>
+          <FieldDescription>
+            Changes take effect immediately at the sales counter and on printed receipts.
+          </FieldDescription>
+        </div>
+      </Panel>
+
+      <div className="flex items-center lg:col-span-2">
         <p className="text-xs text-muted-foreground">
-          Pricing changes apply from the next sale. Old sales are locked and never change.
+          Pricing changes apply from the next sale. Past sales remain locked in the ledger.
         </p>
       </div>
     </div>

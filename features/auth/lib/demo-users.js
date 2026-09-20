@@ -8,4 +8,4 @@ export const demoUsers = {
   cashier: { id: "u-cashier", name: "Hamza Ali", role: "cashier", title: `Cashier · ${SHOP_NAME}`, shopId: "shop-shoes" },
 }
 
-export const homeFor = (role) => (role === "admin" ? "/dashboard" : "/pos")
+export const homeFor = (role) => (role === "admin" ? "/dashboard" : role === "manager" ? "/sales" : "/pos")

@@ -8,9 +8,9 @@ import { formatMoney } from "@/lib/money"
 const when = new Intl.DateTimeFormat("en-PK", { dateStyle: "medium", timeStyle: "short" })
 
 const Row = ({ label, value, strong }) => (
-  <div className={strong ? "flex justify-between text-sm font-bold" : "flex justify-between"}>
-    <span>{label}</span>
-    <span>{value}</span>
+  <div className={strong ? "flex justify-between gap-2 text-sm font-bold" : "flex justify-between gap-2"}>
+    <span className="shrink-0">{label}</span>
+    <span className="truncate text-right">{value}</span>
   </div>
 )
 
@@ -47,7 +47,7 @@ export const Receipt = ({ sale, ref }) => {
       <div className="my-3 border-t border-dashed border-black" />
       <Row label="Subtotal" value={formatMoney(sale.subtotal)} />
       {sale.discountTotal > 0 && <Row label="Discount" value={`-${formatMoney(sale.discountTotal)}`} />}
-      {sale.taxTotal > 0 && <Row label={sale.taxRate ? `Tax (${sale.taxRate}%)` : "Tax"} value={formatMoney(sale.taxTotal)} />}
+      {sale.taxTotal > 0 && <Row label={sale.taxRate ? `${sale.taxLabel || "Tax"} (${sale.taxRate}%)` : (sale.taxLabel || "Tax")} value={formatMoney(sale.taxTotal)} />}
       <Row label="TOTAL" value={formatMoney(sale.total)} strong />
       <div className="my-3 border-t border-dashed border-black" />
       {sale.payments.map((payment) => (

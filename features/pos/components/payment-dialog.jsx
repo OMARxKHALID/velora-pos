@@ -3,14 +3,16 @@
 import { useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { CreditCardIcon, MoneyIcon } from "@phosphor-icons/react"
+import { CreditCardIcon, MoneyIcon, PhoneIcon, UserIcon } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { formatMoney, toPaisa } from "@/lib/money"
 import { cardPaymentSchema, cashTenderSchema } from "../schemas"
+import { useCartStore } from "../store/cart-store-provider"
 
 const quickTenders = (total) => {
   const rupees = total / 100
@@ -100,6 +102,10 @@ const CardForm = ({ total, onPay }) => {
 
 export const PaymentDialog = ({ total, count, onPay, onClose }) => {
   const [method, setMethod] = useState("cash")
+  const settings = useDemoStore(({ settings }) => settings)
+  const customerName = useCartStore(({ customerName }) => customerName)
+  const customerPhone = useCartStore(({ customerPhone }) => customerPhone)
+  const setCustomer = useCartStore(({ setCustomer }) => setCustomer)
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -110,6 +116,50 @@ export const PaymentDialog = ({ total, count, onPay, onClose }) => {
             {count} {count === 1 ? "item" : "items"} · total <span className="font-semibold text-gold">{formatMoney(total)}</span>
           </DialogDescription>
         </DialogHeader>
+
+        {settings?.customerInfoEnabled !== false && (
+          <div className="space-y-2 border-b pb-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                Customer (optional)
+              </span>
+              {(customerName || customerPhone) && (
+                <button
+                  type="button"
+                  onClick={() => setCustomer({ name: "", phone: "" })}
+                  className="text-[10px] tracking-wider text-muted-foreground uppercase transition-colors hover:text-foreground"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <InputGroup className="h-9">
+                <InputGroupAddon>
+                  <UserIcon className="size-3.5 text-gold" />
+                </InputGroupAddon>
+                <InputGroupInput
+                  placeholder="Customer name"
+                  value={customerName}
+                  onChange={(e) => setCustomer({ name: e.target.value })}
+                  className="text-xs"
+                />
+              </InputGroup>
+              <InputGroup className="h-9">
+                <InputGroupAddon>
+                  <PhoneIcon className="size-3.5 text-gold" />
+                </InputGroupAddon>
+                <InputGroupInput
+                  placeholder="Phone number"
+                  value={customerPhone}
+                  onChange={(e) => setCustomer({ phone: e.target.value })}
+                  className="text-xs"
+                />
+              </InputGroup>
+            </div>
+          </div>
+        )}
+
         <Tabs value={method} onValueChange={setMethod}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="cash">

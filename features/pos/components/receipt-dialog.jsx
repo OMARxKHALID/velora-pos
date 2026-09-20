@@ -13,8 +13,8 @@ export const ReceiptDialog = ({ sale, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogHeader className="shrink-0 p-5 pb-3 sm:p-6 sm:pb-4">
           <div className="mb-2 flex items-center gap-2 text-success">
             <CheckCircleIcon className="size-6" weight="fill" />
             <span className="text-xs font-semibold tracking-[0.2em] uppercase">Sale complete</span>
@@ -24,10 +24,10 @@ export const ReceiptDialog = ({ sale, onClose }) => {
             {sale.change > 0 ? `Give ${formatMoney(sale.change)} change.` : "No change due."} Receipt {sale.number}.
           </DialogDescription>
         </DialogHeader>
-        <div className="border bg-muted/40 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto border-y bg-muted/40 py-4 [scrollbar-width:thin]">
           <Receipt sale={sale} ref={receipt} />
         </div>
-        <DialogFooter className="gap-2">
+        <DialogFooter className="shrink-0 gap-2 p-5 pt-3 sm:p-6 sm:pt-4 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={() => printNode(receipt.current)}>
             <PrinterIcon />
             Print receipt

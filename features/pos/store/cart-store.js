@@ -1,6 +1,6 @@
 import { createStore } from "zustand/vanilla"
 
-const empty = { lines: [], discountPct: 0, approvedBy: null }
+const empty = { lines: [], discountPct: 0, approvedBy: null, customerName: "", customerPhone: "" }
 
 export const createCartStore = () =>
   createStore()((set) => ({
@@ -19,5 +19,10 @@ export const createCartStore = () =>
             : lines.map((line) => (line.variantId === variantId ? { ...line, quantity } : line)),
       })),
     setDiscount: (discountPct, approvedBy = null) => set({ discountPct, approvedBy }),
+    setCustomer: ({ name, phone }) =>
+      set((state) => ({
+        customerName: name !== undefined ? name : state.customerName,
+        customerPhone: phone !== undefined ? phone : state.customerPhone,
+      })),
     clear: () => set(empty),
   }))

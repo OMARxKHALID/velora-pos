@@ -12,7 +12,7 @@ import {
 
 export const navItems = [
   { href: "/dashboard", label: "Overview", icon: ChartLineUpIcon, roles: ["admin"] },
-  { href: "/pos", label: "Sell", icon: CashRegisterIcon, roles: ["manager", "cashier"] },
+  { href: "/pos", label: "Sell", icon: CashRegisterIcon, roles: ["cashier"] },
   { href: "/sales", label: "Sales", icon: ReceiptIcon, roles: ["admin", "manager", "cashier"] },
   { href: "/refunds", label: "Returns", icon: ArrowUUpLeftIcon, roles: ["manager"] },
   { href: "/products", label: "Products", icon: TagIcon, roles: ["manager"] },

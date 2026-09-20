@@ -92,4 +92,37 @@ describe("ledger", () => {
     expect(synced.sales.at(-1).syncedAt).toBe(at)
     expect(applySync(synced, { at }).record).toBe(0)
   })
+
+  test("sale records customer details and custom tax label", () => {
+    const { state: opened, record: shift } = withShift()
+    const { record: sale } = applySale(opened, {
+      lines: [{ variantId: shoe.id, quantity: 1 }],
+      payments: [{ method: "cash", amount: Math.round(shoe.price * 1.05) }],
+      cashierId: "u-cashier",
+      shiftId: shift.id,
+      at,
+      customerName: "  Tariq Mehmood  ",
+      customerPhone: "  0300 1234567  ",
+      settings: { taxEnabled: true, taxLabel: "GST", taxRate: 5 },
+    })
+    expect(sale.customerName).toBe("Tariq Mehmood")
+    expect(sale.customerPhone).toBe("0300 1234567")
+    expect(sale.taxLabel).toBe("GST")
+    expect(sale.taxRate).toBe(5)
+  })
+
+  test("empty customer details are omitted from sale record", () => {
+    const { state: opened, record: shift } = withShift()
+    const { record: sale } = applySale(opened, {
+      lines: [{ variantId: shoe.id, quantity: 1 }],
+      payments: [{ method: "cash", amount: shoe.price }],
+      cashierId: "u-cashier",
+      shiftId: shift.id,
+      at,
+      customerName: "   ",
+      customerPhone: "",
+    })
+    expect(sale.customerName).toBeUndefined()
+    expect(sale.customerPhone).toBeUndefined()
+  })
 })

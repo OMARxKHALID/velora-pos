@@ -22,11 +22,21 @@ const mulberry32 = (seed) => () => {
 }
 
 const shifts = [
-  { cashierId: "u-cashier", from: 10, to: 16, discountChance: 0.06, refundChance: 0.02, shortage: 0 },
-  { cashierId: "u-cashier-2", from: 16, to: 22, discountChance: 0.22, refundChance: 0.05, shortage: 0.35 },
+  { cashierId: "u-cashier", from: 10, to: 20, discountChance: 0.12, refundChance: 0.03, shortage: 0.15 },
 ]
 
 const refundReasons = ["Wrong size", "Sole defect", "Customer changed mind", "Colour mismatch"]
+
+const seedCustomers = [
+  { name: "Muhammad Usman", phone: "0300 8472910" },
+  { name: "Ayesha Malik", phone: "0321 4589201" },
+  { name: "Zainab Tariq", phone: "0333 9128374" },
+  { name: "Hamza Bilal", phone: "0312 6748291" },
+  { name: "Fatima Noor", phone: "0345 1029384" },
+  { name: "Omer Farooq", phone: "0301 5567823" },
+  { name: "Bilal Hassan", phone: "0322 7819203" },
+  { name: "Sadia Khan", phone: "0304 6619283" },
+]
 
 export const createSeed = (now = Date.now()) => {
   const catalog = seedCatalog()
@@ -80,7 +90,7 @@ export const createSeed = (now = Date.now()) => {
     for (const plan of shifts) {
       const openAt = day + plan.from * HOUR
       const closeAt = isToday ? Math.min(day + plan.to * HOUR, now - HOUR) : day + plan.to * HOUR
-      if (isToday && (plan.cashierId === "u-cashier" || closeAt <= openAt + HOUR)) continue
+      if (isToday && closeAt <= openAt + HOUR) continue
 
       const shift = run(applyOpenShift, { cashierId: plan.cashierId, openingCash: 1000000, at: openAt })
       const saleCount = Math.round(((closeAt - openAt) / HOUR) * (weekend ? 2.6 : 1.8) * (0.7 + random() * 0.6))
@@ -99,7 +109,7 @@ export const createSeed = (now = Date.now()) => {
         }
 
         const discounted = random() < plan.discountChance
-        const discountRate = discounted ? (plan.cashierId === "u-cashier-2" ? pick([0.1, 0.15, 0.2]) : 0.05) : 0
+        const discountRate = discounted ? pick([0.05, 0.1, 0.15]) : 0
         const withDiscount = lines.map((line) => {
           const price = variants.find(({ id }) => id === line.variantId).price
           return { ...line, discount: Math.floor((price * discountRate) / 10000) * 10000 }
@@ -108,6 +118,8 @@ export const createSeed = (now = Date.now()) => {
         const byCard = random() < 0.4
         const tendered = byCard ? total : Math.ceil(total / 100000) * 100000
 
+        const customer = random() < 0.35 ? pick(seedCustomers) : null
+
         const sale = run(applySale, {
           lines: withDiscount,
           payments: [{ method: byCard ? "card" : "cash", amount: tendered }],
@@ -115,6 +127,8 @@ export const createSeed = (now = Date.now()) => {
           shiftId: shift.id,
           approvedBy: discountRate > 0.05 ? "u-manager" : null,
           at: at,
+          customerName: customer?.name,
+          customerPhone: customer?.phone,
         })
         soldInShift.push(sale)
       }
@@ -147,7 +161,7 @@ export const createSeed = (now = Date.now()) => {
   }
 
   const refunded = new Set(state.refunds.map(({ saleId }) => saleId))
-  const recent = state.sales.filter(({ id, cashierId }) => cashierId === "u-cashier-2" && !refunded.has(id)).slice(-2)
+  const recent = state.sales.filter(({ id, cashierId }) => cashierId === "u-cashier" && !refunded.has(id)).slice(-2)
   for (const [index, sale] of recent.entries()) {
     run(applyRefundRequest, {
       saleId: sale.id,

@@ -76,8 +76,8 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
           <div className="space-y-6 p-4">
             <dl className="grid grid-cols-2 gap-4">
               <Meta label="Cashier">{staffName(sale.cashierId)}</Meta>
-              <Meta label="Customer">{sale.customerName ?? ""}</Meta>
-              <Meta label="Phone">{sale.customerPhone ?? ""}</Meta>
+              <Meta label="Customer">{sale.customerName || "Walk-in"}</Meta>
+              <Meta label="Phone">{sale.customerPhone || "—"}</Meta>
               <Meta label="Payment">
                 {sale.payments
                   .map(
@@ -133,7 +133,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
                 )}
                 {sale.taxTotal > 0 && (
                   <div className="flex justify-between text-muted-foreground">
-                    <dt>Tax {sale.taxRate ? `(${sale.taxRate}%)` : ""}</dt>
+                    <dt>{sale.taxLabel || "Tax"} {sale.taxRate ? `(${sale.taxRate}%)` : ""}</dt>
                     <dd>{formatMoney(sale.taxTotal)}</dd>
                   </div>
                 )}

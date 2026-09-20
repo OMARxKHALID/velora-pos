@@ -62,12 +62,25 @@ const CartLine = ({ row, highlight, canAdd, onQuantity }) => (
         {row.variant.attributes.color} · EU {row.variant.attributes.size}
         {row.entry === "manual" && <span className="text-[0.6rem] tracking-widest uppercase">· manual</span>}
       </p>
-      <div className="flex items-center gap-1">
-        <Button size="icon-xs" variant="outline" aria-label="Remove one" onClick={() => onQuantity(row.variantId, row.quantity - 1)}>
+      <div className="flex items-center gap-1.5 pt-1">
+        <Button
+          size="icon-xs"
+          variant="outline"
+          className="size-8 touch-manipulation select-none active:scale-95 active:bg-accent transition-transform pointer-coarse:size-9"
+          aria-label="Remove one"
+          onClick={() => onQuantity(row.variantId, row.quantity - 1)}
+        >
           {row.quantity === 1 ? <TrashIcon /> : <MinusIcon />}
         </Button>
-        <span className="w-8 text-center text-sm font-semibold tabular-nums">{row.quantity}</span>
-        <Button size="icon-xs" variant="outline" aria-label="Add one" disabled={!canAdd} onClick={() => onQuantity(row.variantId, row.quantity + 1)}>
+        <span className="w-8 select-none text-center text-sm font-semibold tabular-nums">{row.quantity}</span>
+        <Button
+          size="icon-xs"
+          variant="outline"
+          className="size-8 touch-manipulation select-none active:scale-95 active:bg-accent transition-transform pointer-coarse:size-9"
+          aria-label="Add one"
+          disabled={!canAdd}
+          onClick={() => onQuantity(row.variantId, row.quantity + 1)}
+        >
           <PlusIcon />
         </Button>
       </div>
@@ -90,7 +103,7 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
   const settings = useDemoStore(({ settings }) => settings)
   const [pendingDiscount, setPendingDiscount] = useState(null)
   const catalog = useCatalog()
-  const { rows, count, subtotal, discountTotal, taxRate, taxTotal, total } = cartTotals(lines, discountPct, catalog, settings)
+  const { rows, count, subtotal, discountTotal, taxRate, taxLabel, taxTotal, total } = cartTotals(lines, discountPct, catalog, settings)
 
   const handleDiscount = (pct) => {
     if (pct <= MAX_CASHIER_DISCOUNT * 100) return setDiscount(pct)
@@ -173,7 +186,7 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
           </div>
           {taxTotal > 0 && (
             <div className="flex justify-between text-muted-foreground">
-              <dt>Tax {taxRate ? `(${taxRate}%)` : ""}</dt>
+              <dt>{taxLabel || "Tax"} {taxRate ? `(${taxRate}%)` : ""}</dt>
               <dd>{formatMoney(taxTotal)}</dd>
             </div>
           )}

@@ -70,6 +70,7 @@ export const applySale = (state, { lines, payments, cashierId, shiftId, at, offl
   const cartDiscount = sumBy(items, ({ discount }) => discount)
   const discountTotal = cartDiscount + sumBy(items, ({ productDiscount }) => productDiscount)
   const taxRate = settings.taxEnabled ? Number(settings.taxRate) || 0 : 0
+  const taxLabel = settings.taxEnabled && settings.taxLabel ? settings.taxLabel : "Tax"
   const taxTotal = taxRate > 0 ? Math.round(((subtotal - discountTotal) * taxRate) / 100) : 0
   const total = subtotal - discountTotal + taxTotal
   const paid = sumBy(payments, ({ amount }) => amount)
@@ -81,6 +82,9 @@ export const applySale = (state, { lines, payments, cashierId, shiftId, at, offl
   if (cartDiscount > subtotal * MAX_CASHIER_DISCOUNT && !approvedBy) throw new Error("Manager approval needed for this discount")
 
   const receiptSeq = state.receiptSeq + 1
+  const cleanCustomerName = customerName?.trim()
+  const cleanCustomerPhone = customerPhone?.trim()
+
   const sale = {
     id: uid(),
     clientId: uid(),
@@ -94,6 +98,7 @@ export const applySale = (state, { lines, payments, cashierId, shiftId, at, offl
     discountTotal,
     cartDiscount,
     taxRate,
+    taxLabel: taxTotal > 0 ? taxLabel : null,
     taxTotal,
     total,
     payments,
@@ -103,8 +108,8 @@ export const applySale = (state, { lines, payments, cashierId, shiftId, at, offl
     syncedAt: offline ? null : at,
     offline,
     flags: [],
-    ...(customerName ? { customerName } : null),
-    ...(customerPhone ? { customerPhone } : null),
+    ...(cleanCustomerName ? { customerName: cleanCustomerName } : null),
+    ...(cleanCustomerPhone ? { customerPhone: cleanCustomerPhone } : null),
   }
 
   let next = { ...state, receiptSeq }
