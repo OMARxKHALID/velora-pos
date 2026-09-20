@@ -10,12 +10,13 @@ export const openShiftSchema = z.object({
     .max(1000000, { error: "That is more than Rs 1,000,000" }),
 })
 
-export const managerPinSchema = z.object({
-  pin: z
-    .string()
-    .regex(/^\d{4}$/, { error: "Enter the 4-digit manager PIN" })
-    .refine((pin) => pin === DEMO_MANAGER_PIN, { error: "Wrong PIN" }),
-})
+export const managerPinSchema = (expectedPin = DEMO_MANAGER_PIN) =>
+  z.object({
+    pin: z
+      .string()
+      .regex(/^\d{4}$/, { error: "Enter the 4-digit supervisor PIN" })
+      .refine((pin) => pin === expectedPin, { error: "Wrong PIN" }),
+  })
 
 export const cashTenderSchema = (total) =>
   z.object({

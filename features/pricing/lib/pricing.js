@@ -7,6 +7,7 @@ export const defaultPricingSettings = () => ({
   productDiscountEnabled: true,
   cartDiscountEnabled: true,
   customerInfoEnabled: true,
+  managerPin: "1234",
 })
 
 export const effectiveRate = (settings) => (settings.taxEnabled && Number(settings.taxRate) > 0 ? Number(settings.taxRate) : 0)

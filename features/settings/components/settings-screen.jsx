@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Segmented } from "@/components/ui/segmented"
+import { LockKeyIcon } from "@phosphor-icons/react"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
@@ -32,15 +33,30 @@ export const SettingsScreen = () => {
   const resetDemo = useDemoStore(({ resetDemo }) => resetDemo)
   const [prevTaxRate, setPrevTaxRate] = useState(settings.taxRate)
   const [rateDraft, setRateDraft] = useState(String(settings.taxRate || ""))
+  const [prevPin, setPrevPin] = useState(settings.managerPin || "1234")
+  const [pinDraft, setPinDraft] = useState(settings.managerPin || "1234")
 
   if (settings.taxRate !== prevTaxRate) {
     setPrevTaxRate(settings.taxRate)
     setRateDraft(settings.taxRate ? String(settings.taxRate) : "")
   }
 
+  if ((settings.managerPin || "1234") !== prevPin) {
+    setPrevPin(settings.managerPin || "1234")
+    setPinDraft(settings.managerPin || "1234")
+  }
+
   const update = (patch, message) => {
     setSettings(patch)
     if (message) toast.success(message)
+  }
+
+  const handlePin = (next) => {
+    const clean = next.replace(/\D/g, "").slice(0, 4)
+    setPinDraft(clean)
+    if (clean.length === 4 && clean !== settings.managerPin) {
+      update({ managerPin: clean }, "Supervisor PIN updated")
+    }
   }
 
   const handleRate = (next) => {
@@ -116,6 +132,34 @@ export const SettingsScreen = () => {
             label="Discount on the whole cart"
             description="The % off chips on the cart screen. Big discounts still need a supervisor."
           />
+          <div className="border-t" />
+          <div className="space-y-2">
+            <Field>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="managerPin">Supervisor approval PIN</FieldLabel>
+                <span className="text-[10px] tracking-wider text-muted-foreground uppercase">4-digit PIN</span>
+              </div>
+              <InputGroup className="max-w-xs">
+                <InputGroupAddon>
+                  <LockKeyIcon className="size-4 text-gold" />
+                </InputGroupAddon>
+                <InputGroupInput
+                  id="managerPin"
+                  value={pinDraft}
+                  onChange={(event) => handlePin(event.target.value)}
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  placeholder="1234"
+                  className="font-mono text-base tracking-[0.3em]"
+                  aria-label="Supervisor approval PIN"
+                />
+              </InputGroup>
+              <FieldDescription>
+                Supervisor PIN required whenever a cashier applies discounts higher than 5% at checkout.
+              </FieldDescription>
+            </Field>
+          </div>
           <FieldDescription>
             Every discount is saved with the sale and appears on the receipt, in sales history and in the owner&apos;s reports.
           </FieldDescription>
