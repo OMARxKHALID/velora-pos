@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useEffectEvent, useState } from "react"
-import { CloudSlashIcon, LockKeyIcon, ShoppingBagIcon, SidebarSimpleIcon } from "@phosphor-icons/react"
+import { CloudSlashIcon, LockKeyIcon, PauseCircleIcon, ShoppingBagIcon, SidebarSimpleIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -21,6 +21,7 @@ import { CartPanel } from "./cart-panel"
 import { CatalogPanel } from "./catalog-panel"
 import { CloseShiftDialog } from "./close-shift-dialog"
 import { OpenShiftCard } from "./open-shift-card"
+import { ParkedSalesDialog } from "./parked-sales-dialog"
 import { PaymentDialog } from "./payment-dialog"
 import { ReceiptDialog } from "./receipt-dialog"
 import { ShiftReportDialog } from "./shift-report-dialog"
@@ -52,6 +53,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const clear = useCartStore(({ clear }) => clear)
   const customerName = useCartStore(({ customerName }) => customerName)
   const customerPhone = useCartStore(({ customerPhone }) => customerPhone)
+  const parkedSales = useCartStore(({ parkedSales }) => parkedSales)
   const [picking, setPicking] = useState(null)
   const [paying, setPaying] = useState(false)
   const [completed, setCompleted] = useState(null)
@@ -59,6 +61,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const [cartOpen, setCartOpen] = useState(true)
   const [cartSheetOpen, setCartSheetOpen] = useState(false)
   const [closing, setClosing] = useState(false)
+  const [parkedOpen, setParkedOpen] = useState(false)
   const wide = useMediaQuery("(min-width: 1280px)")
 
   const availableFor = (variantId) => (stock[variantId] ?? 0) - (lines.find((line) => line.variantId === variantId)?.quantity ?? 0)
@@ -165,6 +168,17 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
           <LockKeyIcon />
           <span className="hidden sm:inline">Close shift</span>
         </Button>
+        {parkedSales.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="shrink-0 border-gold/40 text-gold hover:bg-gold/10"
+            onClick={() => setParkedOpen(true)}
+          >
+            <PauseCircleIcon className="size-4" />
+            <span>Held ({parkedSales.length})</span>
+          </Button>
+        )}
         {wide && (
           <Button size="sm" variant={cartOpen ? "outline" : "default"} className="shrink-0" onClick={handleToggleCart}>
             {cartOpen ? <SidebarSimpleIcon className="-scale-x-100" /> : <ShoppingBagIcon />}
@@ -180,6 +194,17 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
 
       {!wide && (
         <div className="flex shrink-0 items-center gap-2 border bg-card p-2">
+          {parkedSales.length > 0 && (
+            <Button
+              size="icon-lg"
+              variant="outline"
+              className="size-12 shrink-0 border-gold/40 text-gold"
+              onClick={() => setParkedOpen(true)}
+              title="Held sales"
+            >
+              <PauseCircleIcon className="size-6" />
+            </Button>
+          )}
           <button
             type="button"
             onClick={() => setCartSheetOpen(true)}
@@ -230,6 +255,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
       {paying && <PaymentDialog total={total} count={count} onPay={handlePay} onClose={() => setPaying(false)} />}
       {completed && <ReceiptDialog sale={completed} onClose={() => setCompleted(null)} />}
       {closing && <CloseShiftDialog shift={shift} user={user} onCancel={() => setClosing(false)} onClosed={onShiftClosed} />}
+      {parkedOpen && <ParkedSalesDialog onClose={() => setParkedOpen(false)} />}
     </div>
   )
 }

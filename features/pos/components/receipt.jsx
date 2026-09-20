@@ -50,8 +50,8 @@ export const Receipt = ({ sale, ref }) => {
       {sale.taxTotal > 0 && <Row label={sale.taxRate ? `${sale.taxLabel || "Tax"} (${sale.taxRate}%)` : (sale.taxLabel || "Tax")} value={formatMoney(sale.taxTotal)} />}
       <Row label="TOTAL" value={formatMoney(sale.total)} strong />
       <div className="my-3 border-t border-dashed border-black" />
-      {sale.payments.map((payment) => (
-        <Row key={payment.method} label={`Paid · ${payment.method === "card" ? "Card" : "Cash"}${payment.reference ? ` (${payment.reference})` : ""}`} value={formatMoney(payment.amount)} />
+      {sale.payments.map((payment, index) => (
+        <Row key={`${payment.method}-${index}`} label={`Paid · ${payment.method === "card" ? "Card" : "Cash"}${payment.reference ? ` (${payment.reference})` : ""}`} value={formatMoney(payment.amount)} />
       ))}
       {sale.change > 0 && <Row label="Change" value={formatMoney(sale.change)} />}
       <div className="my-3 border-t border-dashed border-black" />

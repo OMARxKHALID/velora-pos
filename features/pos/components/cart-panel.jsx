@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { BarcodeIcon, MinusIcon, PlusIcon, ShoppingBagIcon, TrashIcon, XIcon } from "@phosphor-icons/react"
+import { BarcodeIcon, MinusIcon, PauseCircleIcon, PauseIcon, PlusIcon, ShoppingBagIcon, TrashIcon, XIcon } from "@phosphor-icons/react"
+import { toast } from "sonner"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
@@ -14,6 +15,7 @@ import { formatMoney } from "@/lib/money"
 import { cartTotals } from "../lib/cart-totals"
 import { useCartStore } from "../store/cart-store-provider"
 import { ManagerApprovalDialog } from "./manager-approval-dialog"
+import { ParkedSalesDialog } from "./parked-sales-dialog"
 
 const discountSteps = [0, 5, 10, 15, 20]
 
@@ -100,8 +102,11 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
   const setQuantity = useCartStore(({ setQuantity }) => setQuantity)
   const setDiscount = useCartStore(({ setDiscount }) => setDiscount)
   const clear = useCartStore(({ clear }) => clear)
+  const parkSale = useCartStore(({ parkSale }) => parkSale)
+  const parkedSales = useCartStore(({ parkedSales }) => parkedSales)
   const settings = useDemoStore(({ settings }) => settings)
   const [pendingDiscount, setPendingDiscount] = useState(null)
+  const [parkedOpen, setParkedOpen] = useState(false)
   const catalog = useCatalog()
   const { rows, count, subtotal, discountTotal, taxRate, taxLabel, taxTotal, total } = cartTotals(lines, discountPct, catalog, settings)
 
@@ -111,12 +116,45 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
     setPendingDiscount(pct)
   }
 
+  const handlePark = () => {
+    if (!rows.length) return
+    const parked = parkSale()
+    if (parked) {
+      toast.success("Sale placed on hold", {
+        description: `Parked ${count} ${count === 1 ? "item" : "items"}. Tap "Held (${parkedSales.length + 1})" to resume.`,
+      })
+    }
+  }
+
   return (
     <aside className={cn("flex min-h-0 flex-col bg-card", className)}>
       <div className="space-y-3 border-b p-4">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-base font-semibold tracking-wider uppercase">Current sale</h2>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            {parkedSales.length > 0 && (
+              <Button
+                size="xs"
+                variant="outline"
+                className="gap-1 border-gold/40 text-gold hover:bg-gold/10"
+                onClick={() => setParkedOpen(true)}
+              >
+                <PauseCircleIcon className="size-3.5" />
+                Held ({parkedSales.length})
+              </Button>
+            )}
+            {rows.length > 0 && (
+              <Button
+                size="xs"
+                variant="ghost"
+                className="gap-1 text-muted-foreground hover:text-foreground"
+                onClick={handlePark}
+                title="Hold current sale"
+              >
+                <PauseIcon className="size-3.5" />
+                Hold
+              </Button>
+            )}
             <Button size="xs" variant="ghost" disabled={!rows.length} onClick={clear}>
               Clear
             </Button>
@@ -212,6 +250,7 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
           }}
         />
       )}
+      {parkedOpen && <ParkedSalesDialog onClose={() => setParkedOpen(false)} />}
     </aside>
   )
 }

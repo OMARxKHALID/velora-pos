@@ -8,6 +8,7 @@ export const defaultPricingSettings = () => ({
   cartDiscountEnabled: true,
   customerInfoEnabled: true,
   managerPin: "1234",
+  lowStockThreshold: 2,
 })
 
 export const effectiveRate = (settings) => (settings.taxEnabled && Number(settings.taxRate) > 0 ? Number(settings.taxRate) : 0)

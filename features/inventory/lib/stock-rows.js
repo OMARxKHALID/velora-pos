@@ -1,6 +1,6 @@
 import { sumBy } from "@/lib/money"
 
-export const stockRows = (stock, { products, variantsByProduct }) =>
+export const stockRows = (stock, { products, variantsByProduct }, threshold = null) =>
   products
     .filter(({ status }) => status === "active")
     .flatMap((product) =>
@@ -11,6 +11,7 @@ export const stockRows = (stock, { products, variantsByProduct }) =>
           )
           .map((variant) => ({ variant, quantity: stock[variant.id] ?? 0 }))
         const total = sumBy(sizes, ({ quantity }) => quantity)
+        const getLowLimit = (variant) => (threshold !== null && Number.isFinite(threshold) ? threshold : variant.lowStockAt)
         return {
           key: `${product.id}-${color}`,
           product,
@@ -20,7 +21,7 @@ export const stockRows = (stock, { products, variantsByProduct }) =>
           value: total * product.cost,
           low: sizes.filter(
             ({ variant, quantity }) =>
-              quantity > 0 && quantity <= variant.lowStockAt
+              quantity > 0 && quantity <= getLowLimit(variant)
           ).length,
           out: sizes.filter(({ quantity }) => quantity <= 0).length,
         }

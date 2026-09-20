@@ -35,6 +35,8 @@ export const SettingsScreen = () => {
   const [rateDraft, setRateDraft] = useState(String(settings.taxRate || ""))
   const [prevPin, setPrevPin] = useState(settings.managerPin || "1234")
   const [pinDraft, setPinDraft] = useState(settings.managerPin || "1234")
+  const [prevThreshold, setPrevThreshold] = useState(settings.lowStockThreshold ?? 2)
+  const [thresholdDraft, setThresholdDraft] = useState(String(settings.lowStockThreshold ?? 2))
 
   if (settings.taxRate !== prevTaxRate) {
     setPrevTaxRate(settings.taxRate)
@@ -46,9 +48,23 @@ export const SettingsScreen = () => {
     setPinDraft(settings.managerPin || "1234")
   }
 
+  if ((settings.lowStockThreshold ?? 2) !== prevThreshold) {
+    setPrevThreshold(settings.lowStockThreshold ?? 2)
+    setThresholdDraft(String(settings.lowStockThreshold ?? 2))
+  }
+
   const update = (patch, message) => {
     setSettings(patch)
     if (message) toast.success(message)
+  }
+
+  const handleThreshold = (next) => {
+    const clean = next.replace(/\D/g, "").slice(0, 2)
+    setThresholdDraft(clean)
+    const val = Number(clean)
+    if (clean !== "" && Number.isFinite(val) && val >= 1 && val !== settings.lowStockThreshold) {
+      update({ lowStockThreshold: val })
+    }
   }
 
   const handlePin = (next) => {
@@ -176,6 +192,33 @@ export const SettingsScreen = () => {
             label="Customer details at checkout"
             description="Collect optional customer name and phone number during checkout for receipt printing and returns."
           />
+          <div className="border-t" />
+          <div className="space-y-2">
+            <Field>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="lowStockThreshold">Low-stock warning threshold</FieldLabel>
+                <span className="text-[10px] tracking-wider text-muted-foreground uppercase">Pairs</span>
+              </div>
+              <InputGroup className="max-w-xs">
+                <InputGroupInput
+                  id="lowStockThreshold"
+                  value={thresholdDraft}
+                  onChange={(event) => handleThreshold(event.target.value)}
+                  inputMode="numeric"
+                  maxLength={2}
+                  placeholder="2"
+                  className="font-mono text-sm"
+                  aria-label="Low-stock threshold in pairs"
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupText>pairs</InputGroupText>
+                </InputGroupAddon>
+              </InputGroup>
+              <FieldDescription>
+                Sizes with remaining inventory at or below this limit are highlighted in amber across stock lists.
+              </FieldDescription>
+            </Field>
+          </div>
           <div className="border-t" />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0 flex-1">

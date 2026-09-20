@@ -4,16 +4,11 @@ import { useState, useTransition } from "react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import {
-  ArrowsClockwiseIcon,
-  CheckCircleIcon,
   DotsThreeVerticalIcon,
-  EnvelopeSimpleIcon,
   InfoIcon,
-  LockKeyIcon,
-  PhoneIcon,
-  StorefrontIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
   TrashIcon,
-  UserIcon,
   UserSwitchIcon,
   WarningIcon,
 } from "@phosphor-icons/react"
@@ -30,11 +25,16 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
+import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { setStaffAccess } from "@/features/auth/actions"
 import { roleLabels } from "@/features/auth/lib/demo-users"
@@ -44,11 +44,120 @@ import { timeAgo } from "@/lib/dates"
 
 const roleBadgeColors = {
   admin: "border-gold/40 bg-gold/10 text-gold",
-  manager: "border-sky-500/30 bg-sky-500/10 text-sky-400",
-  cashier: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+  manager: "border-primary/30 bg-primary/10 text-primary",
+  cashier: "border-border bg-secondary text-secondary-foreground",
 }
 
+const roleFilters = [
+  { key: "all", label: "All staff" },
+  { key: "manager", label: "Supervisors" },
+  { key: "cashier", label: "Cashiers" },
+]
+
+const createRoleOptions = [
+  { key: "cashier", label: "Cashier" },
+  { key: "manager", label: "Supervisor" },
+]
+
 const latest = (list) => list.reduce((max, at) => Math.max(max, new Date(at).getTime()), 0)
+
+const CreateStaffDialog = ({ onClose, onCreate }) => {
+  const [name, setName] = useState("")
+  const [role, setRole] = useState("cashier")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
+  const [shop, setShop] = useState("Shoe Shop")
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (!name.trim()) return toast.error("Please enter the staff member's full name")
+    onCreate({ name, role, email, phone, shop })
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add staff member</DialogTitle>
+          <DialogDescription>
+            Create a new team member and assign them as a Cashier or Supervisor.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <Field>
+            <FieldLabel htmlFor="staff-name">Full name</FieldLabel>
+            <Input
+              id="staff-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Zain Malik"
+              autoFocus
+              required
+            />
+          </Field>
+
+          <Field>
+            <FieldLabel>Role assignment</FieldLabel>
+            <Segmented
+              options={createRoleOptions}
+              value={role}
+              onChange={setRole}
+            />
+            <FieldDescription>
+              {role === "cashier"
+                ? "Cashiers process counter sales, scans, and payments."
+                : "Supervisors approve returns, manage stock, and supervise staff."}
+            </FieldDescription>
+          </Field>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="staff-email">Work email</FieldLabel>
+              <Input
+                id="staff-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="e.g. zain@velora.pk"
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="staff-phone">Phone number</FieldLabel>
+              <Input
+                id="staff-phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="e.g. 0300 1234567"
+              />
+            </Field>
+          </div>
+
+          <Field>
+            <FieldLabel htmlFor="staff-shop">Store branch</FieldLabel>
+            <Input
+              id="staff-shop"
+              value={shop}
+              onChange={(e) => setShop(e.target.value)}
+              placeholder="Shoe Shop"
+            />
+          </Field>
+
+          <DialogFooter className="gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit">
+              <PlusIcon />
+              Add staff member
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 export const StaffScreen = ({ disabled: initial = [] }) => {
   const staff = useDemoStore(({ staff }) => staff || initialStaff)
@@ -57,13 +166,30 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
   const movements = useDemoStore(({ movements }) => movements)
   const transferStaffRole = useDemoStore(({ transferStaffRole }) => transferStaffRole)
   const removeStaff = useDemoStore(({ removeStaff }) => removeStaff)
+  const addStaff = useDemoStore(({ addStaff }) => addStaff)
 
   const [disabled, setDisabled] = useState(initial)
+  const [roleFilter, setRoleFilter] = useState("all")
+  const [query, setQuery] = useState("")
   const [pending, startTransition] = useTransition()
   const [selectedUser, setSelectedUser] = useState(null)
   const [removingUser, setRemovingUser] = useState(null)
+  const [creating, setCreating] = useState(false)
 
   const people = Object.values(staff)
+  const search = query.trim().toLowerCase()
+
+  const visiblePeople = people.filter((person) => {
+    if (roleFilter !== "all" && person.role !== roleFilter) return false
+    if (!search) return true
+    return (
+      person.name.toLowerCase().includes(search) ||
+      (person.email && person.email.toLowerCase().includes(search)) ||
+      (person.phone && person.phone.includes(search)) ||
+      (person.shop && person.shop.toLowerCase().includes(search)) ||
+      (roleLabels[person.role] && roleLabels[person.role].toLowerCase().includes(search))
+    )
+  })
 
   const getLastActive = (id) =>
     latest([
@@ -118,127 +244,121 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Overview Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="border bg-card p-4">
-          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Total staff</p>
-          <p className="mt-1 font-heading text-2xl font-bold">{people.length}</p>
-        </div>
-        <div className="border bg-card p-4">
-          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Supervisors</p>
-          <p className="mt-1 font-heading text-2xl font-bold">{people.filter((p) => p.role === "manager").length}</p>
-        </div>
-        <div className="border bg-card p-4">
-          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Cashiers</p>
-          <p className="mt-1 font-heading text-2xl font-bold">{people.filter((p) => p.role === "cashier").length}</p>
-        </div>
-        <div className="border bg-card p-4">
-          <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Access disabled</p>
-          <p className="mt-1 font-heading text-2xl font-bold text-destructive">
-            {people.filter((p) => disabled.includes(p.id)).length}
-          </p>
-        </div>
+    <div className="space-y-4">
+      {/* Top Filter, Search & Add Toolbar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <InputGroup className="h-9 w-full sm:w-72">
+          <InputGroupAddon>
+            <MagnifyingGlassIcon />
+          </InputGroupAddon>
+          <InputGroupInput
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Staff name, email or phone"
+          />
+        </InputGroup>
+        <Segmented options={roleFilters} value={roleFilter} onChange={setRoleFilter} />
+        <Button size="sm" className="ml-auto" onClick={() => setCreating(true)}>
+          <PlusIcon />
+          Add staff member
+        </Button>
       </div>
 
-      {/* Desktop Table View */}
-      <div className="hidden border bg-card md:block">
+      {/* Main Responsive Table */}
+      <div className="border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[280px]">Staff member</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Contact</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Last active</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>Staff member</TableHead>
+              <TableHead className="hidden sm:table-cell">Role</TableHead>
+              <TableHead className="hidden md:table-cell">Contact</TableHead>
+              <TableHead className="hidden lg:table-cell">Location</TableHead>
+              <TableHead className="hidden sm:table-cell">Last active</TableHead>
+              <TableHead className="text-right">Access</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {people.map((person) => {
+            {visiblePeople.map((person) => {
               const off = disabled.includes(person.id)
               const seen = getLastActive(person.id)
               const isOwner = person.role === "admin"
 
               return (
-                <TableRow key={person.id} className="group hover:bg-accent/40">
+                <TableRow
+                  key={person.id}
+                  className="cursor-pointer transition-colors hover:bg-accent/40"
+                  onClick={() => setSelectedUser(person)}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar size="default">
-                        <AvatarFallback className="font-semibold">{person.avatar || person.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        <AvatarFallback className="font-semibold">
+                          {person.avatar || person.name.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <p className={cn("truncate font-medium text-foreground", off && "text-muted-foreground line-through")}>
-                          {person.name}
+                        <div className="flex items-center gap-2">
+                          <p
+                            className={cn(
+                              "truncate text-sm font-medium text-foreground",
+                              off && "text-muted-foreground line-through"
+                            )}
+                          >
+                            {person.name}
+                          </p>
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-none border px-1.5 py-0.2 text-[9px] font-bold tracking-widest uppercase sm:hidden",
+                              roleBadgeColors[person.role]
+                            )}
+                          >
+                            {roleLabels[person.role] || person.role}
+                          </span>
+                        </div>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {person.shop || "Shoe Shop"} · {person.email || person.phone}
                         </p>
-                        <p className="truncate text-xs text-muted-foreground">Joined {person.joinedAt || "2024"}</p>
                       </div>
                     </div>
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <span
                       className={cn(
                         "inline-flex items-center rounded-none border px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase",
-                        roleBadgeColors[person.role] || "border-border text-foreground"
+                        roleBadgeColors[person.role]
                       )}
                     >
                       {roleLabels[person.role] || person.role}
                     </span>
                   </TableCell>
 
-                  <TableCell>
-                    <div className="space-y-0.5 text-xs text-muted-foreground">
-                      {person.email && (
-                        <div className="flex items-center gap-1.5 truncate">
-                          <EnvelopeSimpleIcon className="size-3.5 shrink-0" />
-                          <span className="truncate">{person.email}</span>
-                        </div>
-                      )}
-                      {person.phone && (
-                        <div className="flex items-center gap-1.5 truncate">
-                          <PhoneIcon className="size-3.5 shrink-0" />
-                          <span>{person.phone}</span>
-                        </div>
-                      )}
+                  <TableCell className="hidden text-xs text-muted-foreground md:table-cell">
+                    <div className="space-y-0.5">
+                      <p className="truncate">{person.email}</p>
+                      <p className="text-[11px]">{person.phone}</p>
                     </div>
                   </TableCell>
 
-                  <TableCell className="text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <StorefrontIcon className="size-3.5 shrink-0" />
-                      <span>{person.shop || "Shoe Shop"}</span>
-                    </div>
+                  <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
+                    {person.shop || "Shoe Shop"}
                   </TableCell>
 
-                  <TableCell className="text-xs text-muted-foreground">
+                  <TableCell className="hidden text-xs text-muted-foreground sm:table-cell">
                     {seen ? timeAgo(seen) : "Never"}
                   </TableCell>
 
-                  <TableCell>
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase",
-                        off ? "text-destructive" : "text-success"
-                      )}
-                    >
-                      <span className={cn("size-1.5 rounded-full", off ? "bg-destructive" : "bg-success")} />
-                      {off ? "Disabled" : "Active"}
-                    </span>
-                  </TableCell>
-
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        onClick={() => setSelectedUser(person)}
-                        title="View profile & activity"
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase",
+                          off ? "text-destructive" : "text-success"
+                        )}
                       >
-                        <InfoIcon />
-                        <span className="hidden lg:inline">Details</span>
-                      </Button>
+                        <span className={cn("size-1.5 rounded-full", off ? "bg-destructive" : "bg-success")} />
+                        <span className="hidden sm:inline">{off ? "Disabled" : "Active"}</span>
+                      </span>
 
                       {!isOwner ? (
                         <>
@@ -247,30 +367,48 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
                             variant={off ? "default" : "outline"}
                             disabled={pending}
                             onClick={() => handleToggleAccess(person)}
+                            className="touch-manipulation pointer-coarse:h-9"
                           >
                             {off ? "Turn on" : "Turn off"}
                           </Button>
 
                           <DropdownMenu>
                             <DropdownMenuTrigger
-                              render={<Button size="icon-xs" variant="ghost" aria-label="More actions" />}
+                              render={
+                                <Button
+                                  size="icon-xs"
+                                  variant="ghost"
+                                  aria-label="Staff options"
+                                  className="touch-manipulation pointer-coarse:size-9"
+                                />
+                              }
                             >
                               <DotsThreeVerticalIcon />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-52">
-                              <DropdownMenuLabel>Role management</DropdownMenuLabel>
-                              {person.role === "cashier" && (
-                                <DropdownMenuItem onClick={() => handleTransferRole(person, "manager")}>
-                                  <UserSwitchIcon className="mr-2 size-4" />
-                                  Transfer to Supervisor
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel>Manage staff</DropdownMenuLabel>
+                                <DropdownMenuItem onClick={() => setSelectedUser(person)}>
+                                  <InfoIcon className="mr-2 size-4" />
+                                  View user details
                                 </DropdownMenuItem>
-                              )}
-                              {person.role === "manager" && (
-                                <DropdownMenuItem onClick={() => handleTransferRole(person, "cashier")}>
-                                  <UserSwitchIcon className="mr-2 size-4" />
-                                  Transfer to Cashier
-                                </DropdownMenuItem>
-                              )}
+                              </DropdownMenuGroup>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel>Role transfer</DropdownMenuLabel>
+                                {person.role === "cashier" && (
+                                  <DropdownMenuItem onClick={() => handleTransferRole(person, "manager")}>
+                                    <UserSwitchIcon className="mr-2 size-4" />
+                                    Transfer to Supervisor
+                                  </DropdownMenuItem>
+                                )}
+                                {person.role === "manager" && (
+                                  <DropdownMenuItem onClick={() => handleTransferRole(person, "cashier")}>
+                                    <UserSwitchIcon className="mr-2 size-4" />
+                                    Transfer to Cashier
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuGroup>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 variant="destructive"
@@ -284,7 +422,7 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
                         </>
                       ) : (
                         <span className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                          Permanent
+                          Owner
                         </span>
                       )}
                     </div>
@@ -294,134 +432,32 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
             })}
           </TableBody>
         </Table>
+        {!visiblePeople.length && (
+          <p className="py-12 text-center text-sm text-muted-foreground">No staff members match.</p>
+        )}
       </div>
 
-      {/* Mobile / Tablet Responsive Cards View */}
-      <div className="grid gap-3 md:hidden">
-        {people.map((person) => {
-          const off = disabled.includes(person.id)
-          const seen = getLastActive(person.id)
-          const isOwner = person.role === "admin"
+      <p className="text-xs text-muted-foreground">
+        Tap any staff member to view full profile, logged sales, and activity history.
+      </p>
 
-          return (
-            <div key={person.id} className="border bg-card p-4 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <Avatar size="default">
-                    <AvatarFallback className="font-semibold">{person.avatar || person.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className={cn("font-medium text-foreground", off && "text-muted-foreground line-through")}>
-                      {person.name}
-                    </p>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-none border px-1.5 py-0.5 text-[9px] font-bold tracking-widest uppercase",
-                          roleBadgeColors[person.role] || "border-border text-foreground"
-                        )}
-                      >
-                        {roleLabels[person.role] || person.role}
-                      </span>
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 text-[10px] font-semibold tracking-wider uppercase",
-                          off ? "text-destructive" : "text-success"
-                        )}
-                      >
-                        <span className={cn("size-1.5 rounded-full", off ? "bg-destructive" : "bg-success")} />
-                        {off ? "Disabled" : "Active"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <Button size="icon-xs" variant="ghost" onClick={() => setSelectedUser(person)} aria-label="View user profile">
-                  <InfoIcon />
-                </Button>
-              </div>
-
-              {/* Contact info */}
-              <div className="border-t pt-2 space-y-1 text-xs text-muted-foreground">
-                {person.email && (
-                  <div className="flex items-center gap-2">
-                    <EnvelopeSimpleIcon className="size-3.5 shrink-0" />
-                    <span className="truncate">{person.email}</span>
-                  </div>
-                )}
-                {person.phone && (
-                  <div className="flex items-center gap-2">
-                    <PhoneIcon className="size-3.5 shrink-0" />
-                    <span>{person.phone}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-[11px] pt-1 text-muted-foreground">
-                  <span>{person.shop || "Shoe Shop"}</span>
-                  <span>Active: {seen ? timeAgo(seen) : "Never"}</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              {!isOwner ? (
-                <div className="flex items-center gap-2 border-t pt-3">
-                  <Button
-                    size="sm"
-                    variant={off ? "default" : "outline"}
-                    className="flex-1 touch-manipulation pointer-coarse:h-10"
-                    disabled={pending}
-                    onClick={() => handleToggleAccess(person)}
-                  >
-                    {off ? "Turn on access" : "Turn off access"}
-                  </Button>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="touch-manipulation pointer-coarse:h-10"
-                          aria-label="Staff options"
-                        />
-                      }
-                    >
-                      <DotsThreeVerticalIcon />
-                      <span>Role</span>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-52">
-                      <DropdownMenuLabel>Role transfer</DropdownMenuLabel>
-                      {person.role === "cashier" && (
-                        <DropdownMenuItem onClick={() => handleTransferRole(person, "manager")}>
-                          <UserSwitchIcon className="mr-2 size-4" />
-                          Transfer to Supervisor
-                        </DropdownMenuItem>
-                      )}
-                      {person.role === "manager" && (
-                        <DropdownMenuItem onClick={() => handleTransferRole(person, "cashier")}>
-                          <UserSwitchIcon className="mr-2 size-4" />
-                          Transfer to Cashier
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onClick={() => setRemovingUser(person)}
-                      >
-                        <TrashIcon className="mr-2 size-4" />
-                        Remove from staff
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              ) : (
-                <div className="border-t pt-2 text-center text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-                  Primary account (Owner)
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+      {/* Create Staff Dialog */}
+      {creating && (
+        <CreateStaffDialog
+          onClose={() => setCreating(false)}
+          onCreate={(input) => {
+            try {
+              const created = addStaff(input)
+              toast.success("Staff member created", {
+                description: `${created.name} added as ${roleLabels[created.role]}.`,
+              })
+              setCreating(false)
+            } catch (err) {
+              toast.error(err.message || "Failed to create staff member")
+            }
+          }}
+        />
+      )}
 
       {/* User Details Modal */}
       {selectedUser && (
@@ -440,7 +476,7 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
                     <span
                       className={cn(
                         "inline-flex items-center rounded-none border px-1.5 py-0.2 text-[9px] font-bold tracking-widest uppercase",
-                        roleBadgeColors[selectedUser.role] || "border-border text-foreground"
+                        roleBadgeColors[selectedUser.role]
                       )}
                     >
                       {roleLabels[selectedUser.role] || selectedUser.role}
@@ -509,7 +545,7 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
                     </Button>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Cashiers can process sales at checkout. Supervisors manage stock, returns, and catalog.
+                    Cashiers can process checkout sales. Supervisors manage stock, returns, and catalog.
                   </p>
                 </div>
               )}

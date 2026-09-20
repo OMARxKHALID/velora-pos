@@ -23,11 +23,12 @@ const filters = [
   { key: "out", label: "Sold-out sizes" },
 ]
 
-const SizeChips = ({ sizes }) => (
+const SizeChips = ({ sizes, threshold }) => (
   <div className="flex">
     {sizes.map(({ variant, quantity }) => {
       const out = quantity <= 0
-      const low = !out && quantity <= variant.lowStockAt
+      const limit = threshold !== null && Number.isFinite(threshold) ? threshold : variant.lowStockAt
+      const low = !out && quantity <= limit
       return (
         <div key={variant.id} title={`EU ${variant.attributes.size}: ${quantity} pairs`} className="flex w-8 flex-col items-center gap-1">
           <span className="text-[0.6rem] leading-none text-muted-foreground tabular-nums">{variant.attributes.size}</span>
@@ -41,6 +42,8 @@ const SizeChips = ({ sizes }) => (
 
 export const StockScreen = ({ user }) => {
   const stock = useDemoStore(({ stock }) => stock)
+  const settings = useDemoStore(({ settings }) => settings)
+  const lowLimit = settings?.lowStockThreshold ?? 2
   const [filter, setFilter] = useState("all")
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
@@ -49,7 +52,7 @@ export const StockScreen = ({ user }) => {
   const search = useDeferredValue(query.trim().toLowerCase())
   const catalog = useCatalog()
   const scope = useShopScope(user)
-  const rows = stockRows(stock, catalog).filter(({ product }) => scope === ALL_SHOPS || product.shopId === scope)
+  const rows = stockRows(stock, catalog, lowLimit).filter(({ product }) => scope === ALL_SHOPS || product.shopId === scope)
   const canEdit = user.role !== "admin"
 
   const visible = rows.filter(
@@ -110,7 +113,7 @@ export const StockScreen = ({ user }) => {
                   </div>
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
-                  <SizeChips sizes={row.sizes} />
+                  <SizeChips sizes={row.sizes} threshold={lowLimit} />
                 </TableCell>
                 <TableCell className="text-right font-semibold tabular-nums">{row.total}</TableCell>
               </TableRow>

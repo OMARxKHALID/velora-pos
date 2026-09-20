@@ -1,7 +1,9 @@
 "use client"
 
 import { useDeferredValue, useState } from "react"
-import { MagnifyingGlassIcon } from "@phosphor-icons/react"
+import { FileCsvIcon, MagnifyingGlassIcon, ReceiptIcon } from "@phosphor-icons/react"
+import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -11,7 +13,10 @@ import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { useBarcodeScanner } from "@/features/pos/hooks/use-barcode-scanner"
-import { DAY, formatDateTime, startOfToday } from "@/lib/dates"
+import { ShiftReportDialog } from "@/features/pos/components/shift-report-dialog"
+import { toCsv } from "@/lib/csv"
+import { formatFullDateTime, DAY, formatDateTime, startOfToday } from "@/lib/dates"
+import { downloadFile } from "@/lib/download"
 import { formatMoney } from "@/lib/money"
 import { refundsBySale, saleRefundState } from "../lib/sale-status"
 import { SaleDetailSheet } from "./sale-detail-sheet"
@@ -28,14 +33,17 @@ const cashiers = Object.values(staff).filter(({ role }) => role === "cashier")
 
 export const SalesScreen = ({ user }) => {
   const allSales = useDemoStore(({ sales }) => sales)
+  const shifts = useDemoStore(({ shifts }) => shifts)
   const scope = useShopScope(user)
   const sales = scope === ALL_SHOPS ? allSales : allSales.filter(({ shopId }) => shopId === scope)
+  const closedShifts = shifts.filter(({ status, shopId }) => status === "closed" && (scope === ALL_SHOPS || shopId === scope)).toReversed()
   const refunds = useDemoStore(({ refunds }) => refunds)
   const [range, setRange] = useState("7d")
   const [cashier, setCashier] = useState(user.role === "cashier" ? user.id : "all")
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
   const [openId, setOpenId] = useState(null)
+  const [selectedShift, setSelectedShift] = useState(null)
   const search = useDeferredValue(query.trim().toLowerCase())
   const byId = refundsBySale(refunds)
   const from = ranges.find(({ key }) => key === range).from()
@@ -60,6 +68,31 @@ export const SalesScreen = ({ user }) => {
     setPage(1)
   }
 
+  const handleExportSalesCsv = () => {
+    try {
+      const rows = [
+        ["Receipt #", "Date/Time", "Cashier", "Customer", "Phone", "Items Count", "Subtotal", "Discount", "Tax", "Total", "Payment Methods"],
+        ...visible.map((s) => [
+          s.number,
+          formatFullDateTime(s.soldAt),
+          staffName(s.cashierId),
+          s.customerName || "",
+          s.customerPhone || "",
+          String(s.items?.length || 0),
+          String((s.subtotal / 100).toFixed(2)),
+          String(((s.discountTotal || 0) / 100).toFixed(2)),
+          String(((s.taxTotal || 0) / 100).toFixed(2)),
+          String((s.total / 100).toFixed(2)),
+          (s.payments || []).map((p) => `${p.method.toUpperCase()} (${(p.amount / 100).toFixed(2)})`).join("; "),
+        ]),
+      ]
+      downloadFile(`velora-sales-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows))
+      toast.success("Sales exported", { description: `${visible.length} sales downloaded to CSV.` })
+    } catch {
+      toast.error("Failed to export sales")
+    }
+  }
+
   const handleScan = (code) => {
     const sale = sales.find(({ number }) => number === code.toUpperCase())
     if (sale) setOpenId(sale.id)
@@ -80,6 +113,29 @@ export const SalesScreen = ({ user }) => {
         {user.role !== "cashier" && (
           <Segmented options={[{ key: "all", label: "All cashiers" }, ...cashiers.map(({ id, name }) => ({ key: id, label: name.split(" ")[0] }))]} value={cashier} onChange={withReset(setCashier)} />
         )}
+        <div className="ml-auto flex items-center gap-2">
+          {closedShifts.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs touch-manipulation active:scale-95"
+              onClick={() => setSelectedShift(closedShifts[0])}
+            >
+              <ReceiptIcon className="size-4 text-gold" />
+              <span>Z-Report</span>
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-xs touch-manipulation active:scale-95"
+            disabled={!visible.length}
+            onClick={handleExportSalesCsv}
+          >
+            <FileCsvIcon className="size-4" />
+            <span>Export CSV</span>
+          </Button>
+        </div>
       </div>
 
       <div className="border bg-card">
@@ -117,6 +173,7 @@ export const SalesScreen = ({ user }) => {
       </div>
 
       {openId && <SaleDetailSheet saleId={openId} user={user} onClose={() => setOpenId(null)} />}
+      {selectedShift && <ShiftReportDialog shift={selectedShift} onClose={() => setSelectedShift(null)} />}
     </>
   )
 }

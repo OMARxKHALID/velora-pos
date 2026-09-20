@@ -58,9 +58,9 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
       <Sheet open onOpenChange={(open) => !open && !refunding && onClose()}>
         <SheetContent
           side="right"
-          className="w-full gap-0 overflow-y-auto sm:max-w-lg"
+          className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
         >
-          <SheetHeader className="border-b">
+          <SheetHeader className="shrink-0 border-b p-4 pr-12 sm:p-6 sm:pr-14">
             <SheetTitle className="font-mono text-base tracking-normal normal-case">
               {sale.number}
             </SheetTitle>
@@ -73,7 +73,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
             />
           </SheetHeader>
 
-          <div className="space-y-6 p-4">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 [scrollbar-width:thin]">
             <dl className="grid grid-cols-2 gap-4">
               <Meta label="Cashier">{staffName(sale.cashierId)}</Meta>
               <Meta label="Customer">{sale.customerName || "Walk-in"}</Meta>
@@ -141,6 +141,18 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
                   <dt className="font-semibold tracking-[0.2em] uppercase">Total</dt>
                   <dd className="font-heading text-lg font-bold text-gold">{formatMoney(sale.total)}</dd>
                 </div>
+                {sale.payments?.map((payment, index) => (
+                  <div key={`${payment.method}-${index}`} className="flex justify-between text-xs text-muted-foreground pt-1">
+                    <dt>Paid · {payment.method === "card" ? "Card" : "Cash"}{payment.reference ? ` (${payment.reference})` : ""}</dt>
+                    <dd>{formatMoney(payment.amount)}</dd>
+                  </div>
+                ))}
+                {sale.change > 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <dt>Change returned</dt>
+                    <dd>{formatMoney(sale.change)}</dd>
+                  </div>
+                )}
               </dl>
             </div>
 
@@ -184,26 +196,25 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
           </div>
 
           {user.role !== "admin" && (
-
-          <SheetFooter className="mt-auto flex-row border-t">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => printNode(receipt.current)}
-            >
-              <PrinterIcon />
-              Reprint
-            </Button>
-            <Button
-              className="flex-1"
-              disabled={!canRefund}
-              onClick={() => setRefunding(true)}
-            >
-              <ArrowUUpLeftIcon />
-              Request refund
-            </Button>
-          </SheetFooter>
-        )}
+            <SheetFooter className="shrink-0 border-t p-4 sm:p-6 flex-row gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => printNode(receipt.current)}
+              >
+                <PrinterIcon />
+                Reprint
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={!canRefund}
+                onClick={() => setRefunding(true)}
+              >
+                <ArrowUUpLeftIcon />
+                Request refund
+              </Button>
+            </SheetFooter>
+          )}
 
           <div className="hidden">
             <Receipt sale={sale} ref={receipt} />
