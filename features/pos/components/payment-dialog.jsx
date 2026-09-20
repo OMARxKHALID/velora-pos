@@ -65,32 +65,71 @@ const CashForm = ({ total, onPay }) => {
 }
 
 const CardForm = ({ total, onPay }) => {
+  const [showRef, setShowRef] = useState(false)
   const form = useForm({ resolver: zodResolver(cardPaymentSchema), defaultValues: { reference: "" } })
 
-  const handleSubmit = form.handleSubmit(({ reference }) => onPay([{ method: "card", amount: total, reference: reference || null }]))
+  const handleSubmit = form.handleSubmit(({ reference }) => onPay([{ method: "card", amount: total, reference: reference?.trim() || null }]))
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex items-center justify-between border bg-muted/50 px-4 py-3">
-        <span className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Charge on terminal</span>
-        <span className="font-heading text-2xl font-bold text-gold tabular-nums">{formatMoney(total)}</span>
+      <div className="border bg-muted/40 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Amount on terminal</span>
+          <span className="font-heading text-2xl font-bold text-gold tabular-nums">{formatMoney(total)}</span>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <CreditCardIcon className="size-4 shrink-0 text-gold" />
+          <span>Tap, insert, or swipe card on the bank POS machine</span>
+        </div>
       </div>
-      <Controller
-        name="reference"
-        control={form.control}
-        render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor={field.name}>Card last 4 digits (optional)</FieldLabel>
-            <InputGroup>
-              <InputGroupAddon>
-                <InputGroupText>•••• </InputGroupText>
-              </InputGroupAddon>
-              <InputGroupInput {...field} id={field.name} inputMode="numeric" maxLength={4} aria-invalid={fieldState.invalid} />
-            </InputGroup>
-            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-          </Field>
-        )}
-      />
+
+      {showRef ? (
+        <Controller
+          name="reference"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor={field.name}>Bank slip approval / auth code</FieldLabel>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRef(false)
+                    form.setValue("reference", "")
+                  }}
+                  className="text-[10px] uppercase text-muted-foreground hover:text-foreground"
+                >
+                  Hide
+                </button>
+              </div>
+              <InputGroup>
+                <InputGroupAddon>
+                  <InputGroupText>Appr #</InputGroupText>
+                </InputGroupAddon>
+                <InputGroupInput
+                  {...field}
+                  id={field.name}
+                  placeholder="e.g. 048291"
+                  className="font-mono text-xs"
+                  aria-invalid={fieldState.invalid}
+                />
+              </InputGroup>
+              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            </Field>
+          )}
+        />
+      ) : (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowRef(true)}
+            className="text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+          >
+            + Add bank slip approval code
+          </button>
+        </div>
+      )}
+
       <DialogFooter>
         <Button type="submit" size="lg" className="w-full">
           Card approved, complete sale

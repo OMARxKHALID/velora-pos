@@ -25,7 +25,7 @@ export const cashTenderSchema = (total) =>
   })
 
 export const cardPaymentSchema = z.object({
-  reference: z.string().trim().regex(/^(\d{4})?$/, { error: "Last 4 digits only" }),
+  reference: z.string().trim().max(30, { error: "Slip reference is too long" }).optional(),
 })
 
 export const closeShiftSchema = z.object({

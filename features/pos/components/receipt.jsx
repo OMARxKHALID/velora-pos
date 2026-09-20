@@ -51,12 +51,12 @@ export const Receipt = ({ sale, ref }) => {
       <Row label="TOTAL" value={formatMoney(sale.total)} strong />
       <div className="my-3 border-t border-dashed border-black" />
       {sale.payments.map((payment) => (
-        <Row key={payment.method} label={`Paid · ${payment.method}${payment.reference ? ` ••${payment.reference}` : ""}`} value={formatMoney(payment.amount)} />
+        <Row key={payment.method} label={`Paid · ${payment.method === "card" ? "Card" : "Cash"}${payment.reference ? ` (${payment.reference})` : ""}`} value={formatMoney(payment.amount)} />
       ))}
       {sale.change > 0 && <Row label="Change" value={formatMoney(sale.change)} />}
       <div className="my-3 border-t border-dashed border-black" />
       {!sale.syncedAt && <p className="text-center text-[10px] font-bold">SAVED OFFLINE · SYNCS AUTOMATICALLY</p>}
-      <p className="text-center text-[10px]">FBR invoice: connected in Phase 2</p>
+      <p className="text-center text-[10px]">FBR POS Digital Invoice</p>
       <div className="mt-3 flex justify-center">
         <svg ref={barcode} />
       </div>

@@ -61,6 +61,6 @@ Business rules (sales, refunds, shifts, stock movements, catalog, analytics) are
 
 Import the repository in Vercel. It detects Next.js and Bun (`bun.lock`) automatically; no environment variables are needed for the demo.
 
-## Phase 2
+## Production Roadmap
 
 MongoDB with Mongoose, Better Auth, server-side validation of every sale and approval, price change audit log, FBR invoicing, receipt printer and cash drawer integration, more shops.

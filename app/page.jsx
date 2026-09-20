@@ -7,8 +7,8 @@ import { getDisabledStaff } from "@/features/auth/lib/session"
 
 const roles = [
   { key: "admin", icon: CrownIcon, blurb: "Watches sales, profit, stock and staff. Does not sell." },
-  { key: "manager", icon: UserGearIcon, blurb: "Runs the shop: sells, approves returns, receives stock." },
-  { key: "cashier", icon: CashRegisterIcon, blurb: "Sells and counts the cash at closing." },
+  { key: "manager", icon: UserGearIcon, blurb: "Runs the shop: approves returns, manages stock and catalog." },
+  { key: "cashier", icon: CashRegisterIcon, blurb: "Processes checkout and counts cash at closing." },
 ]
 
 const LoginPage = async ({ searchParams }) => {
@@ -82,7 +82,7 @@ const LoginPage = async ({ searchParams }) => {
               )
             })}
           </div>
-          <p className="text-xs text-muted-foreground">Real sign-in with email and password comes in phase 2.</p>
+          <p className="text-xs text-muted-foreground">Velora POS Demo · Select any role to begin.</p>
         </div>
       </section>
     </main>

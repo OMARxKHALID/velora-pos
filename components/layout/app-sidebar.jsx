@@ -66,12 +66,6 @@ const ShopSwitcher = ({ user }) => {
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem disabled>
-          <PlusIcon />
-          Add shop
-          <span className="ml-auto text-[0.65rem] tracking-widest uppercase">Phase 2</span>
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
