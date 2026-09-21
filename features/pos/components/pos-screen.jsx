@@ -185,7 +185,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
             onClick={() => setParkedOpen(true)}
           >
             <PauseCircleIcon className="size-4 shrink-0" />
-            <span>Held ({parkedSales.length})</span>
+            <span>{parkedSales.length} {parkedSales.length === 1 ? "cart held" : "carts held"}</span>
           </Button>
         )}
         {wide && (
@@ -205,13 +205,19 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
         <div className="flex shrink-0 items-center gap-2 border bg-card p-2">
           {parkedSales.length > 0 && (
             <Button
-              size="icon-lg"
+              size="sm"
               variant="outline"
-              className="size-12 shrink-0 border-gold/40 text-gold"
+              className="relative h-12 shrink-0 gap-1.5 border-gold/50 bg-gold/10 px-3 text-gold touch-manipulation active:scale-95"
               onClick={() => setParkedOpen(true)}
-              title="Held sales"
+              title={`${parkedSales.length} ${parkedSales.length === 1 ? "held cart" : "held carts"}`}
             >
-              <PauseCircleIcon className="size-6" />
+              <PauseCircleIcon className="size-5 shrink-0" />
+              <span className="text-xs font-semibold">
+                {parkedSales.length} {parkedSales.length === 1 ? "held" : "held"}
+              </span>
+              <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-gold text-[0.65rem] font-bold text-black tabular-nums shadow-xs">
+                {parkedSales.length}
+              </span>
             </Button>
           )}
           <button

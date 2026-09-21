@@ -120,15 +120,16 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
     if (!rows.length) return
     const parked = parkSale()
     if (parked) {
+      const totalCount = parkedSales.length + 1
       toast.success("Sale placed on hold", {
-        description: `Parked ${count} ${count === 1 ? "item" : "items"}. Tap "Held (${parkedSales.length + 1})" to resume.`,
+        description: `Held cart with ${count} ${count === 1 ? "item" : "items"}. You now have ${totalCount} ${totalCount === 1 ? "cart" : "carts"} on hold.`,
       })
     }
   }
 
   return (
     <aside className={cn("flex min-h-0 flex-col bg-card", className)}>
-      <div className="space-y-3 border-b p-4">
+      <div className="space-y-2.5 border-b p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h2 className="font-heading text-base font-semibold tracking-wider uppercase">Current sale</h2>
@@ -159,15 +160,20 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
             disabled={!parkedSales.length}
             onClick={() => setParkedOpen(true)}
             className={cn(
-              "h-9 w-full gap-1.5 px-2 text-xs font-medium touch-manipulation active:scale-95 pointer-coarse:h-11 transition-all",
+              "relative h-9 w-full gap-1.5 px-2 text-xs font-medium touch-manipulation active:scale-95 pointer-coarse:h-11 transition-all",
               parkedSales.length > 0
                 ? "border-gold/50 bg-gold/10 text-gold hover:bg-gold/20 font-semibold shadow-xs"
                 : "text-muted-foreground opacity-50"
             )}
-            title={parkedSales.length ? `${parkedSales.length} held sales waiting` : "No held sales"}
+            title={parkedSales.length ? `${parkedSales.length} ${parkedSales.length === 1 ? "held cart" : "held carts"} waiting` : "No held sales"}
           >
             <PauseCircleIcon className="size-4 shrink-0" />
-            <span className="truncate">Held {parkedSales.length > 0 ? `(${parkedSales.length})` : ""}</span>
+            <span>Held</span>
+            {parkedSales.length > 0 && (
+              <span className="flex size-4.5 min-w-4.5 items-center justify-center rounded-full bg-gold px-1 text-[0.65rem] font-bold text-black tabular-nums">
+                {parkedSales.length}
+              </span>
+            )}
           </Button>
 
           <Button
@@ -196,6 +202,25 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
             <span className="truncate">Clear</span>
           </Button>
         </div>
+
+        {parkedSales.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setParkedOpen(true)}
+            className="flex w-full items-center justify-between border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs text-gold transition-colors hover:bg-gold/15 touch-manipulation"
+          >
+            <span className="flex items-center gap-1.5 font-medium">
+              <PauseCircleIcon className="size-4 shrink-0 text-gold" />
+              <span>
+                <strong className="font-bold">{parkedSales.length}</strong> {parkedSales.length === 1 ? "cart is on hold" : "carts are on hold"}
+              </span>
+            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider underline underline-offset-2">
+              View &rarr;
+            </span>
+          </button>
+        )}
+
         <ScanField onScan={onScan} availableFor={availableFor} />
       </div>
 
@@ -215,6 +240,22 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
           <ShoppingBagIcon className="size-10 text-gold" weight="thin" />
           <p className="text-sm text-muted-foreground">Scan a barcode or tap a shoe to start a sale.</p>
+          {parkedSales.length > 0 && (
+            <div className="mt-2 flex flex-col items-center gap-2 rounded border border-gold/30 bg-gold/5 p-3">
+              <p className="text-xs font-medium text-gold">
+                {parkedSales.length} {parkedSales.length === 1 ? "cart is waiting on hold" : "carts are waiting on hold"}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 border-gold/50 bg-gold/10 text-xs font-semibold text-gold hover:bg-gold/20 touch-manipulation pointer-coarse:h-11"
+                onClick={() => setParkedOpen(true)}
+              >
+                <PauseCircleIcon className="size-4" />
+                Resume {parkedSales.length === 1 ? "held cart" : `held cart (${parkedSales.length})`}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
