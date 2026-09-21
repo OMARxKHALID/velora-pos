@@ -56,18 +56,18 @@ const ParkedCard = ({ parked, catalog, settings, onResume, onDiscard }) => {
         <span className="font-heading text-base font-bold text-gold tabular-nums">{formatMoney(total)}</span>
         <div className="flex items-center gap-1.5">
           <Button
-            size="icon-xs"
+            size="icon-sm"
             variant="ghost"
-            className="text-muted-foreground hover:text-destructive active:scale-95"
+            className="size-9 pointer-coarse:size-11 text-muted-foreground hover:text-destructive touch-manipulation active:scale-95"
             onClick={() => onDiscard(parked.id)}
             title="Discard held sale"
           >
             <TrashIcon className="size-4" />
           </Button>
           <Button
-            size="xs"
+            size="sm"
             variant="default"
-            className="gap-1 touch-manipulation active:scale-95"
+            className="h-9 px-3.5 gap-1.5 text-xs font-semibold touch-manipulation active:scale-95 pointer-coarse:h-11 pointer-coarse:px-5"
             onClick={() => onResume(parked.id)}
           >
             <PlayIcon className="size-3.5" weight="fill" />

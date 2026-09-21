@@ -57,6 +57,7 @@ export const SalesScreen = ({ user }) => {
           sale.number.toLowerCase().includes(search) ||
           sale.customerName?.toLowerCase().includes(search) ||
           sale.customerPhone?.toLowerCase().includes(search) ||
+          ((search === "offline" || search === "not synced") && !sale.syncedAt) ||
           sale.items.some(({ productName }) => productName.toLowerCase().includes(search)))
     )
     .toReversed()

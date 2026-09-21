@@ -130,40 +130,71 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onC
     <aside className={cn("flex min-h-0 flex-col bg-card", className)}>
       <div className="space-y-3 border-b p-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-heading text-base font-semibold tracking-wider uppercase">Current sale</h2>
-          <div className="flex items-center gap-1.5">
-            {parkedSales.length > 0 && (
-              <Button
-                size="xs"
-                variant="outline"
-                className="gap-1 border-gold/40 text-gold hover:bg-gold/10"
-                onClick={() => setParkedOpen(true)}
-              >
-                <PauseCircleIcon className="size-3.5" />
-                Held ({parkedSales.length})
-              </Button>
-            )}
-            {rows.length > 0 && (
-              <Button
-                size="xs"
-                variant="ghost"
-                className="gap-1 text-muted-foreground hover:text-foreground"
-                onClick={handlePark}
-                title="Hold current sale"
-              >
-                <PauseIcon className="size-3.5" />
-                Hold
-              </Button>
-            )}
-            <Button size="xs" variant="ghost" disabled={!rows.length} onClick={clear}>
-              Clear
-            </Button>
-            {onClose && (
-              <Button size="icon-xs" variant="ghost" aria-label="Close cart" onClick={onClose}>
-                <XIcon />
-              </Button>
+          <div className="flex items-center gap-2">
+            <h2 className="font-heading text-base font-semibold tracking-wider uppercase">Current sale</h2>
+            {count > 0 && (
+              <span className="flex size-5 items-center justify-center rounded-full bg-primary/10 text-[0.65rem] font-bold text-primary tabular-nums">
+                {count}
+              </span>
             )}
           </div>
+          {onClose && (
+            <Button
+              size="icon-xs"
+              variant="ghost"
+              aria-label="Close cart"
+              onClick={onClose}
+              className="size-8 touch-manipulation pointer-coarse:size-10"
+            >
+              <XIcon className="size-4" />
+            </Button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!parkedSales.length}
+            onClick={() => setParkedOpen(true)}
+            className={cn(
+              "h-9 w-full gap-1.5 px-2 text-xs font-medium touch-manipulation active:scale-95 pointer-coarse:h-11 transition-all",
+              parkedSales.length > 0
+                ? "border-gold/50 bg-gold/10 text-gold hover:bg-gold/20 font-semibold shadow-xs"
+                : "text-muted-foreground opacity-50"
+            )}
+            title={parkedSales.length ? `${parkedSales.length} held sales waiting` : "No held sales"}
+          >
+            <PauseCircleIcon className="size-4 shrink-0" />
+            <span className="truncate">Held {parkedSales.length > 0 ? `(${parkedSales.length})` : ""}</span>
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!rows.length}
+            onClick={handlePark}
+            className="h-9 w-full gap-1.5 px-2 text-xs font-medium touch-manipulation active:scale-95 pointer-coarse:h-11 transition-all disabled:opacity-40"
+            title="Hold current sale to serve another customer"
+          >
+            <PauseIcon className="size-4 shrink-0 text-gold" />
+            <span className="truncate">Hold</span>
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!rows.length}
+            onClick={clear}
+            className="h-9 w-full gap-1.5 px-2 text-xs font-medium text-muted-foreground hover:text-destructive hover:border-destructive/40 touch-manipulation active:scale-95 pointer-coarse:h-11 transition-all disabled:opacity-40"
+            title="Clear all items from current cart"
+          >
+            <TrashIcon className="size-4 shrink-0" />
+            <span className="truncate">Clear</span>
+          </Button>
         </div>
         <ScanField onScan={onScan} availableFor={availableFor} />
       </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useEffectEvent, useState } from "react"
-import { CloudSlashIcon, LockKeyIcon, PauseCircleIcon, ShoppingBagIcon, SidebarSimpleIcon } from "@phosphor-icons/react"
+import { ArrowsClockwiseIcon, CloudSlashIcon, LockKeyIcon, PauseCircleIcon, ShoppingBagIcon, SidebarSimpleIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -146,6 +146,15 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
           {waiting > 0 && <span className="ml-auto shrink-0 font-semibold tabular-nums">{waiting} waiting</span>}
         </div>
       )}
+      {!offline && waiting > 0 && (
+        <div role="status" className="flex items-center gap-3 border border-info/40 bg-info/10 px-3 py-2 text-xs text-info">
+          <ArrowsClockwiseIcon className="size-4 shrink-0 animate-spin" />
+          <span>
+            <span className="font-semibold">Reconnected.</span> Syncing {waiting} offline {waiting === 1 ? "sale" : "sales"} to the server...
+          </span>
+          <span className="ml-auto shrink-0 font-semibold tabular-nums">{waiting} syncing</span>
+        </div>
+      )}
       <div className="flex items-center gap-x-5 gap-y-1 border bg-card px-3 py-2 text-xs text-muted-foreground">
         <span className="whitespace-nowrap">
           Shift since <span className="font-semibold text-foreground">{time.format(shift.openedAt)}</span>
@@ -172,10 +181,10 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
           <Button
             size="sm"
             variant="outline"
-            className="shrink-0 border-gold/40 text-gold hover:bg-gold/10"
+            className="h-8 gap-1.5 shrink-0 border-gold/50 bg-gold/10 text-gold hover:bg-gold/20 font-semibold touch-manipulation pointer-coarse:h-11 active:scale-95 transition-all"
             onClick={() => setParkedOpen(true)}
           >
-            <PauseCircleIcon className="size-4" />
+            <PauseCircleIcon className="size-4 shrink-0" />
             <span>Held ({parkedSales.length})</span>
           </Button>
         )}

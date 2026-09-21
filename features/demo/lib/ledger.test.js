@@ -9,6 +9,7 @@ import {
   applySale,
   applySync,
   emptyLedger,
+  shiftSummary,
 } from "./ledger"
 
 const catalog = seedCatalog()
@@ -124,5 +125,63 @@ describe("ledger", () => {
     })
     expect(sale.customerName).toBeUndefined()
     expect(sale.customerPhone).toBeUndefined()
+  })
+
+  test("multiple offline sales with split payments queue and sync accurately", () => {
+    const { state: opened, record: shift } = withShift()
+    const cashPortion = Math.floor(shoe.price / 2)
+    const cardPortion = shoe.price - cashPortion
+
+    const { state: s1, record: saleOnline } = applySale(opened, {
+      lines: [{ variantId: shoe.id, quantity: 1 }],
+      payments: [{ method: "cash", amount: shoe.price }],
+      cashierId: "u-cashier",
+      shiftId: shift.id,
+      at,
+      offline: false,
+    })
+    expect(s1.outbox).toEqual([])
+    expect(saleOnline.syncedAt).toBe(at)
+
+    const { state: s2, record: saleOff1 } = applySale(s1, {
+      lines: [{ variantId: shoe.id, quantity: 1 }],
+      payments: [
+        { method: "cash", amount: cashPortion },
+        { method: "card", amount: cardPortion },
+      ],
+      cashierId: "u-cashier",
+      shiftId: shift.id,
+      at: at + 1000,
+      offline: true,
+    })
+    expect(s2.outbox).toEqual([saleOff1.id])
+    expect(saleOff1.syncedAt).toBeNull()
+
+    const { state: s3, record: saleOff2 } = applySale(s2, {
+      lines: [{ variantId: shoe.id, quantity: 1 }],
+      payments: [{ method: "card", amount: shoe.price }],
+      cashierId: "u-cashier",
+      shiftId: shift.id,
+      at: at + 2000,
+      offline: true,
+    })
+    expect(s3.outbox).toEqual([saleOff1.id, saleOff2.id])
+    expect(saleOff2.syncedAt).toBeNull()
+
+    const summary = shiftSummary(s3, shift)
+    expect(summary.saleCount).toBe(3)
+    expect(summary.revenue).toBe(shoe.price * 3)
+    expect(summary.cashSales).toBe(shoe.price + cashPortion)
+    expect(summary.cardSales).toBe(cardPortion + shoe.price)
+
+    const syncTime = at + 5000
+    const { state: synced, record: count } = applySync(s3, { at: syncTime })
+    expect(count).toBe(2)
+    expect(synced.outbox).toEqual([])
+
+    const syncedSales = synced.sales
+    expect(syncedSales.find((s) => s.id === saleOnline.id).syncedAt).toBe(at)
+    expect(syncedSales.find((s) => s.id === saleOff1.id).syncedAt).toBe(syncTime)
+    expect(syncedSales.find((s) => s.id === saleOff2.id).syncedAt).toBe(syncTime)
   })
 })

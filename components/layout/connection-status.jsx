@@ -26,6 +26,9 @@ export const ConnectionStatus = () => {
   const syncing = hydrated && !offline && waiting > 0
 
   useEffect(() => {
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setOffline(true)
+    }
     const handleOffline = () => setOffline(true)
     const handleOnline = () => setOffline(false)
     window.addEventListener("offline", handleOffline)
@@ -40,7 +43,9 @@ export const ConnectionStatus = () => {
     if (!syncing) return
     const timer = setTimeout(() => {
       const synced = syncOutbox()
-      toast.success(`${synced} offline ${synced === 1 ? "sale" : "sales"} synced`, { description: "Stock, reports and the dashboard are up to date." })
+      if (synced > 0) {
+        toast.success(`${synced} offline ${synced === 1 ? "sale" : "sales"} synced`, { description: "Stock, reports and the dashboard are up to date." })
+      }
     }, SYNC_DELAY)
     return () => clearTimeout(timer)
   }, [syncing, syncOutbox])
@@ -71,6 +76,22 @@ export const ConnectionStatus = () => {
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        {waiting > 0 && (
+          <DropdownMenuItem
+            onClick={() => {
+              setOffline(false)
+              const synced = syncOutbox()
+              if (synced > 0) {
+                toast.success(`${synced} offline ${synced === 1 ? "sale" : "sales"} synced`, {
+                  description: "Stock, reports and the dashboard are up to date.",
+                })
+              }
+            }}
+          >
+            <ArrowsClockwiseIcon />
+            Sync {waiting} pending {waiting === 1 ? "sale" : "sales"} now
+          </DropdownMenuItem>
+        )}
         {offline ? (
           <DropdownMenuItem onClick={() => setOffline(false)}>
             <WifiHighIcon />
