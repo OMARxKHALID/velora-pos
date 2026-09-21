@@ -2,19 +2,19 @@ import "server-only"
 import { cache } from "react"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { demoUsers } from "./demo-users"
+import { decodeSession, parseDisabled } from "./session-cookie"
 
-export const SESSION_COOKIE = "velora_demo_role"
+export const SESSION_COOKIE = "velora_demo_session"
 export const DISABLED_COOKIE = "velora_disabled_staff"
 
 export const getDisabledStaff = cache(async () => {
   const cookieStore = await cookies()
-  return (cookieStore.get(DISABLED_COOKIE)?.value ?? "").split(",").filter(Boolean)
+  return parseDisabled(cookieStore.get(DISABLED_COOKIE)?.value)
 })
 
 export const getSession = cache(async () => {
   const cookieStore = await cookies()
-  const user = demoUsers[cookieStore.get(SESSION_COOKIE)?.value] ?? null
+  const user = decodeSession(cookieStore.get(SESSION_COOKIE)?.value)
   if (!user) return null
   const disabled = await getDisabledStaff()
   return disabled.includes(user.id) ? null : user

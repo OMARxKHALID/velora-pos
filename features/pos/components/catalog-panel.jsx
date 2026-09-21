@@ -7,16 +7,20 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { CategoryIcon } from "@/features/catalog/components/category-icon"
+import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { formatMoney, sumBy } from "@/lib/money"
 
 const audiences = ["All", "men", "women", "kids", "unisex"]
+
+// A model is "low" when what is left across all its sizes is about two sizes' worth of the shop's low-stock setting.
+const LOW_MODEL_FACTOR = 2
 
 const Chip = ({ active, children, onClick }) => (
   <button
     type="button"
     onClick={onClick}
     className={cn(
-      "h-7 shrink-0 border px-2.5 pointer-coarse:h-10 pointer-coarse:px-3.5 text-[0.6rem] font-semibold tracking-widest uppercase transition-colors",
+      "h-7 shrink-0 border px-2.5 pointer-coarse:h-10 pointer-coarse:px-3.5 text-2xs font-semibold tracking-widest uppercase transition-colors",
       active ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:border-primary/60 hover:text-foreground"
     )}
   >
@@ -24,8 +28,8 @@ const Chip = ({ active, children, onClick }) => (
   </button>
 )
 
-const ProductCard = ({ product, available, onPick }) => {
-  const low = available > 0 && available <= 5
+const ProductCard = ({ product, available, lowLimit, onPick }) => {
+  const low = available > 0 && available <= lowLimit
 
   return (
     <button
@@ -37,14 +41,14 @@ const ProductCard = ({ product, available, onPick }) => {
       <div className="relative flex h-16 items-center justify-center bg-muted">
         <CategoryIcon category={product.category} className="size-9 text-gold" />
         {!available && (
-          <span className="absolute top-1.5 right-1.5 bg-destructive px-1 text-[0.55rem] font-semibold tracking-widest text-white uppercase">Out</span>
+          <span className="absolute top-1.5 right-1.5 bg-destructive px-1 text-2xs font-semibold tracking-widest text-destructive-foreground uppercase">Out</span>
         )}
         {low && (
-          <span className="absolute top-1.5 right-1.5 bg-warning px-1 text-[0.55rem] font-semibold tracking-widest text-warning-foreground uppercase">Low</span>
+          <span className="absolute top-1.5 right-1.5 bg-warning px-1 text-2xs font-semibold tracking-widest text-warning-foreground uppercase">Low</span>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1 p-2.5">
-        <span className="truncate text-[0.55rem] font-semibold tracking-[0.2em] text-muted-foreground uppercase">{product.brand}</span>
+        <span className="truncate text-2xs font-semibold tracking-label text-muted-foreground uppercase">{product.brand}</span>
         <span className="line-clamp-2 text-xs leading-snug font-medium">{product.name}</span>
         <div className="mt-auto flex items-center justify-between gap-2 pt-1">
           <span className="text-sm font-semibold text-gold tabular-nums">{formatMoney(product.price)}</span>
@@ -54,7 +58,7 @@ const ProductCard = ({ product, available, onPick }) => {
             ))}
           </span>
         </div>
-        <span className="text-[0.6rem] text-muted-foreground tabular-nums">{available} in stock</span>
+        <span className="text-2xs text-muted-foreground tabular-nums">{available} in stock</span>
       </div>
     </button>
   )
@@ -62,6 +66,7 @@ const ProductCard = ({ product, available, onPick }) => {
 
 export const CatalogPanel = ({ availableFor, onPick }) => {
   const { products: allProducts, variantsByProduct } = useCatalog()
+  const lowLimit = useDemoStore(({ settings }) => settings.lowStockThreshold) * LOW_MODEL_FACTOR
   const products = allProducts.filter(({ status }) => status === "active")
   const brands = ["All", ...new Set(products.map(({ brand }) => brand))]
   const [query, setQuery] = useState("")
@@ -103,6 +108,7 @@ export const CatalogPanel = ({ availableFor, onPick }) => {
           <ProductCard
             key={product.id}
             product={product}
+            lowLimit={lowLimit}
             available={sumBy(variantsByProduct[product.id].filter(({ active }) => active), ({ id }) => Math.max(availableFor(id), 0))}
             onPick={onPick}
           />

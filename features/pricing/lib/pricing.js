@@ -1,4 +1,6 @@
-import { sumBy } from "@/lib/money"
+import { roundToRupee, sumBy } from "@/lib/money"
+
+export const DEFAULT_MANAGER_PIN = "1234"
 
 export const defaultPricingSettings = () => ({
   taxEnabled: false,
@@ -7,11 +9,14 @@ export const defaultPricingSettings = () => ({
   productDiscountEnabled: true,
   cartDiscountEnabled: true,
   customerInfoEnabled: true,
-  managerPin: "1234",
+  managerPin: DEFAULT_MANAGER_PIN,
   lowStockThreshold: 2,
 })
 
 export const effectiveRate = (settings) => (settings.taxEnabled && Number(settings.taxRate) > 0 ? Number(settings.taxRate) : 0)
+
+// Tax is rounded to a whole rupee so receipts, drawers and reports never carry hidden paisa.
+export const taxFor = (net, rate) => (rate > 0 ? roundToRupee((net * rate) / 100) : 0)
 
 export const lineDiscount = (gross, discountPct) => (discountPct ? Math.floor((gross * discountPct) / 10000) * 100 : 0)
 
@@ -29,7 +34,7 @@ export const cartTotals = (lines, cartDiscountPct, { productById, variantById },
   const net = subtotal - discountTotal
   const taxRate = effectiveRate(settings)
   const taxLabel = settings.taxLabel || "Tax"
-  const taxTotal = taxRate > 0 ? Math.round((net * taxRate) / 100) : 0
+  const taxTotal = taxFor(net, taxRate)
   return {
     rows,
     count: sumBy(rows, ({ quantity }) => quantity),
@@ -43,3 +48,6 @@ export const cartTotals = (lines, cartDiscountPct, { productById, variantById },
 }
 
 export const netRevenue = (sale) => sale.total - (sale.taxTotal ?? 0)
+
+// What a refund removes from sales: everything except the tax that goes back to the customer.
+export const netRefund = (refund) => refund.total - (refund.taxTotal ?? 0)

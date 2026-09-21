@@ -36,7 +36,7 @@ const SizeGrid = ({ product, color, availableFor, onChoose }) => {
               </span>
               <span
                 className={cn(
-                  "text-[0.6rem] tracking-widest uppercase",
+                  "text-2xs tracking-widest uppercase",
                   left <= 2 ? "text-warning" : "text-muted-foreground"
                 )}
               >
@@ -71,7 +71,7 @@ export const VariantPickerDialog = ({
         </DialogHeader>
         <div className="space-y-5">
           <div className="space-y-2">
-            <p className="text-[0.65rem] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+            <p className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">
               Colour
             </p>
             <div className="flex flex-wrap gap-2">
@@ -94,7 +94,7 @@ export const VariantPickerDialog = ({
             </div>
           </div>
           <div className="space-y-2">
-            <p className="text-[0.65rem] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+            <p className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">
               Size (EU)
             </p>
             <SizeGrid

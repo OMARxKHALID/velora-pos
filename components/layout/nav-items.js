@@ -19,7 +19,7 @@ export const navItems = [
   { href: "/stock", label: "Stock", icon: PackageIcon, roles: ["admin", "manager"] },
   { href: "/movements", label: "Stock history", icon: ClockCounterClockwiseIcon, roles: ["admin", "manager"] },
   { href: "/staff", label: "Staff", icon: UsersThreeIcon, roles: ["admin"] },
-  { href: "/settings", label: "Settings", icon: GearSixIcon, roles: ["admin", "manager"] },
+  { href: "/settings", label: "Settings", icon: GearSixIcon, roles: ["admin"] },
 ]
 
 export const titleFor = (pathname) => navItems.find(({ href }) => pathname.startsWith(href))?.label ?? ""

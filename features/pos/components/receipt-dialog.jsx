@@ -13,11 +13,11 @@ export const ReceiptDialog = ({ sale, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-[90svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
-        <DialogHeader className="shrink-0 p-5 pb-3 sm:p-6 sm:pb-4">
+      <DialogContent flush className="sm:max-w-md">
+        <DialogHeader className="shrink-0 p-4 pr-14 pb-3 sm:p-6 sm:pr-16 sm:pb-4">
           <div className="mb-2 flex items-center gap-2 text-success">
             <CheckCircleIcon className="size-6" weight="fill" />
-            <span className="text-xs font-semibold tracking-[0.2em] uppercase">Sale complete</span>
+            <span className="text-xs font-semibold tracking-label uppercase">Sale complete</span>
           </div>
           <DialogTitle>{formatMoney(sale.total)}</DialogTitle>
           <DialogDescription>
@@ -27,8 +27,8 @@ export const ReceiptDialog = ({ sale, onClose }) => {
         <div className="min-h-0 flex-1 overflow-y-auto border-y bg-muted/40 py-4 [scrollbar-width:thin]">
           <Receipt sale={sale} ref={receipt} />
         </div>
-        <DialogFooter className="shrink-0 gap-2 p-5 pt-3 sm:p-6 sm:pt-4 sm:flex-row sm:justify-end">
-          <Button variant="outline" onClick={() => printNode(receipt.current)}>
+        <DialogFooter className="shrink-0 p-4 pt-3 sm:p-6 sm:pt-4">
+          <Button variant="outline" onClick={() => printNode(receipt.current, { paper: "receipt" })}>
             <PrinterIcon />
             Print receipt
           </Button>

@@ -1,8 +1,9 @@
+import { SHOP_NAME } from "@/features/auth/lib/demo-users"
 import { SHOP_ID } from "@/features/catalog/lib/catalog"
 
 export const ALL_SHOPS = "all"
 
-export const shops = [{ id: SHOP_ID, name: "Shoe Shop" }]
+export const shops = [{ id: SHOP_ID, name: SHOP_NAME }]
 
 export const shopName = (scope) => (scope === ALL_SHOPS ? "All shops" : (shops.find(({ id }) => id === scope)?.name ?? "Shop"))
 

@@ -58,7 +58,7 @@ const ColorChip = ({ color, suffix, onClick }) => (
   >
     <ColorDot color={color} className="size-2.5" />
     {color}
-    {suffix && <span className="text-[0.6rem] tabular-nums">{suffix}</span>}
+    {suffix && <span className="text-2xs tabular-nums">{suffix}</span>}
   </button>
 )
 
@@ -116,7 +116,7 @@ const ColorPicker = ({ value, onChange, popular }) => {
         </div>
       ) : (
         <div className="space-y-1">
-          <p className="text-[0.6rem] font-semibold tracking-[0.2em] text-muted-foreground uppercase">Most used</p>
+          <p className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">Most used</p>
           <div className="flex flex-wrap gap-1">
             {popular
               .filter(({ color }) => !value.includes(color))
@@ -173,7 +173,7 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
             <DialogTitle>{product ? "Edit product" : "Add product"}</DialogTitle>

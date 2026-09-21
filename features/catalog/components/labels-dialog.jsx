@@ -20,7 +20,7 @@ const Label = ({ product, variant }) => {
   }, [variant.barcode])
 
   return (
-    <div className="flex w-[190px] flex-col items-center gap-0.5 border border-dashed border-black/30 bg-white p-2 text-center text-[10px] leading-tight text-black">
+    <div className="flex w-[190px] flex-col items-center gap-0.5 border border-dashed border-black/30 bg-white p-2 text-center text-2xs leading-tight text-black">
       <span className="w-full truncate font-bold">{product.name}</span>
       <span>
         {variant.attributes.color} · EU {variant.attributes.size} · <b>{formatMoney(variant.price)}</b>
@@ -40,7 +40,7 @@ export const LabelsDialog = ({ product, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Barcode labels</DialogTitle>
           <DialogDescription>{product.name}. Stick one on each box that came without a barcode.</DialogDescription>
@@ -53,7 +53,7 @@ export const LabelsDialog = ({ product, onClose }) => {
           value={mode}
           onChange={setMode}
         />
-        <div className="max-h-[50svh] overflow-y-auto border bg-muted/40 p-3">
+        <div className="max-h-[50dvh] overflow-y-auto border bg-muted/40 p-3">
           <div ref={sheet} className="flex flex-wrap gap-2 bg-white p-2">
             {labels.map(({ variant, key }) => (
               <Label key={key} product={product} variant={variant} />

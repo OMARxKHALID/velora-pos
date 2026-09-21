@@ -10,7 +10,7 @@ function Table({
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto [scrollbar-width:thin]"
+      className="@container relative w-full overflow-x-auto [scrollbar-width:thin]"
     >
       <table
         data-slot="table"
@@ -63,15 +63,37 @@ function TableFooter({
   )
 }
 
+/**
+ * Rows that have an onClick are keyboard reachable too (Tab, then Enter or Space), not just clickable.
+ * Column visibility in tables uses container queries (@lg / @2xl / @4xl on the table's own width), so
+ * it follows the space the table really has, whatever the sidebar or a dialog is doing around it.
+ */
 function TableRow({
   className,
+  onClick,
+  onKeyDown,
   ...props
 }) {
+  const interactive = typeof onClick === "function"
+
+  const handleKeyDown = (event) => {
+    onKeyDown?.(event)
+    if (!interactive || event.defaultPrevented || event.target !== event.currentTarget) return
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      onClick(event)
+    }
+  }
+
   return (
     <tr
       data-slot="table-row"
+      tabIndex={interactive ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
       className={cn(
         "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        interactive && "cursor-pointer outline-none focus-visible:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-inset",
         className
       )}
       {...props}
@@ -87,7 +109,7 @@ function TableHead({
     <th
       data-slot="table-head"
       className={cn(
-        "h-12 px-3 text-left align-middle text-xs font-medium tracking-wider whitespace-nowrap text-muted-foreground uppercase [&:has([role=checkbox])]:pr-0",
+        "h-10 px-2 text-left align-middle @lg:h-12 @lg:px-3 text-xs font-medium tracking-wider whitespace-nowrap text-muted-foreground uppercase [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -103,7 +125,7 @@ function TableCell({
     <td
       data-slot="table-cell"
       className={cn(
-        "p-3 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "p-2 align-middle whitespace-nowrap @lg:p-3 [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}

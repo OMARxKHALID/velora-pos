@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect } from "react"
-import { toast } from "sonner"
 import { ArrowsClockwiseIcon, CloudSlashIcon, WifiHighIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import {
@@ -13,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { announceSynced, useSyncNow } from "@/features/demo/hooks/use-sync-now"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 
 const SYNC_DELAY = 1400
@@ -23,6 +23,7 @@ export const ConnectionStatus = () => {
   const waiting = useDemoStore(({ outbox }) => outbox.length)
   const setOffline = useDemoStore(({ setOffline }) => setOffline)
   const syncOutbox = useDemoStore(({ syncOutbox }) => syncOutbox)
+  const syncNow = useSyncNow()
   const syncing = hydrated && !offline && waiting > 0
 
   useEffect(() => {
@@ -41,12 +42,7 @@ export const ConnectionStatus = () => {
 
   useEffect(() => {
     if (!syncing) return
-    const timer = setTimeout(() => {
-      const synced = syncOutbox()
-      if (synced > 0) {
-        toast.success(`${synced} offline ${synced === 1 ? "sale" : "sales"} synced`, { description: "Stock, reports and the dashboard are up to date." })
-      }
-    }, SYNC_DELAY)
+    const timer = setTimeout(() => announceSynced(syncOutbox()), SYNC_DELAY)
     return () => clearTimeout(timer)
   }, [syncing, syncOutbox])
 
@@ -71,23 +67,13 @@ export const ConnectionStatus = () => {
         <DropdownMenuGroup>
           <DropdownMenuLabel className="font-normal text-muted-foreground">
             {offline
-              ? "No internet. Sales are saved on this counter with a unique ID and sync automatically when the connection returns, never twice."
-              : "Connected. Every sale is sent to the server as it happens."}
+              ? "No internet. Sales are saved on this counter and sync automatically when the connection returns. Each sale syncs once."
+              : "Connected. Sales are saved as they are made. Demo build: data stays in this browser."}
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         {waiting > 0 && (
-          <DropdownMenuItem
-            onClick={() => {
-              setOffline(false)
-              const synced = syncOutbox()
-              if (synced > 0) {
-                toast.success(`${synced} offline ${synced === 1 ? "sale" : "sales"} synced`, {
-                  description: "Stock, reports and the dashboard are up to date.",
-                })
-              }
-            }}
-          >
+          <DropdownMenuItem onClick={syncNow}>
             <ArrowsClockwiseIcon />
             Sync {waiting} pending {waiting === 1 ? "sale" : "sales"} now
           </DropdownMenuItem>

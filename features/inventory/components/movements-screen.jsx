@@ -8,7 +8,7 @@ import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
-import { staffName } from "@/features/demo/lib/staff"
+import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS } from "@/features/shops/lib/shops"
@@ -42,6 +42,7 @@ export const MovementsScreen = ({ user }) => {
   const scope = useShopScope(user)
   const movements = scope === ALL_SHOPS ? allMovements : allMovements.filter(({ shopId }) => shopId === scope)
   const { productById, variantById } = useCatalog()
+  const nameOf = useStaffName()
   const [type, setType] = useState("all")
   const [range, setRange] = useState("7d")
   const [query, setQuery] = useState("")
@@ -55,7 +56,7 @@ export const MovementsScreen = ({ user }) => {
       if (type !== "all" && movement.type !== type) return false
       if (!search) return true
       const variant = variantById[movement.variantId]
-      return `${productById[variant.productId].name} ${variant.sku} ${variant.barcode} ${movement.ref?.number ?? ""} ${staffName(movement.userId)}`.toLowerCase().includes(search)
+      return `${productById[variant.productId].name} ${variant.sku} ${variant.barcode} ${movement.ref?.number ?? ""} ${nameOf(movement.userId)}`.toLowerCase().includes(search)
     })
     .toReversed()
   const pagination = paginate(visible, page)
@@ -67,27 +68,25 @@ export const MovementsScreen = ({ user }) => {
 
   return (
     <>
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-        <InputGroup className="h-9 w-full sm:w-64 lg:w-72">
+      <div className="flex flex-wrap items-center gap-2.5">
+        <InputGroup className="w-full @xl:w-72">
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
           <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Shoe, SKU, receipt or person" />
         </InputGroup>
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 sm:pb-0 [scrollbar-width:none]">
-          <Segmented options={types} value={type} onChange={withReset(setType)} />
-          <Segmented options={ranges} value={range} onChange={withReset(setRange)} />
-        </div>
+        <Segmented label="Movement type" options={types} value={type} onChange={withReset(setType)} />
+        <Segmented label="Date range" options={ranges} value={range} onChange={withReset(setRange)} />
       </div>
 
-      <div className="overflow-x-auto border bg-card [scrollbar-width:thin]">
+      <div className="border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Item</TableHead>
               <TableHead className="text-right">Change</TableHead>
-              <TableHead className="hidden sm:table-cell">When</TableHead>
-              <TableHead className="hidden lg:table-cell">By</TableHead>
+              <TableHead className="hidden @lg:table-cell">When</TableHead>
+              <TableHead className="hidden @4xl:table-cell">By</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -100,6 +99,10 @@ export const MovementsScreen = ({ user }) => {
                     <p className="truncate text-xs text-muted-foreground">
                       {variant.attributes.color} · EU {variant.attributes.size} · {referenceFor(movement)}
                     </p>
+                    <p className="truncate text-xs text-muted-foreground @lg:hidden">
+                      {formatDateTime(movement.createdAt)} · {nameOf(movement.userId)}
+                    </p>
+                    <p className="hidden truncate text-xs text-muted-foreground @lg:block @4xl:hidden">By {nameOf(movement.userId)}</p>
                   </TableCell>
                   <TableCell className="text-right">
                     <p className={cn("font-semibold tabular-nums", movement.quantity > 0 ? "text-success" : "text-destructive")}>
@@ -107,8 +110,8 @@ export const MovementsScreen = ({ user }) => {
                     </p>
                     <p className="text-xs text-muted-foreground">{typeLabel[movement.type]}</p>
                   </TableCell>
-                  <TableCell className="hidden text-xs whitespace-nowrap text-muted-foreground sm:table-cell">{formatDateTime(movement.createdAt)}</TableCell>
-                  <TableCell className="hidden text-sm lg:table-cell">{staffName(movement.userId)}</TableCell>
+                  <TableCell className="hidden text-xs whitespace-nowrap text-muted-foreground @lg:table-cell">{formatDateTime(movement.createdAt)}</TableCell>
+                  <TableCell className="hidden text-sm @4xl:table-cell">{nameOf(movement.userId)}</TableCell>
                 </TableRow>
               )
             })}

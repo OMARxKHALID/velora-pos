@@ -9,13 +9,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { Textarea } from "@/components/ui/textarea"
-import { staffName } from "@/features/demo/lib/staff"
+import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { toPaisa } from "@/lib/money"
 import { closeShiftSchema } from "../schemas"
 
 export const CloseShiftDialog = ({ shift, user, onClosed, onCancel }) => {
   const closeShift = useDemoStore(({ closeShift }) => closeShift)
+  const nameOf = useStaffName()
   const form = useForm({ resolver: zodResolver(closeShiftSchema), defaultValues: { countedCash: "", note: "" } })
 
   const handleSubmit = form.handleSubmit(({ countedCash, note }) => {
@@ -36,7 +37,7 @@ export const CloseShiftDialog = ({ shift, user, onClosed, onCancel }) => {
             </div>
             <DialogTitle>Close shift</DialogTitle>
             <DialogDescription>
-              {`${staffName(shift.cashierId)}'s shift. Count every note and coin in the drawer. The expected amount is shown only after you submit.`}
+              {`${nameOf(shift.cashierId)}'s shift. Count every note and coin in the drawer. The expected amount is shown only after you submit.`}
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
@@ -62,8 +63,8 @@ export const CloseShiftDialog = ({ shift, user, onClosed, onCancel }) => {
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor={field.name}>Note (optional)</FieldLabel>
-                  <Textarea {...field} id={field.name} rows={2} placeholder="e.g. Rs 500 paid for courier" aria-invalid={fieldState.invalid} />
-                  <FieldDescription>Explain any cash taken out or put in during the shift.</FieldDescription>
+                  <Textarea {...field} id={field.name} rows={2} placeholder="e.g. Counted twice, drawer handed to Hamza" aria-invalid={fieldState.invalid} />
+                  <FieldDescription>Mention anything that could explain a difference, such as a handover.</FieldDescription>
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
               )}

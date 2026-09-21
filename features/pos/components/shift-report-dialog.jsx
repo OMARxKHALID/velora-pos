@@ -7,7 +7,7 @@ import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { shiftSummary } from "@/features/demo/lib/ledger"
-import { staffName } from "@/features/demo/lib/staff"
+import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { downloadFile } from "@/lib/download"
 import { formatMoney } from "@/lib/money"
@@ -28,6 +28,8 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
   const printRef = useRef(null)
   const sales = useDemoStore(({ sales }) => sales)
   const refunds = useDemoStore(({ refunds }) => refunds)
+  const staff = useDemoStore(({ staff }) => staff)
+  const nameOf = useStaffName()
   const summary = shiftSummary({ sales, refunds }, shift)
   const { difference } = shift
   const tone = difference === 0 ? "success" : difference < 0 ? "destructive" : "warning"
@@ -35,7 +37,7 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
 
   const handleExportCsv = () => {
     try {
-      const csv = generateZReportCsv({ sales, refunds }, shift)
+      const csv = generateZReportCsv({ sales, refunds }, shift, staff)
       const dateStr = new Date(shift.closedAt || Date.now()).toISOString().slice(0, 10)
       downloadFile(`velora-z-report-${shift.id}-${dateStr}.csv`, csv)
       toast.success("Z-Report exported", { description: "Downloaded CSV report for Excel and accounting." })
@@ -46,7 +48,7 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
 
   const handlePrint = () => {
     if (printRef.current) {
-      printNode(printRef.current)
+      printNode(printRef.current, { paper: "receipt" })
     }
   }
 
@@ -56,10 +58,10 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>End-of-Day Z-Report</DialogTitle>
-            <span className="font-mono text-xs text-muted-foreground uppercase">{shift.id}</span>
+            <span className="font-mono text-xs text-muted-foreground uppercase">#{shift.id.slice(0, 8)}</span>
           </div>
           <DialogDescription>
-            {staffName(shift.cashierId)} · {time.format(shift.openedAt)} to {time.format(shift.closedAt)}
+            {nameOf(shift.cashierId)} · {time.format(shift.openedAt)} to {time.format(shift.closedAt)}
           </DialogDescription>
         </DialogHeader>
 
@@ -74,14 +76,14 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
           {tone === "success" ? <CheckCircleIcon className="size-6 shrink-0" weight="fill" /> : <WarningIcon className="size-6 shrink-0" weight="fill" />}
           <div>
             <p className="font-heading text-lg font-bold tracking-wider uppercase">{verdict}</p>
-            {tone !== "success" && <p className="text-xs">Flagged for manager reconciliation on the dashboard.</p>}
+            {tone !== "success" && <p className="text-xs">Flagged for the owner on the dashboard.</p>}
           </div>
         </div>
 
         <dl className="divide-y text-sm text-muted-foreground">
           <Line label="Opening cash" value={formatMoney(summary.openingCash)} />
           <Line label="Cash sales" value={`+ ${formatMoney(summary.cashSales)}`} />
-          <Line label="Cash refunds" value={`− ${formatMoney(summary.cashRefunds)}`} />
+          <Line label="Cash refunds paid" value={`− ${formatMoney(summary.cashRefunds)}`} />
           <Line label="Expected in drawer" value={formatMoney(shift.expectedCash)} strong />
           <Line label="Counted" value={formatMoney(shift.countedCash)} strong />
         </dl>
@@ -89,15 +91,21 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
         <dl className="grid grid-cols-3 border text-center">
           {[
             ["Sales", summary.saleCount],
-            ["Revenue", formatMoney(summary.revenue)],
+            ["Net sales", formatMoney(summary.netSales)],
             ["Card", formatMoney(summary.cardSales)],
           ].map(([label, value]) => (
             <div key={label} className="border-r px-2 py-3 last:border-r-0">
-              <dt className="text-[0.6rem] font-semibold tracking-[0.2em] text-muted-foreground uppercase">{label}</dt>
+              <dt className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">{label}</dt>
               <dd className="mt-1 text-sm font-semibold tabular-nums">{value}</dd>
             </div>
           ))}
         </dl>
+
+        {summary.tax > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Tax collected {formatMoney(summary.tax)} · total collected {formatMoney(summary.revenue)}
+          </p>
+        )}
 
         {shift.closeNote && <p className="border-l-2 border-primary pl-3 text-sm text-muted-foreground">“{shift.closeNote}”</p>}
 
@@ -107,12 +115,12 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
 
         <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
           <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Button type="button" variant="outline" size="sm" className="flex-1 gap-1 sm:flex-none" onClick={handlePrint}>
-              <PrinterIcon className="size-4" />
+            <Button type="button" variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={handlePrint}>
+              <PrinterIcon />
               Print Z-Report
             </Button>
-            <Button type="button" variant="outline" size="sm" className="flex-1 gap-1 sm:flex-none" onClick={handleExportCsv}>
-              <FileCsvIcon className="size-4" />
+            <Button type="button" variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={handleExportCsv}>
+              <FileCsvIcon />
               Export CSV
             </Button>
           </div>

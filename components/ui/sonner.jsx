@@ -12,6 +12,8 @@ const Toaster = ({
   return (
     <Sonner
       theme={theme}
+      offset="4.25rem"
+      mobileOffset="4.25rem"
       className="toaster group"
       icons={{
         success: (

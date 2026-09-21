@@ -38,7 +38,7 @@ export const ImportCatalogDialog = ({ user, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-2xl [scrollbar-width:thin] p-4 sm:p-6">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Import products</DialogTitle>
           <DialogDescription>
@@ -78,14 +78,14 @@ export const ImportCatalogDialog = ({ user, onClose }) => {
             )}
 
             {result.rows.length > 0 && (
-              <div className="overflow-x-auto border [scrollbar-width:thin]">
+              <div className="border">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
                       <TableHead>Colour / size</TableHead>
                       <TableHead className="text-right">Price</TableHead>
-                      <TableHead className="hidden text-right sm:table-cell">Receive</TableHead>
+                      <TableHead className="hidden text-right @lg:table-cell">Receive</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -101,7 +101,7 @@ export const ImportCatalogDialog = ({ user, onClose }) => {
                           </span>
                         </TableCell>
                         <TableCell className="text-right text-sm tabular-nums">{formatMoney(row.price)}</TableCell>
-                        <TableCell className="hidden text-right text-sm tabular-nums sm:table-cell">{row.stock}</TableCell>
+                        <TableCell className="hidden text-right text-sm tabular-nums @lg:table-cell">{row.stock}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

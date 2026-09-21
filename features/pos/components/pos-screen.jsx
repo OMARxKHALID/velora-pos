@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useEffectEvent, useState } from "react"
-import { ArrowsClockwiseIcon, CloudSlashIcon, LockKeyIcon, PauseCircleIcon, ShoppingBagIcon, SidebarSimpleIcon } from "@phosphor-icons/react"
+import { ArrowsClockwiseIcon, CloudSlashIcon, LockKeyIcon, ShoppingBagIcon, SidebarSimpleIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -9,17 +9,22 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { REGISTER_CODE } from "@/features/catalog/lib/catalog"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
+import { useStaffName } from "@/features/demo/hooks/use-directory"
+import { useSyncNow } from "@/features/demo/hooks/use-sync-now"
 import { openShiftFor } from "@/features/demo/lib/ledger"
-import { staffName } from "@/features/demo/lib/staff"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
-import { useBarcodeScanner } from "../hooks/use-barcode-scanner"
+import { cartTotals } from "@/features/pricing/lib/pricing"
+import { newId } from "@/lib/id"
 import { formatMoney } from "@/lib/money"
+import { useBarcodeScanner } from "../hooks/use-barcode-scanner"
 import { beep } from "../lib/beep"
-import { cartTotals } from "../lib/cart-totals"
 import { CartStoreProvider, useCartStore } from "../store/cart-store-provider"
 import { CartPanel } from "./cart-panel"
 import { CatalogPanel } from "./catalog-panel"
 import { CloseShiftDialog } from "./close-shift-dialog"
+import { CounterBusyCard } from "./counter-busy-card"
+import { HeldCartsButton } from "./held-carts-button"
+import { HoldSaleDialog } from "./hold-sale-dialog"
 import { OpenShiftCard } from "./open-shift-card"
 import { ParkedSalesDialog } from "./parked-sales-dialog"
 import { PaymentDialog } from "./payment-dialog"
@@ -29,12 +34,14 @@ import { VariantPickerDialog } from "./variant-picker-dialog"
 
 const time = new Intl.DateTimeFormat("en-PK", { hour: "numeric", minute: "2-digit" })
 
-const screenHeight = "h-[calc(100svh-5.5rem)] md:h-[calc(100svh-6.5rem)]"
+// Fills the space under the app header (see --app-header-h / --app-page-pad in globals.css). It never gets shorter than
+// min-h, so on a landscape phone the page scrolls instead of squeezing the product grid down to nothing.
+const screenHeight = "h-[calc(100dvh-var(--app-header-h)-2*var(--app-page-pad))] min-h-[34rem]"
 
 const PosSkeleton = () => (
-  <div className={`grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px] ${screenHeight}`}>
+  <div className={`grid gap-3 lg:grid-cols-[minmax(0,1fr)_340px] ${screenHeight}`}>
     <Skeleton />
-    <Skeleton className="hidden xl:block" />
+    <Skeleton className="hidden lg:block" />
   </div>
 )
 
@@ -43,17 +50,24 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const offline = useDemoStore(({ offline }) => offline)
   const waiting = useDemoStore(({ outbox }) => outbox.length)
   const settings = useDemoStore(({ settings }) => settings)
-  const catalog = useCatalog()
-  const { productById, variantByBarcode } = catalog
   const recordSale = useDemoStore(({ recordSale }) => recordSale)
+  const catalog = useCatalog()
+  const { productById, variantByBarcode, variants } = catalog
+  const nameOf = useStaffName()
+  const syncNow = useSyncNow()
+
   const lines = useCartStore(({ lines }) => lines)
   const discountPct = useCartStore(({ discountPct }) => discountPct)
   const approvedBy = useCartStore(({ approvedBy }) => approvedBy)
-  const add = useCartStore(({ add }) => add)
-  const clear = useCartStore(({ clear }) => clear)
   const customerName = useCartStore(({ customerName }) => customerName)
   const customerPhone = useCartStore(({ customerPhone }) => customerPhone)
   const parkedSales = useCartStore(({ parkedSales }) => parkedSales)
+  const add = useCartStore(({ add }) => add)
+  const clear = useCartStore(({ clear }) => clear)
+  const parkSale = useCartStore(({ parkSale }) => parkSale)
+  const resumeSale = useCartStore(({ resumeSale }) => resumeSale)
+  const prune = useCartStore(({ prune }) => prune)
+
   const [picking, setPicking] = useState(null)
   const [paying, setPaying] = useState(false)
   const [completed, setCompleted] = useState(null)
@@ -62,7 +76,15 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const [cartSheetOpen, setCartSheetOpen] = useState(false)
   const [closing, setClosing] = useState(false)
   const [parkedOpen, setParkedOpen] = useState(false)
-  const wide = useMediaQuery("(min-width: 1280px)")
+  const [holdOpen, setHoldOpen] = useState(false)
+  // One id per checkout, so pressing Pay twice can never record the same sale twice.
+  const [checkoutId, setCheckoutId] = useState(newId)
+  const wide = useMediaQuery("(min-width: 1024px)")
+
+  // A restored cart can point at items that no longer exist (for example after the demo data was reset).
+  useEffect(() => {
+    prune(new Set(variants.map(({ id }) => id)))
+  }, [variants, prune])
 
   const availableFor = (variantId) => (stock[variantId] ?? 0) - (lines.find((line) => line.variantId === variantId)?.quantity ?? 0)
 
@@ -91,6 +113,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
     const { rows } = cartTotals(lines, discountPct, catalog, settings)
     try {
       const sale = recordSale({
+        clientId: checkoutId,
         lines: rows.map(({ variantId, quantity, discount, productDiscount, entry }) => ({ variantId, quantity, discount, productDiscount, entry })),
         payments,
         cashierId: user.id,
@@ -100,6 +123,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
         customerPhone,
       })
       clear()
+      setCheckoutId(newId())
       setLastAdded(null)
       setPaying(false)
       setCompleted(sale)
@@ -116,12 +140,29 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
     setPaying(true)
   }
 
+  const handleHold = (label) => {
+    const parked = parkSale(label)
+    setHoldOpen(false)
+    if (!parked) return
+    toast.success("Sale on hold", { description: `${parked.label}. ${parkedSales.length + 1} ${parkedSales.length === 0 ? "cart is" : "carts are"} on hold.` })
+  }
+
+  const handleResume = (parkedId) => {
+    const result = resumeSale(parkedId, stock)
+    setParkedOpen(false)
+    if (result?.adjusted.length) {
+      toast.warning("Some items were trimmed", { description: "Stock changed while this sale was on hold, so quantities were reduced to what is left." })
+    }
+  }
+
   const handleToggleCart = () => (wide ? setCartOpen((open) => !open) : setCartSheetOpen(true))
+
+  const overlayOpen = Boolean(picking || paying || completed || closing || parkedOpen || holdOpen)
 
   const handleShortcut = useEffectEvent((event) => {
     if (event.key !== "F2") return
     event.preventDefault()
-    handleCharge()
+    if (!overlayOpen) handleCharge()
   })
 
   useEffect(() => {
@@ -132,25 +173,41 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   useBarcodeScanner(handleScan)
 
   const cartPanel = (className, onClose) => (
-    <CartPanel user={user} lastAdded={lastAdded} availableFor={availableFor} onScan={handleScan} onCharge={handleCharge} onClose={onClose} className={className} />
+    <CartPanel
+      user={user}
+      lastAdded={lastAdded}
+      availableFor={availableFor}
+      onScan={handleScan}
+      onCharge={handleCharge}
+      onHold={() => setHoldOpen(true)}
+      onOpenHeld={() => setParkedOpen(true)}
+      onClose={onClose}
+      className={className}
+    />
   )
+
+  const closeBlockedReason = lines.length ? "Finish or clear the current sale first" : parkedSales.length ? "Resume or discard held carts first" : undefined
 
   return (
     <div className={`flex flex-col gap-3 ${screenHeight}`}>
       {offline && (
-        <div role="status" className="flex items-center gap-3 border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+        <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
           <CloudSlashIcon className="size-4 shrink-0" />
-          <span>
+          <span className="min-w-0 flex-1">
             <span className="font-semibold">Offline.</span> Keep selling: sales are saved on this counter and sync automatically when the internet is back.
           </span>
-          {waiting > 0 && <span className="ml-auto shrink-0 font-semibold tabular-nums">{waiting} waiting</span>}
+          {waiting > 0 && <span className="shrink-0 font-semibold tabular-nums">{waiting} waiting</span>}
+          <Button size="xs" variant="outline" className="shrink-0 border-warning/40" onClick={syncNow}>
+            <ArrowsClockwiseIcon />
+            {waiting > 0 ? "Sync now" : "Reconnect"}
+          </Button>
         </div>
       )}
       {!offline && waiting > 0 && (
         <div role="status" className="flex items-center gap-3 border border-info/40 bg-info/10 px-3 py-2 text-xs text-info">
           <ArrowsClockwiseIcon className="size-4 shrink-0 animate-spin" />
           <span>
-            <span className="font-semibold">Reconnected.</span> Syncing {waiting} offline {waiting === 1 ? "sale" : "sales"} to the server...
+            <span className="font-semibold">Reconnected.</span> Syncing {waiting} offline {waiting === 1 ? "sale" : "sales"}…
           </span>
           <span className="ml-auto shrink-0 font-semibold tabular-nums">{waiting} syncing</span>
         </div>
@@ -160,34 +217,17 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
           Shift since <span className="font-semibold text-foreground">{time.format(shift.openedAt)}</span>
         </span>
         <span className="hidden whitespace-nowrap xl:inline">
-          Cashier <span className="font-semibold text-foreground">{staffName(shift.cashierId)}</span>
+          Cashier <span className="font-semibold text-foreground">{nameOf(shift.cashierId)}</span>
         </span>
         <span className="hidden whitespace-nowrap xl:inline">
           Counter <span className="font-semibold text-foreground">{REGISTER_CODE}</span>
         </span>
         <span className="ml-auto hidden whitespace-nowrap 2xl:inline">Scanner ready · F2 to charge</span>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="ml-auto shrink-0 2xl:ml-0"
-          disabled={lines.length > 0}
-          title={lines.length ? "Finish or clear the current sale first" : undefined}
-          onClick={() => setClosing(true)}
-        >
+        <Button size="sm" variant="ghost" className="ml-auto shrink-0 2xl:ml-0" disabled={Boolean(closeBlockedReason)} title={closeBlockedReason} onClick={() => setClosing(true)}>
           <LockKeyIcon />
           <span className="hidden sm:inline">Close shift</span>
         </Button>
-        {parkedSales.length > 0 && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 gap-1.5 shrink-0 border-gold/50 bg-gold/10 text-gold hover:bg-gold/20 font-semibold touch-manipulation pointer-coarse:h-11 active:scale-95 transition-all"
-            onClick={() => setParkedOpen(true)}
-          >
-            <PauseCircleIcon className="size-4 shrink-0" />
-            <span>{parkedSales.length} {parkedSales.length === 1 ? "cart held" : "carts held"}</span>
-          </Button>
-        )}
+        {wide && !cartOpen && parkedSales.length > 0 && <HeldCartsButton variant="bar" count={parkedSales.length} onClick={() => setParkedOpen(true)} />}
         {wide && (
           <Button size="sm" variant={cartOpen ? "outline" : "default"} className="shrink-0" onClick={handleToggleCart}>
             {cartOpen ? <SidebarSimpleIcon className="-scale-x-100" /> : <ShoppingBagIcon />}
@@ -203,34 +243,12 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
 
       {!wide && (
         <div className="flex shrink-0 items-center gap-2 border bg-card p-2">
-          {parkedSales.length > 0 && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="relative h-12 shrink-0 gap-1.5 border-gold/50 bg-gold/10 px-3 text-gold touch-manipulation active:scale-95"
-              onClick={() => setParkedOpen(true)}
-              title={`${parkedSales.length} ${parkedSales.length === 1 ? "held cart" : "held carts"}`}
-            >
-              <PauseCircleIcon className="size-5 shrink-0" />
-              <span className="text-xs font-semibold">
-                {parkedSales.length} {parkedSales.length === 1 ? "held" : "held"}
-              </span>
-              <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-gold text-[0.65rem] font-bold text-black tabular-nums shadow-xs">
-                {parkedSales.length}
-              </span>
-            </Button>
-          )}
-          <button
-            type="button"
-            onClick={() => setCartSheetOpen(true)}
-            className="flex min-w-0 flex-1 items-center gap-3 px-2 py-1 text-left"
-          >
+          {parkedSales.length > 0 && <HeldCartsButton variant="mobile" count={parkedSales.length} onClick={() => setParkedOpen(true)} />}
+          <button type="button" onClick={() => setCartSheetOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 px-2 py-1 text-left">
             <span className="relative flex size-10 shrink-0 items-center justify-center border border-primary/40 text-gold">
               <ShoppingBagIcon className="size-5" />
               {count > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center bg-primary text-[0.65rem] font-bold text-primary-foreground tabular-nums">
-                  {count}
-                </span>
+                <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center bg-primary text-2xs font-bold text-primary-foreground tabular-nums">{count}</span>
               )}
             </span>
             <span className="min-w-0">
@@ -270,7 +288,8 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
       {paying && <PaymentDialog total={total} count={count} onPay={handlePay} onClose={() => setPaying(false)} />}
       {completed && <ReceiptDialog sale={completed} onClose={() => setCompleted(null)} />}
       {closing && <CloseShiftDialog shift={shift} user={user} onCancel={() => setClosing(false)} onClosed={onShiftClosed} />}
-      {parkedOpen && <ParkedSalesDialog onClose={() => setParkedOpen(false)} />}
+      {parkedOpen && <ParkedSalesDialog onResume={handleResume} onClose={() => setParkedOpen(false)} />}
+      {holdOpen && <HoldSaleDialog suggestion={customerName || `Order #${parkedSales.length + 1}`} onHold={handleHold} onClose={() => setHoldOpen(false)} />}
     </div>
   )
 }
@@ -278,6 +297,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
 export const PosScreen = ({ user }) => {
   const hydrated = useDemoStore(({ hydrated }) => hydrated)
   const shifts = useDemoStore(({ shifts }) => shifts)
+  const epoch = useDemoStore(({ epoch }) => epoch)
   const [report, setReport] = useState(null)
   const shift = openShiftFor({ shifts })
 
@@ -285,12 +305,12 @@ export const PosScreen = ({ user }) => {
 
   return (
     <>
-      {shift ? (
-        <CartStoreProvider>
+      {!shift && <OpenShiftCard user={user} />}
+      {shift && shift.cashierId !== user.id && <CounterBusyCard user={user} shift={shift} onClosed={setReport} />}
+      {shift?.cashierId === user.id && (
+        <CartStoreProvider key={epoch}>
           <PosWorkspace user={user} shift={shift} onShiftClosed={setReport} />
         </CartStoreProvider>
-      ) : (
-        <OpenShiftCard user={user} />
       )}
       {report && <ShiftReportDialog shift={report} onClose={() => setReport(null)} />}
     </>

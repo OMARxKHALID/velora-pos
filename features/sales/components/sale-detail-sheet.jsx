@@ -16,7 +16,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { refundableQuantity } from "@/features/demo/lib/ledger"
-import { staffName } from "@/features/demo/lib/staff"
+import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { printNode } from "@/features/pos/lib/print-node"
 import { Receipt } from "@/features/pos/components/receipt"
@@ -28,7 +28,7 @@ import { SaleStatusBadges, StatusBadge } from "./sale-status-badges"
 
 const Meta = ({ label, children }) => (
   <div>
-    <dt className="text-[0.6rem] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+    <dt className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">
       {label}
     </dt>
     <dd className="mt-0.5 text-sm">{children}</dd>
@@ -46,12 +46,12 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
   const refunds = useDemoStore(({ refunds }) => refunds)
   const [refunding, setRefunding] = useState(false)
   const receipt = useRef(null)
+  const nameOf = useStaffName()
   const sale = sales.find(({ id }) => id === saleId)
+  if (!sale) return null
+
   const saleRefunds = refunds.filter((refund) => refund.saleId === saleId)
-  const canRefund = sale.items.some(
-    ({ variantId }) =>
-      refundableQuantity({ sales, refunds }, sale.id, variantId) > 0
-  )
+  const canRefund = sale.items.some(({ variantId }) => refundableQuantity({ sales, refunds }, sale.id, variantId) > 0)
 
   return (
     <>
@@ -75,7 +75,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
 
           <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 [scrollbar-width:thin]">
             <dl className="grid grid-cols-2 gap-4">
-              <Meta label="Cashier">{staffName(sale.cashierId)}</Meta>
+              <Meta label="Cashier">{nameOf(sale.cashierId)}</Meta>
               <Meta label="Customer">{sale.customerName || "Walk-in"}</Meta>
               <Meta label="Phone">{sale.customerPhone || "—"}</Meta>
               <Meta label="Payment">
@@ -86,13 +86,13 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
                   .join(" + ")}
               </Meta>
               <Meta label="Discount approved by">
-                {sale.manualDiscountBy ? staffName(sale.manualDiscountBy) : "—"}
+                {sale.manualDiscountBy ? nameOf(sale.manualDiscountBy) : "—"}
               </Meta>
               <Meta label="Change given">{formatMoney(sale.change)}</Meta>
             </dl>
 
             <div className="space-y-2">
-              <h3 className="text-[0.65rem] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+              <h3 className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">
                 Items
               </h3>
               <ul className="divide-y border">
@@ -111,11 +111,8 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
                     </div>
                     <div className="text-right tabular-nums">
                       <p className="font-semibold">{formatMoney(item.total)}</p>
-                      {item.discount > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          −{formatMoney(item.discount)}
-                        </p>
-                      )}
+                      {item.productDiscount > 0 && <p className="text-xs text-muted-foreground">Offer −{formatMoney(item.productDiscount)}</p>}
+                      {item.discount > 0 && <p className="text-xs text-muted-foreground">Discount −{formatMoney(item.discount)}</p>}
                     </div>
                   </li>
                 ))}
@@ -138,10 +135,10 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
                   </div>
                 )}
                 <div className="flex justify-between border-t pt-1.5">
-                  <dt className="font-semibold tracking-[0.2em] uppercase">Total</dt>
+                  <dt className="font-semibold tracking-label uppercase">Total</dt>
                   <dd className="font-heading text-lg font-bold text-gold">{formatMoney(sale.total)}</dd>
                 </div>
-                {sale.payments?.map((payment, index) => (
+                {sale.payments.map((payment, index) => (
                   <div key={`${payment.method}-${index}`} className="flex justify-between text-xs text-muted-foreground pt-1">
                     <dt>Paid · {payment.method === "card" ? "Card" : "Cash"}{payment.reference ? ` (${payment.reference})` : ""}</dt>
                     <dd>{formatMoney(payment.amount)}</dd>
@@ -157,7 +154,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-[0.65rem] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+              <h3 className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">
                 Refunds
               </h3>
               {saleRefunds.length ? (
@@ -174,9 +171,9 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {refund.reason} · asked by{" "}
-                        {staffName(refund.requestedBy)}
+                        {nameOf(refund.requestedBy)}
                         {refund.decidedBy &&
-                          ` · ${refund.status} by ${staffName(refund.decidedBy)}`}
+                          ` · ${refund.status} by ${nameOf(refund.decidedBy)}`}
                       </p>
                     </li>
                   ))}
@@ -200,7 +197,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => printNode(receipt.current)}
+                onClick={() => printNode(receipt.current, { paper: "receipt" })}
               >
                 <PrinterIcon />
                 Reprint

@@ -1,6 +1,6 @@
 "use client"
 
-import { useDeferredValue, useState } from "react"
+import { useDeferredValue, useMemo, useState } from "react"
 import { toast } from "sonner"
 import {
   ArchiveIcon,
@@ -33,7 +33,6 @@ import { downloadFile } from "@/lib/download"
 import { formatMoney, sumBy } from "@/lib/money"
 import { useCatalog } from "../hooks/use-catalog"
 import { exportCatalogCsv } from "../lib/catalog-csv"
-import { canDeleteProduct } from "../lib/catalog-ledger"
 import { ImportCatalogDialog } from "./import-catalog-dialog"
 import { LabelsDialog } from "./labels-dialog"
 import { ProductFormDialog } from "./product-form-dialog"
@@ -66,7 +65,8 @@ const DeleteDialog = ({ product, onConfirm, onClose }) => (
 )
 
 export const ProductsScreen = ({ user }) => {
-  const state = useDemoStore((store) => store)
+  const stock = useDemoStore(({ stock }) => stock)
+  const movements = useDemoStore(({ movements }) => movements)
   const setProductStatus = useDemoStore(({ setProductStatus }) => setProductStatus)
   const deleteProduct = useDemoStore(({ deleteProduct }) => deleteProduct)
   const { products, variants, variantsByProduct } = useCatalog()
@@ -78,6 +78,9 @@ export const ProductsScreen = ({ user }) => {
   const [labelling, setLabelling] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const search = useDeferredValue(query.trim().toLowerCase())
+  // Only products that were never stocked or sold can be deleted. Work the used set out once, not per row.
+  const usedVariants = useMemo(() => new Set(movements.map(({ variantId }) => variantId)), [movements])
+  const canDelete = (product) => !(variantsByProduct[product.id] ?? []).some(({ id }) => usedVariants.has(id))
 
   const active = products.filter((product) => product.status === "active")
   const visible = products
@@ -85,7 +88,7 @@ export const ProductsScreen = ({ user }) => {
     .toReversed()
   const pagination = paginate(visible, page)
 
-  const pairsOf = (product) => sumBy((variantsByProduct[product.id] ?? []).filter(({ active: on }) => on), ({ id }) => Math.max(state.stock[id] ?? 0, 0))
+  const pairsOf = (product) => sumBy((variantsByProduct[product.id] ?? []).filter(({ active: on }) => on), ({ id }) => Math.max(stock[id] ?? 0, 0))
 
   const withReset = (setter) => (value) => {
     setter(value)
@@ -93,7 +96,7 @@ export const ProductsScreen = ({ user }) => {
   }
 
   const handleExport = () => {
-    downloadFile(`velora-products-${new Date().toISOString().slice(0, 10)}.csv`, exportCatalogCsv(state))
+    downloadFile(`velora-products-${new Date().toISOString().slice(0, 10)}.csv`, exportCatalogCsv({ products, variants, stock }))
     toast.success("Export ready", { description: `${variants.length} rows with stock, prices and barcodes.` })
   }
 
@@ -116,48 +119,44 @@ export const ProductsScreen = ({ user }) => {
 
   return (
     <>
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-          <InputGroup className="h-9 w-full sm:w-64 lg:w-72">
-            <InputGroupAddon>
-              <MagnifyingGlassIcon />
-            </InputGroupAddon>
-            <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Name, brand or category" />
-          </InputGroup>
-          <div className="overflow-x-auto pb-0.5 sm:pb-0 [scrollbar-width:none]">
-            <Segmented options={statuses} value={status} onChange={withReset(setStatus)} />
-          </div>
-        </div>
-        <div className="flex items-center gap-2 sm:shrink-0">
-          <Button size="sm" variant="outline" className="touch-manipulation active:scale-95" onClick={() => setImporting(true)}>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <InputGroup className="w-full @xl:w-72">
+          <InputGroupAddon>
+            <MagnifyingGlassIcon />
+          </InputGroupAddon>
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Name, brand or category" />
+        </InputGroup>
+        <Segmented label="Status" options={statuses} value={status} onChange={withReset(setStatus)} />
+        <div className="flex w-full items-center gap-2 @2xl:ml-auto @2xl:w-auto">
+          <Button size="sm" variant="outline" aria-label="Import products" onClick={() => setImporting(true)}>
             <UploadSimpleIcon />
-            <span className="hidden sm:inline">Import</span>
+            <span className="hidden @lg:inline">Import</span>
           </Button>
-          <Button size="sm" variant="outline" className="touch-manipulation active:scale-95" onClick={handleExport}>
+          <Button size="sm" variant="outline" aria-label="Export products" onClick={handleExport}>
             <DownloadSimpleIcon />
-            <span className="hidden sm:inline">Export</span>
+            <span className="hidden @lg:inline">Export</span>
           </Button>
-          <Button size="sm" className="flex-1 touch-manipulation sm:flex-initial active:scale-95" onClick={() => setEditing("new")}>
+          <Button size="sm" className="flex-1 @2xl:flex-initial" onClick={() => setEditing("new")}>
             <PlusIcon />
             Add product
           </Button>
         </div>
       </div>
 
-      <div className="overflow-x-auto border bg-card [scrollbar-width:thin]">
+      <div className="border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Price</TableHead>
-              <TableHead className="hidden text-right sm:table-cell">Pairs</TableHead>
+              <TableHead className="hidden text-right @lg:table-cell">Pairs</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {pagination.rows.map((product) => (
-              <TableRow key={product.id} className="cursor-pointer" onClick={() => setEditing(product)}>
-                <TableCell className="max-w-64">
+              <TableRow key={product.id} onClick={() => setEditing(product)}>
+                <TableCell className="w-full max-w-0 whitespace-normal @lg:w-auto @lg:max-w-64 @lg:whitespace-nowrap">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-medium">{product.name}</p>
                     {product.status === "archived" && <StatusBadge>Archived</StatusBadge>}
@@ -167,7 +166,7 @@ export const ProductsScreen = ({ user }) => {
                   </p>
                 </TableCell>
                 <TableCell className="text-right text-sm font-semibold tabular-nums">{formatMoney(product.price)}</TableCell>
-                <TableCell className="hidden text-right text-sm tabular-nums sm:table-cell">{pairsOf(product)}</TableCell>
+                <TableCell className="hidden text-right text-sm tabular-nums @lg:table-cell">{pairsOf(product)}</TableCell>
                 <TableCell onClick={(event) => event.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label={`Actions for ${product.name}`} />}>
@@ -194,7 +193,7 @@ export const ProductsScreen = ({ user }) => {
                           Restore
                         </DropdownMenuItem>
                       )}
-                      {canDeleteProduct(state, product.id) && (
+                      {canDelete(product) && (
                         <DropdownMenuItem variant="destructive" onClick={() => setDeleting(product)}>
                           <TrashIcon />
                           Delete

@@ -15,6 +15,13 @@ export const metadata = {
   description: "Point of sale for Velora Group",
 }
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  // Let dvh units shrink with the on-screen keyboard so dialogs and their buttons stay reachable.
+  interactiveWidget: "resizes-content",
+}
+
 const RootLayout = ({ children }) => (
   <html
     lang="en"

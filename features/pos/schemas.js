@@ -1,7 +1,6 @@
 import { z } from "zod"
+import { DEFAULT_MANAGER_PIN } from "@/features/pricing/lib/pricing"
 import { formatMoney } from "@/lib/money"
-
-export const DEMO_MANAGER_PIN = "1234"
 
 export const openShiftSchema = z.object({
   openingCash: z.coerce
@@ -10,7 +9,7 @@ export const openShiftSchema = z.object({
     .max(1000000, { error: "That is more than Rs 1,000,000" }),
 })
 
-export const managerPinSchema = (expectedPin = DEMO_MANAGER_PIN) =>
+export const managerPinSchema = (expectedPin = DEFAULT_MANAGER_PIN) =>
   z.object({
     pin: z
       .string()
@@ -24,10 +23,6 @@ export const cashTenderSchema = (total) =>
       .number({ error: "Enter the cash received" })
       .min(total / 100, { error: `Must be at least ${formatMoney(total)}` }),
   })
-
-export const cardPaymentSchema = z.object({
-  reference: z.string().trim().max(30, { error: "Slip reference is too long" }).optional(),
-})
 
 export const closeShiftSchema = z.object({
   countedCash: z.coerce

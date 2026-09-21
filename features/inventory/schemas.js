@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-export const removeReasons = { damaged: "Damaged", lost: "Lost / stolen", expired: "Unsellable", count: "Stock count" }
+export const removeReasons = { damaged: "Damaged", lost: "Lost / stolen", unsellable: "Unsellable", count: "Stock count" }
 export const addReasons = { found: "Found", count: "Stock count" }
 
 export const purchaseSchema = z.object({

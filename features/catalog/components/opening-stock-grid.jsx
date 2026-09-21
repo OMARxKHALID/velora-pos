@@ -42,7 +42,7 @@ export const OpeningStockGrid = ({ colors, sizes, value, onChange }) => {
               const key = stockKey(color, size)
               return (
                 <label key={key} className="flex flex-col items-center gap-1 border px-1 pt-1 pb-1.5 focus-within:border-primary">
-                  <span className="text-[0.6rem] text-muted-foreground tabular-nums">EU {size}</span>
+                  <span className="text-2xs text-muted-foreground tabular-nums">EU {size}</span>
                   <input
                     value={value[key] ?? ""}
                     onChange={(event) => onChange({ ...value, [key]: event.target.value.replace(/\D/g, "").slice(0, 3) })}

@@ -120,7 +120,7 @@ export const AdjustStockDialog = ({ row, user, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Adjust stock</DialogTitle>
           <DialogDescription>
@@ -141,7 +141,7 @@ export const AdjustStockDialog = ({ row, user, onClose }) => {
                 )}
               >
                 <span className="font-semibold tabular-nums">{variant.attributes.size}</span>
-                <span className="text-[0.6rem] text-muted-foreground tabular-nums">{stock[variant.id] ?? 0} left</span>
+                <span className="text-2xs text-muted-foreground tabular-nums">{stock[variant.id] ?? 0} left</span>
               </button>
             ))}
           </div>

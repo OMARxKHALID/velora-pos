@@ -3,55 +3,60 @@ import { staffName } from "@/features/demo/lib/staff"
 import { formatFullDateTime } from "@/lib/dates"
 import { toCsv } from "@/lib/csv"
 
-export const generateZReportCsv = (state, shift) => {
+const rupees = (paisa) => (paisa / 100).toFixed(2)
+
+export const generateZReportCsv = (state, shift, staff) => {
   const summary = shiftSummary(state, shift)
-  const shiftSales = (state.sales || []).filter((s) => s.shiftId === shift.id)
-  const shiftRefunds = (state.refunds || []).filter((r) => r.shiftId === shift.id && r.status === "approved")
+  const shiftSales = state.sales.filter((sale) => sale.shiftId === shift.id)
+  const nameOf = (id) => staffName(id, staff)
 
   const rows = [
     ["VELORA POS - END OF DAY Z-REPORT"],
     ["Generated At", formatFullDateTime(Date.now())],
     ["Shift ID", shift.id],
-    ["Register / Counter", shift.registerId || "CTR-01"],
-    ["Cashier", staffName(shift.cashierId)],
-    ["Closed By", shift.closedBy ? staffName(shift.closedBy) : staffName(shift.cashierId)],
+    ["Register / Counter", shift.registerId],
+    ["Cashier", nameOf(shift.cashierId)],
+    ["Closed By", nameOf(shift.closedBy ?? shift.cashierId)],
     ["Shift Opened", shift.openedAt ? formatFullDateTime(shift.openedAt) : "—"],
     ["Shift Closed", shift.closedAt ? formatFullDateTime(shift.closedAt) : "—"],
-    ["Status", (shift.status || "closed").toUpperCase()],
+    ["Status", shift.status.toUpperCase()],
     [],
-    ["--- REVENUE & SALES SUMMARY ---"],
+    ["--- SALES SUMMARY ---"],
     ["Metric", "Value", "Notes"],
     ["Total Transactions", String(summary.saleCount), "Number of completed sales"],
     ["Total Units Sold", String(summary.itemCount), "Pairs / items"],
-    ["Gross Sales (PKR)", String(((summary.revenue + summary.discounts) / 100).toFixed(2)), "Before discounts"],
-    ["Total Discounts (PKR)", String((summary.discounts / 100).toFixed(2)), "Cart + product markdowns"],
-    ["Net Sales Revenue (PKR)", String((summary.revenue / 100).toFixed(2)), "Final sales total"],
-    ["Net Cash Sales (PKR)", String((summary.cashSales / 100).toFixed(2)), "Cash collected net of change"],
-    ["Card Sales (PKR)", String((summary.cardSales / 100).toFixed(2)), "Bank POS terminal payments"],
-    ["Refunds Count", String(shiftRefunds.length), "Approved customer refunds"],
-    ["Cash Refunds (PKR)", String((summary.cashRefunds / 100).toFixed(2)), "Cash returned to customers"],
+    ["Gross Sales (PKR)", rupees(summary.gross), "Before discounts"],
+    ["Total Discounts (PKR)", rupees(summary.discounts), "Cart discounts + shop offers"],
+    ["Net Sales (PKR)", rupees(summary.netSales), "After discounts, before tax"],
+    ["Tax Collected (PKR)", rupees(summary.tax), "Added on top of net sales"],
+    ["Total Collected (PKR)", rupees(summary.revenue), "Net sales + tax"],
+    ["Net Cash Sales (PKR)", rupees(summary.cashSales), "Cash collected net of change"],
+    ["Card Sales (PKR)", rupees(summary.cardSales), "Bank POS terminal payments"],
+    ["Card Refunds (PKR)", rupees(summary.cardRefunds), "Approved refunds asked for in this shift"],
+    ["Cash Refunds Paid (PKR)", rupees(summary.cashRefunds), "Cash paid out of this drawer"],
     [],
     ["--- CASH DRAWER RECONCILIATION ---"],
     ["Drawer Field", "Amount (PKR)"],
-    ["Opening Float", String((summary.openingCash / 100).toFixed(2))],
-    ["+ Cash Sales Received", String((summary.cashSales / 100).toFixed(2))],
-    ["- Cash Refunds Given", String((summary.cashRefunds / 100).toFixed(2))],
-    ["Expected Cash In Drawer", String((shift.expectedCash / 100).toFixed(2))],
-    ["Actual Cash Counted", String((shift.countedCash / 100).toFixed(2))],
-    ["Cash Variance (Over / Short)", String((shift.difference / 100).toFixed(2))],
+    ["Opening Float", rupees(summary.openingCash)],
+    ["+ Cash Sales Received", rupees(summary.cashSales)],
+    ["- Cash Refunds Paid", rupees(summary.cashRefunds)],
+    ["Expected Cash In Drawer", rupees(shift.expectedCash)],
+    ["Actual Cash Counted", rupees(shift.countedCash)],
+    ["Cash Variance (Over / Short)", rupees(shift.difference)],
     ["Variance Status", shift.difference === 0 ? "EXACT MATCH" : shift.difference > 0 ? "OVERAGE" : "SHORTAGE"],
     ["Closing Note", shift.closeNote || "None"],
     [],
     ["--- TRANSACTION AUDIT LOG ---"],
-    ["Receipt #", "Date/Time", "Items", "Gross (PKR)", "Discount (PKR)", "Net (PKR)", "Payment Methods"],
+    ["Receipt #", "Date/Time", "Items", "Gross (PKR)", "Discount (PKR)", "Tax (PKR)", "Total (PKR)", "Payment Methods"],
     ...shiftSales.map((sale) => [
       sale.number,
       formatFullDateTime(sale.soldAt),
-      String(sale.items?.length || 0),
-      String(((sale.subtotal || sale.total) / 100).toFixed(2)),
-      String(((sale.discountTotal || 0) / 100).toFixed(2)),
-      String((sale.total / 100).toFixed(2)),
-      (sale.payments || []).map((p) => `${p.method.toUpperCase()} (${(p.amount / 100).toFixed(2)})`).join("; "),
+      String(sale.items.length),
+      rupees(sale.subtotal),
+      rupees(sale.discountTotal),
+      rupees(sale.taxTotal ?? 0),
+      rupees(sale.total),
+      sale.payments.map((payment) => `${payment.method.toUpperCase()} (${rupees(payment.amount)})`).join("; "),
     ]),
   ]
 

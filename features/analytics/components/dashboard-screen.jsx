@@ -1,19 +1,20 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, CheckCircleIcon, WarningIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { Segmented } from "@/components/ui/segmented"
 import { StatStrip } from "@/components/ui/stat-strip"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { staff, staffName } from "@/features/demo/lib/staff"
+import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS, scopeState, shops } from "@/features/shops/lib/shops"
 import { formatMoney, sumBy } from "@/lib/money"
 import {
   brandPerformance,
+  cashierIdsFor,
   cashierStats,
   dailySeries,
   hourlySeries,
@@ -37,9 +38,6 @@ const ranges = [
 ]
 
 const compare = { today: "yesterday by this time", "7d": "the 7 days before", "30d": "the 30 days before" }
-const cashierIds = Object.values(staff)
-  .filter(({ role }) => role === "cashier")
-  .map(({ id }) => id)
 const percent = (value) => `${Math.round(value * 100)}%`
 
 const Delta = ({ now, before, label, comparable }) => {
@@ -79,49 +77,73 @@ const List = ({ rows, empty }) =>
     <p className="px-4 py-8 text-center text-sm text-muted-foreground">{empty}</p>
   )
 
-export const DashboardScreen = ({ user }) => {
-  const fullState = useDemoStore((store) => store)
-  const scope = useShopScope(user)
-  const state = scopeState(fullState, scope)
-  const [range, setRange] = useState("7d")
-  const period = periodFor(range)
+// Everything the dashboard shows comes from one pass over the ledger, recomputed only when the data,
+// the shop or the range changes (not on every unrelated store update).
+const buildView = (full, scope, period, staff, lowThreshold) => {
+  const state = scopeState(full, scope)
   const current = summarize(state, period.from, period.to)
   const previous = summarize(state, period.prevFrom, period.prevTo)
-  const byHour = range === "today"
-  const trend = byHour ? hourlySeries(current.sales) : dailySeries(current.sales, period.from, period.days)
-  const best = productPerformance(state, current.sales)
-    .filter(({ pairs }) => pairs > 0)
-    .toSorted((a, b) => b.pairs - a.pairs || b.revenue - a.revenue)
-    .slice(0, 5)
-  const short = lowStock(state)
-  const idle = notSelling(state)
-  const brands = brandPerformance(state, current.sales).slice(0, 6)
-  const topBrand = brands[0]?.revenue ?? 0
-  const payments = paymentSplit(current.sales)
-  const stock = stockValue(state)
-  const shifts = within(state.shifts.filter(({ status }) => status === "closed"), "closedAt", period.from, period.to)
-  const cashShort = sumBy(shifts.filter(({ difference }) => difference < 0), ({ difference }) => -difference)
-  const cashiers = cashierStats(state, current.sales, current.refunds, period.from, period.to, cashierIds)
+  const closedShifts = within(state.shifts.filter(({ status }) => status === "closed"), "closedAt", period.from, period.to)
   const firstSale = state.sales[0] ? new Date(state.sales[0].soldAt).getTime() : Infinity
-  const comparable = firstSale <= period.prevFrom + 24 * 60 * 60 * 1000
+
+  return {
+    current,
+    previous,
+    best: productPerformance(state, current.sales)
+      .filter(({ pairs }) => pairs > 0)
+      .toSorted((a, b) => b.pairs - a.pairs || b.revenue - a.revenue)
+      .slice(0, 5),
+    short: lowStock(state, lowThreshold),
+    idle: notSelling(state),
+    brands: brandPerformance(state, current.sales).slice(0, 6),
+    payments: paymentSplit(current.sales),
+    stock: stockValue(state),
+    closedShifts,
+    cashShort: sumBy(closedShifts.filter(({ difference }) => difference < 0), ({ difference }) => -difference),
+    cashiers: cashierStats(state, current.sales, current.refunds, period.from, period.to, cashierIdsFor(state, staff)),
+    comparable: firstSale <= period.prevFrom + 24 * 60 * 60 * 1000,
+    shopRows: shops.map((shop) => {
+      const shopState = scopeState(full, shop.id)
+      const closed = within(shopState.shifts.filter(({ status }) => status === "closed"), "closedAt", period.from, period.to)
+      return {
+        shop,
+        summary: summarize(shopState, period.from, period.to),
+        short: sumBy(closed.filter(({ difference }) => difference < 0), ({ difference }) => -difference),
+        stock: stockValue(shopState).value,
+      }
+    }),
+  }
+}
+
+export const DashboardScreen = ({ user }) => {
+  const products = useDemoStore(({ products }) => products)
+  const variants = useDemoStore(({ variants }) => variants)
+  const sales = useDemoStore(({ sales }) => sales)
+  const refunds = useDemoStore(({ refunds }) => refunds)
+  const shifts = useDemoStore(({ shifts }) => shifts)
+  const movements = useDemoStore(({ movements }) => movements)
+  const purchases = useDemoStore(({ purchases }) => purchases)
+  const stock = useDemoStore(({ stock }) => stock)
+  const staff = useDemoStore(({ staff }) => staff)
+  const lowThreshold = useDemoStore(({ settings }) => settings.lowStockThreshold)
+  const nameOf = useStaffName()
+  const scope = useShopScope(user)
+  const [range, setRange] = useState("7d")
+  const period = useMemo(() => periodFor(range), [range])
+  const full = useMemo(
+    () => ({ products, variants, sales, refunds, shifts, movements, purchases, stock }),
+    [products, variants, sales, refunds, shifts, movements, purchases, stock]
+  )
+  const view = useMemo(() => buildView(full, scope, period, staff, lowThreshold), [full, scope, period, staff, lowThreshold])
+  const { current, previous, best, short, idle, brands, payments, closedShifts, cashShort, cashiers, comparable, shopRows } = view
+  const byHour = range === "today"
+  const trend = byHour ? hourlySeries(current) : dailySeries(current, period.from, period.days)
+  const topBrand = brands[0]?.revenue ?? 0
   const label = compare[range]
-  const shopRows = shops.map((shop) => {
-    const shopState = scopeState(fullState, shop.id)
-    const summary = summarize(shopState, period.from, period.to)
-    const closed = within(shopState.shifts.filter(({ status }) => status === "closed"), "closedAt", period.from, period.to)
-    return {
-      shop,
-      summary,
-      short: sumBy(closed.filter(({ difference }) => difference < 0), ({ difference }) => -difference),
-      stock: stockValue(shopState).value,
-    }
-  })
 
   return (
     <>
-      <div className="overflow-x-auto pb-0.5 sm:pb-0 [scrollbar-width:none]">
-        <Segmented options={ranges} value={range} onChange={setRange} />
-      </div>
+      <Segmented label="Period" options={ranges} value={range} onChange={setRange} />
 
       <StatStrip
         stats={[
@@ -131,9 +153,9 @@ export const DashboardScreen = ({ user }) => {
             label: "Cash short",
             value: formatMoney(cashShort),
             tone: cashShort > 0 ? "destructive" : undefined,
-            hint: <span>{shifts.filter(({ difference }) => difference < 0).length} of {shifts.length} shifts</span>,
+            hint: <span>{closedShifts.filter(({ difference }) => difference < 0).length} of {closedShifts.length} shifts</span>,
           },
-          { label: "Stock value", value: formatMoney(stock.value), hint: <span>{stock.pairs.toLocaleString("en-PK")} pairs at cost</span> },
+          { label: "Stock value", value: formatMoney(view.stock.value), hint: <span>{view.stock.pairs.toLocaleString("en-PK")} pairs at cost</span> },
         ]}
       />
 
@@ -153,19 +175,23 @@ export const DashboardScreen = ({ user }) => {
               <TableRow>
                 <TableHead>Shop</TableHead>
                 <TableHead className="text-right">Sales</TableHead>
-                <TableHead className="hidden text-right sm:table-cell">Profit</TableHead>
+                <TableHead className="hidden text-right @lg:table-cell">Profit</TableHead>
                 <TableHead className="text-right">Cash short</TableHead>
-                <TableHead className="hidden text-right md:table-cell">Stock value</TableHead>
+                <TableHead className="hidden text-right @2xl:table-cell">Stock value</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {shopRows.map(({ shop, summary, short, stock: value }) => (
                 <TableRow key={shop.id}>
-                  <TableCell className="text-sm font-medium">{shop.name}</TableCell>
+                  <TableCell className="w-full max-w-0 text-sm font-medium whitespace-normal @lg:w-auto @lg:max-w-none">
+                    {shop.name}
+                    <p className="text-xs font-normal text-muted-foreground tabular-nums @lg:hidden">Profit {formatMoney(summary.profit)}</p>
+                    <p className="text-xs font-normal text-muted-foreground tabular-nums @2xl:hidden">Stock {formatMoney(value)}</p>
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{formatMoney(summary.revenue)}</TableCell>
-                  <TableCell className="hidden text-right tabular-nums sm:table-cell">{formatMoney(summary.profit)}</TableCell>
+                  <TableCell className="hidden text-right tabular-nums @lg:table-cell">{formatMoney(summary.profit)}</TableCell>
                   <TableCell className={cn("text-right tabular-nums", short > 0 && "text-destructive")}>{formatMoney(short)}</TableCell>
-                  <TableCell className="hidden text-right text-muted-foreground tabular-nums md:table-cell">{formatMoney(value)}</TableCell>
+                  <TableCell className="hidden text-right text-muted-foreground tabular-nums @2xl:table-cell">{formatMoney(value)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -173,14 +199,14 @@ export const DashboardScreen = ({ user }) => {
         </Panel>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 @4xl:grid-cols-3">
         <Panel title="Best sellers" description="Most pairs sold">
           <List
             empty="No sales in this period."
             rows={best.map(({ product, pairs }) => ({ key: product.id, title: product.name, detail: product.brand, value: `${pairs} sold` }))}
           />
         </Panel>
-        <Panel title="Running short" description={`${short.length} sizes at 2 pairs or fewer`} action={<LinkAction href="/stock">Stock</LinkAction>}>
+        <Panel title="Running short" description={`${short.length} ${short.length === 1 ? "size" : "sizes"} at ${lowThreshold} ${lowThreshold === 1 ? "pair" : "pairs"} or fewer`} action={<LinkAction href="/stock">Stock</LinkAction>}>
           <List
             empty="Nothing is running short."
             rows={short.slice(0, 5).map(({ variant, product, quantity }) => ({
@@ -200,7 +226,7 @@ export const DashboardScreen = ({ user }) => {
         </Panel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 @4xl:grid-cols-2">
         <Panel title="Sales by brand" description="Which brands bring the money in">
           <ul className="space-y-3 p-4">
             {brands.map(({ brand, revenue, pairs }) => (
@@ -225,7 +251,7 @@ export const DashboardScreen = ({ user }) => {
               const signals = signalsFor(stats)
               return {
                 key: stats.cashierId,
-                title: staffName(stats.cashierId),
+                title: nameOf(stats.cashierId),
                 detail: signals.length ? (
                   <span className="flex items-center gap-1 text-warning">
                     <WarningIcon className="size-3" weight="fill" />

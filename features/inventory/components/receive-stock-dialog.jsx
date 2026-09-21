@@ -22,6 +22,7 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
   const { productById, variantByBarcode, variantById, variants: allVariants } = useCatalog()
   const variants = allVariants.filter(({ active }) => active)
   const receivePurchase = useDemoStore(({ receivePurchase }) => receivePurchase)
+  const lowLimit = useDemoStore(({ settings }) => settings.lowStockThreshold)
   const [code, setCode] = useState("")
   const form = useForm({ resolver: zodResolver(purchaseSchema), defaultValues: { supplier: "Velora Warehouse", lines: [] } })
   const { fields, append, update, remove, replace } = useFieldArray({ control: form.control, name: "lines" })
@@ -53,7 +54,8 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
   }
 
   const handleAddLowStock = () => {
-    const low = variants.filter(({ id, lowStockAt }) => (stock[id] ?? 0) <= lowStockAt)
+    // Only shoes that are still on sale, judged by the shop's low-stock setting.
+    const low = variants.filter(({ id, productId }) => productById[productId]?.status === "active" && (stock[id] ?? 0) <= lowLimit)
     replace(low.map(({ id }) => ({ variantId: id, quantity: 6 })))
     form.clearErrors("lines")
   }
@@ -79,7 +81,7 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-[92svh] flex-col sm:max-w-xl">
+      <DialogContent className="sm:max-w-xl">
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-col gap-5">
           <DialogHeader>
             <DialogTitle>Receive delivery</DialogTitle>
@@ -114,7 +116,8 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
                   placeholder="Scan box barcode, then Enter"
                 />
                 <InputGroupAddon align="inline-end">
-                  <InputGroupButton size="xs" variant="ghost" onClick={() => handleScan(variants[Math.floor(Math.random() * variants.length)].barcode)}>
+                  <InputGroupButton size="xs" variant="ghost" disabled={!variants.length}
+                    onClick={() => handleScan(variants[Math.floor(Math.random() * variants.length)].barcode)}>
                     Test scan
                   </InputGroupButton>
                 </InputGroupAddon>

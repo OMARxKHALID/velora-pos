@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { seedCatalog } from "@/features/catalog/lib/catalog"
 import { defaultPricingSettings } from "./pricing"
-import { cartTotals, lineDiscount, netRevenue } from "./pricing"
+import { cartTotals, lineDiscount, netRefund, netRevenue, taxFor } from "./pricing"
 
 const catalog = seedCatalog()
 const index = {
@@ -23,8 +23,14 @@ describe("pricing", () => {
 
   test("a tax rate adds tax on top of the discounted net", () => {
     const withTax = cartTotals([{ variantId: variant.id, quantity: 1 }], 0, index, { ...settings, taxEnabled: true, taxRate: 15 })
-    expect(withTax.taxTotal).toBe(Math.round((variant.price * 15) / 100))
+    expect(withTax.taxTotal).toBe(taxFor(variant.price, 15))
     expect(withTax.total).toBe(variant.price + withTax.taxTotal)
+  })
+
+  test("tax is always a whole rupee so displayed totals match what is charged", () => {
+    expect(taxFor(499900, 15)).toBe(75000)
+    expect(taxFor(499900, 0)).toBe(0)
+    for (const price of [123900, 499900, 849900, 1250000]) expect(taxFor(price, 17) % 100).toBe(0)
   })
 
   test("per-product discount applies when enabled and is skipped when disabled", () => {
@@ -50,5 +56,10 @@ describe("pricing", () => {
   test("netRevenue strips tax for reports", () => {
     expect(netRevenue({ total: 11500, taxTotal: 1500 })).toBe(10000)
     expect(netRevenue({ total: 10000 })).toBe(10000)
+  })
+
+  test("a refund removes only its net part from sales", () => {
+    expect(netRefund({ total: 57500, taxTotal: 7500 })).toBe(50000)
+    expect(netRefund({ total: 50000 })).toBe(50000)
   })
 })

@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { seedCatalog } from "@/features/catalog/lib/catalog"
+import { indexCatalog } from "@/features/catalog/lib/catalog"
 import {
+  applyAdjustment,
   applyCloseShift,
   applyOpenShift,
   applyPurchase,
@@ -9,6 +11,10 @@ import {
   applySale,
   applySync,
   emptyLedger,
+  openShiftFor,
+  previewRefund,
+  refundCapFor,
+  refundMethodsFor,
   shiftSummary,
 } from "./ledger"
 
@@ -45,7 +51,7 @@ describe("ledger", () => {
       shiftId: shift.id,
       at,
     }
-    expect(() => applySale(state, input)).toThrow("Manager approval")
+    expect(() => applySale(state, input)).toThrow("Supervisor approval")
     expect(applySale(state, { ...input, approvedBy: "u-manager" }).record.flags).toContain("big_discount")
   })
 
@@ -183,5 +189,176 @@ describe("ledger", () => {
     expect(syncedSales.find((s) => s.id === saleOnline.id).syncedAt).toBe(at)
     expect(syncedSales.find((s) => s.id === saleOff1.id).syncedAt).toBe(syncTime)
     expect(syncedSales.find((s) => s.id === saleOff2.id).syncedAt).toBe(syncTime)
+  })
+
+  test("the same checkout submitted twice sells only once", () => {
+    const { state: opened, record: shift } = withShift()
+    const input = { lines: [{ variantId: shoe.id, quantity: 1 }], payments: [{ method: "cash", amount: shoe.price }], cashierId: "u-cashier", shiftId: shift.id, at, clientId: "checkout-1" }
+    const first = applySale(opened, input)
+    const second = applySale(first.state, input)
+    expect(second.record.id).toBe(first.record.id)
+    expect(second.state.sales).toHaveLength(1)
+    expect(second.state.stock[shoe.id]).toBe(4)
+    expect(second.state.receiptSeq).toBe(1)
+  })
+
+  test("payments must be positive whole-paisa amounts by a known method", () => {
+    const { state, record: shift } = withShift()
+    const base = { lines: [{ variantId: shoe.id, quantity: 1 }], cashierId: "u-cashier", shiftId: shift.id, at }
+    expect(() => applySale(state, { ...base, payments: [] })).toThrow("Add a payment")
+    expect(() => applySale(state, { ...base, payments: [{ method: "cheque", amount: shoe.price }] })).toThrow("Invalid payment")
+    expect(() => applySale(state, { ...base, payments: [{ method: "cash", amount: -5 }, { method: "card", amount: shoe.price + 5 }] })).toThrow("Invalid payment")
+    expect(() => applySale(state, { ...base, lines: [{ variantId: shoe.id, quantity: 1.5 }], payments: [{ method: "cash", amount: shoe.price }] })).toThrow("Quantity")
+  })
+
+  test("a counter can only have one open shift, per register", () => {
+    const { state, record } = withShift()
+    expect(openShiftFor(state).id).toBe(record.id)
+    expect(openShiftFor(state, "reg-other")).toBeUndefined()
+    expect(() => applyOpenShift(state, { cashierId: "u-x", openingCash: 0, at })).toThrow("already open")
+    expect(applyOpenShift(state, { cashierId: "u-x", openingCash: 0, at, registerId: "reg-other" }).record.registerId).toBe("reg-other")
+  })
+})
+
+describe("refunds with tax", () => {
+  const settings = { taxEnabled: true, taxLabel: "GST", taxRate: 15 }
+  const sandal = catalog.variants.find(({ price }) => price === 499900)
+  const stockedSandals = () =>
+    applyPurchase({ ...emptyLedger(), ...catalog }, { lines: [{ variantId: sandal.id, quantity: 5, unitCost: sandal.cost }], supplier: "Test", receivedBy: "u-manager", at }).state
+
+  // Pays with a large note so there is change, to prove refunds follow what was kept, not what was handed over.
+  const sell = (quantity) => {
+    const { state: opened, record: shift } = applyOpenShift(stockedSandals(), { cashierId: "u-cashier", openingCash: 0, at })
+    const { state, record: sale } = applySale(opened, {
+      lines: [{ variantId: sandal.id, quantity }],
+      payments: [{ method: "cash", amount: sandal.price * quantity * 2 }],
+      cashierId: "u-cashier",
+      shiftId: shift.id,
+      at,
+      settings,
+    })
+    return { state, sale, shift }
+  }
+  const request = (state, sale, shift, quantity, method = "cash") => ({
+    saleId: sale.id,
+    lines: [{ variantId: sandal.id, quantity, restock: true }],
+    reason: "Wrong size",
+    method,
+    requestedBy: "u-cashier",
+    shiftId: shift.id,
+    at,
+  })
+
+  test("the customer gets the tax back with the goods", () => {
+    const { state, sale, shift } = sell(1)
+    expect(sale.taxTotal).toBe(75000)
+    expect(sale.taxTotal % 100).toBe(0)
+    const { record: refund } = applyRefundRequest(state, request(state, sale, shift, 1))
+    expect(refund.total).toBe(sale.total)
+    expect(refund.taxTotal).toBe(sale.taxTotal)
+  })
+
+  test("partial refunds share the tax and add up exactly to what was collected", () => {
+    const { state, sale, shift } = sell(2)
+    const first = applyRefundRequest(state, request(state, sale, shift, 1))
+    const second = applyRefundRequest(first.state, request(first.state, sale, shift, 1))
+    expect(first.record.total).toBe(sandal.price + sale.taxTotal / 2)
+    expect(first.record.total + second.record.total).toBe(sale.total)
+    expect(first.record.taxTotal + second.record.taxTotal).toBe(sale.taxTotal)
+  })
+
+  test("previewRefund quotes exactly what the ledger books", () => {
+    const { state, sale, shift } = sell(2)
+    const lines = [{ variantId: sandal.id, quantity: 1, restock: true }]
+    const quote = previewRefund(state, sale.id, lines)
+    expect(applyRefundRequest(state, request(state, sale, shift, 1)).record.total).toBe(quote.total)
+    expect(previewRefund(state, sale.id, [{ variantId: sandal.id, quantity: 0 }]).total).toBe(0)
+  })
+
+  test("money goes back the way it came in", () => {
+    const { state: opened, record: shift } = applyOpenShift(stockedSandals(), { cashierId: "u-cashier", openingCash: 0, at })
+    const { state, record: cardSale } = applySale(opened, {
+      lines: [{ variantId: sandal.id, quantity: 1 }],
+      payments: [{ method: "card", amount: sandal.price }],
+      cashierId: "u-cashier",
+      shiftId: shift.id,
+      at,
+    })
+    expect(refundMethodsFor(cardSale)).toEqual(["card"])
+    expect(() => applyRefundRequest(state, request(state, cardSale, shift, 1, "cash"))).toThrow("not paid by cash")
+    expect(refundCapFor(state, cardSale, "card")).toBe(sandal.price)
+  })
+
+  test("a split sale can be refunded through each method up to what it paid", () => {
+    const { state: opened, record: shift } = applyOpenShift(stockedSandals(), { cashierId: "u-cashier", openingCash: 0, at })
+    const { state, record: sale } = applySale(opened, {
+      lines: [{ variantId: sandal.id, quantity: 2 }],
+      payments: [{ method: "cash", amount: sandal.price }, { method: "card", amount: sandal.price }],
+      cashierId: "u-cashier",
+      shiftId: shift.id,
+      at,
+    })
+    expect(refundMethodsFor(sale)).toEqual(["cash", "card"])
+    const cashRefund = applyRefundRequest(state, request(state, sale, shift, 1, "cash"))
+    expect(() => applyRefundRequest(cashRefund.state, request(cashRefund.state, sale, shift, 1, "cash"))).toThrow("more than was paid by cash")
+    expect(applyRefundRequest(cashRefund.state, request(cashRefund.state, sale, shift, 1, "card")).record.method).toBe("card")
+  })
+})
+
+describe("drawer accounting for cash refunds", () => {
+  const sellForCash = () => {
+    const { state: opened, record: shift } = withShift()
+    const { state, record: sale } = applySale(opened, {
+      lines: [{ variantId: shoe.id, quantity: 2 }],
+      payments: [{ method: "cash", amount: shoe.price * 2 }],
+      cashierId: "u-cashier",
+      shiftId: shift.id,
+      at,
+    })
+    const { state: requested, record: refund } = applyRefundRequest(state, {
+      saleId: sale.id,
+      lines: [{ variantId: shoe.id, quantity: 1, restock: true }],
+      reason: "Wrong size",
+      method: "cash",
+      requestedBy: "u-cashier",
+      shiftId: shift.id,
+      at,
+    })
+    return { state: requested, shift, refund }
+  }
+
+  test("a refund approved after the shift closed cannot change that shift's report", () => {
+    const { state, shift, refund } = sellForCash()
+    const { state: closedState, record: closed } = applyCloseShift(state, { shiftId: shift.id, countedCash: 1000000 + shoe.price * 2, closedBy: "u-cashier", at })
+    const { state: approved, record: decided } = applyRefundDecision(closedState, { refundId: refund.id, approve: true, userId: "u-manager", at: at + 5000 })
+
+    expect(decided.payoutShiftId).toBeNull()
+    expect(shiftSummary(approved, closed).expectedCash).toBe(closed.expectedCash)
+    expect(shiftSummary(approved, closed).cashRefunds).toBe(0)
+  })
+
+  test("the drawer that pays a refund out is the one that loses the cash", () => {
+    const { state, shift, refund } = sellForCash()
+    const { state: closedState } = applyCloseShift(state, { shiftId: shift.id, countedCash: 1000000 + shoe.price * 2, closedBy: "u-cashier", at })
+    const { state: nextOpen, record: nextShift } = applyOpenShift(closedState, { cashierId: "u-cashier", openingCash: 500000, at: at + 1000 })
+    const { state: approved, record: decided } = applyRefundDecision(nextOpen, { refundId: refund.id, approve: true, userId: "u-manager", at: at + 2000 })
+
+    expect(decided.payoutShiftId).toBe(nextShift.id)
+    expect(shiftSummary(approved, nextShift).cashRefunds).toBe(shoe.price)
+    expect(shiftSummary(approved, nextShift).expectedCash).toBe(500000 - shoe.price)
+  })
+
+  test("a rejected or card refund never touches a drawer", () => {
+    const { state, refund } = sellForCash()
+    expect(applyRefundDecision(state, { refundId: refund.id, approve: false, userId: "u-manager", at }).record.payoutShiftId).toBeNull()
+  })
+})
+
+describe("stock adjustments", () => {
+  test("an adjustment cannot take stock below zero", () => {
+    const state = stocked()
+    expect(() => applyAdjustment(state, { variantId: shoe.id, quantity: -6, reason: "damaged", userId: "u-manager", at })).toThrow("Not enough stock")
+    expect(applyAdjustment(state, { variantId: shoe.id, quantity: -2, reason: "damaged", userId: "u-manager", at }).state.stock[shoe.id]).toBe(3)
+    expect(indexCatalog(state).variantById[shoe.id]).toBeTruthy()
   })
 })

@@ -1,15 +1,41 @@
-export const printNode = (node) => {
+// Page setup per kind of print. Receipts are 80mm thermal paper (about 302px wide); everything else is a normal page.
+const pageStyles = {
+  receipt: "@page { size: 80mm auto; margin: 0 } html, body { margin: 0; background: #fff }",
+  sheet: "@page { size: A4; margin: 10mm } html, body { margin: 0; background: #fff }",
+}
+
+const PRINT_TIMEOUT = 2500
+
+const whenLoaded = (doc) => {
+  const links = [...doc.querySelectorAll('link[rel="stylesheet"]')]
+  const ready = Promise.all(
+    links.map((link) => new Promise((resolve) => {
+      link.addEventListener("load", resolve, { once: true })
+      link.addEventListener("error", resolve, { once: true })
+    }))
+  ).then(() => doc.fonts?.ready)
+  // A slow stylesheet should delay the print dialog, not block it forever.
+  return Promise.race([ready, new Promise((resolve) => setTimeout(resolve, PRINT_TIMEOUT))])
+}
+
+export const printNode = async (node, { paper = "sheet" } = {}) => {
   const frame = document.createElement("iframe")
+  frame.setAttribute("aria-hidden", "true")
   Object.assign(frame.style, { position: "fixed", width: "0", height: "0", border: "0" })
   document.body.append(frame)
 
   const doc = frame.contentDocument
-  doc.head.innerHTML = [...document.querySelectorAll('link[rel="stylesheet"], style')].map((el) => el.outerHTML).join("")
+  doc.head.innerHTML =
+    [...document.querySelectorAll('link[rel="stylesheet"], style')].map((element) => element.outerHTML).join("") +
+    `<style>${pageStyles[paper] ?? pageStyles.sheet}</style>`
   doc.body.innerHTML = node.outerHTML
 
-  setTimeout(() => {
-    frame.contentWindow.focus()
-    frame.contentWindow.print()
-    setTimeout(() => frame.remove(), 1000)
-  }, 300)
+  await whenLoaded(doc)
+
+  const cleanup = () => frame.remove()
+  frame.contentWindow.addEventListener("afterprint", cleanup, { once: true })
+  // Some browsers never fire afterprint. Do not leave the frame behind forever.
+  setTimeout(cleanup, 120000)
+  frame.contentWindow.focus()
+  frame.contentWindow.print()
 }

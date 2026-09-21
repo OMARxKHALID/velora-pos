@@ -4,6 +4,7 @@ import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { CashRegisterIcon } from "@phosphor-icons/react"
+import { hasFinePointer } from "@/lib/pointer"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
@@ -29,7 +30,7 @@ export const OpenShiftCard = ({ user }) => {
   return (
     <div className="flex flex-1 items-center justify-center">
       <Card className="w-full max-w-md">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="contents">
           <CardHeader>
             <div className="mb-3 flex size-12 items-center justify-center border border-primary/40 text-gold">
               <CashRegisterIcon className="size-6" />
@@ -50,7 +51,7 @@ export const OpenShiftCard = ({ user }) => {
                     <InputGroupAddon>
                       <InputGroupText>Rs</InputGroupText>
                     </InputGroupAddon>
-                    <InputGroupInput {...field} id={field.name} inputMode="numeric" autoFocus aria-invalid={fieldState.invalid} />
+                    <InputGroupInput {...field} id={field.name} inputMode="numeric" autoFocus={hasFinePointer()} aria-invalid={fieldState.invalid} />
                   </InputGroup>
                   <FieldDescription>The system compares this with the counted cash when you close the shift.</FieldDescription>
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -58,7 +59,7 @@ export const OpenShiftCard = ({ user }) => {
               )}
             />
           </CardContent>
-          <CardFooter className="mt-6">
+          <CardFooter>
             <Button type="submit" size="lg" className="w-full">
               Open shift
             </Button>

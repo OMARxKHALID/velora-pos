@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
@@ -8,19 +9,23 @@ import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Textarea } from "@/components/ui/textarea"
-import { openShiftFor, refundableQuantity } from "@/features/demo/lib/ledger"
+import { openShiftFor, previewRefund, refundCapFor, refundMethodsFor, refundableQuantity } from "@/features/demo/lib/ledger"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { newId } from "@/lib/id"
 import { formatMoney } from "@/lib/money"
 import { refundReasons, refundRequestSchema } from "../schemas"
+
+const methodLabels = { cash: "Cash from drawer", card: "Card reversal" }
 
 const Choice = ({ active, children, onClick }) => (
   <button
     type="button"
+    aria-pressed={active}
     onClick={onClick}
     className={cn(
-      "h-8 border px-3 text-xs transition-colors pointer-coarse:h-11",
+      "h-9 border px-3 text-xs transition-colors pointer-coarse:h-11",
       active ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/60"
     )}
   >
@@ -34,8 +39,12 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
   const shifts = useDemoStore(({ shifts }) => shifts)
   const requestRefund = useDemoStore(({ requestRefund }) => requestRefund)
   const decideRefund = useDemoStore(({ decideRefund }) => decideRefund)
-  const refundable = Object.fromEntries(sale.items.map(({ variantId }) => [variantId, refundableQuantity({ sales, refunds }, sale.id, variantId)]))
+  const state = { sales, refunds }
+  const refundable = Object.fromEntries(sale.items.map(({ variantId }) => [variantId, refundableQuantity(state, sale.id, variantId)]))
   const selfApprove = user.role !== "cashier"
+  const methods = refundMethodsFor(sale)
+  // One id per dialog, so a double tap on "Refund now" cannot file the same refund twice.
+  const [clientId] = useState(newId)
 
   const form = useForm({
     resolver: zodResolver(refundRequestSchema),
@@ -43,12 +52,15 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
       lines: sale.items.map(({ variantId }) => ({ variantId, quantity: 0, restock: true })),
       reason: undefined,
       note: "",
-      method: sale.payments[0].method === "card" ? "card" : "cash",
+      method: methods[0],
     },
   })
   const lines = useWatch({ control: form.control, name: "lines" })
   const reason = useWatch({ control: form.control, name: "reason" })
-  const amount = sale.items.reduce((sum, item, index) => sum + Math.round((item.total / item.quantity) * lines[index].quantity), 0)
+  const method = useWatch({ control: form.control, name: "method" })
+  // The same maths the ledger books with, so the customer is quoted exactly what is recorded.
+  const quote = previewRefund(state, sale.id, lines)
+  const overCap = quote.total > refundCapFor(state, sale, method)
 
   const handleSubmit = form.handleSubmit(({ lines: picked, reason: chosen, note, method }) => {
     try {
@@ -59,6 +71,7 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
         method,
         requestedBy: user.id,
         shiftId: openShiftFor({ shifts })?.id ?? sale.shiftId,
+        clientId,
       })
       if (selfApprove) decideRefund({ refundId: refund.id, approve: true, userId: user.id })
       toast.success(selfApprove ? "Refund approved" : "Refund sent for approval", {
@@ -72,13 +85,13 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
             <DialogTitle>Request refund</DialogTitle>
             <DialogDescription>
               {sale.number}. The original sale stays unchanged; this creates a separate refund record
-              {selfApprove ? " approved by you." : " for a manager to approve."}
+              {selfApprove ? " approved by you." : " for a supervisor to approve."}
             </DialogDescription>
           </DialogHeader>
 
@@ -102,11 +115,11 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
                           control={form.control}
                           render={({ field }) => (
                             <div className="flex shrink-0 items-center gap-1">
-                              <Button type="button" size="icon-xs" variant="outline" aria-label="Less" disabled={field.value < 1} onClick={() => field.onChange(field.value - 1)}>
+                              <Button type="button" size="icon-sm" variant="outline" aria-label="Less" disabled={field.value < 1} onClick={() => field.onChange(field.value - 1)}>
                                 <MinusIcon />
                               </Button>
                               <span className="w-7 text-center text-sm font-semibold tabular-nums">{field.value}</span>
-                              <Button type="button" size="icon-xs" variant="outline" aria-label="More" disabled={field.value >= max} onClick={() => field.onChange(field.value + 1)}>
+                              <Button type="button" size="icon-sm" variant="outline" aria-label="More" disabled={field.value >= max} onClick={() => field.onChange(field.value + 1)}>
                                 <PlusIcon />
                               </Button>
                             </div>
@@ -169,28 +182,39 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
                 <Field>
                   <FieldLabel>Refund to</FieldLabel>
                   <div className="flex gap-1.5">
-                    <Choice active={field.value === "cash"} onClick={() => field.onChange("cash")}>
-                      Cash from drawer
-                    </Choice>
-                    <Choice active={field.value === "card"} onClick={() => field.onChange("card")}>
-                      Card reversal
-                    </Choice>
+                    {methods.map((option) => (
+                      <Choice key={option} active={field.value === option} onClick={() => field.onChange(option)}>
+                        {methodLabels[option]}
+                      </Choice>
+                    ))}
                   </div>
+                  <FieldDescription>Money goes back the way it was paid.</FieldDescription>
+                  {overCap && <FieldError errors={[{ message: `That is more than was paid by ${field.value}. Refund the rest through the other method.` }]} />}
                 </Field>
               )}
             />
           </FieldGroup>
 
-          <div className="flex items-center justify-between border bg-muted/50 px-4 py-3">
-            <span className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Refund amount</span>
-            <span className="font-heading text-2xl font-bold text-gold tabular-nums">{formatMoney(amount)}</span>
+          <div className="space-y-1 border bg-muted/50 px-4 py-3">
+            {quote.taxTotal > 0 && (
+              <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
+                <span>Goods {formatMoney(quote.amount)}</span>
+                <span>Tax {formatMoney(quote.taxTotal)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Refund amount</span>
+              <span className="font-heading text-2xl font-bold text-gold tabular-nums">{formatMoney(quote.total)}</span>
+            </div>
           </div>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">{selfApprove ? "Refund now" : "Send for approval"}</Button>
+            <Button type="submit" disabled={overCap}>
+              {selfApprove ? "Refund now" : "Send for approval"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

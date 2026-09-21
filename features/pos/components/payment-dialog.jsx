@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowsSplitIcon, CreditCardIcon, MoneyIcon, PhoneIcon, UserIcon } from "@phosphor-icons/react"
+import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
@@ -11,8 +12,14 @@ import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { formatMoney, toPaisa } from "@/lib/money"
-import { cardPaymentSchema, cashTenderSchema } from "../schemas"
+import { hasFinePointer } from "@/lib/pointer"
+import { referenceError } from "../lib/card-reference"
+import { cashTenderSchema } from "../schemas"
 import { useCartStore } from "../store/cart-store-provider"
+import { AddReferenceLink, CardReferenceField } from "./card-reference-field"
+
+// Full-size primary action, one style for every tab. Labels may wrap instead of forcing the dialog wider.
+const ctaClass = "h-12 w-full whitespace-normal pointer-coarse:h-14"
 
 const quickTenders = (total) => {
   const rupees = total / 100
@@ -34,29 +41,43 @@ const CashForm = ({ total, onPay }) => {
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
             <FieldLabel htmlFor={field.name}>Cash received</FieldLabel>
-            <InputGroup className="h-14">
+            <InputGroup className="h-12 sm:h-14">
               <InputGroupAddon>
                 <InputGroupText>Rs</InputGroupText>
               </InputGroupAddon>
-              <InputGroupInput {...field} id={field.name} inputMode="numeric" autoFocus className="text-2xl font-semibold tabular-nums" aria-invalid={fieldState.invalid} />
+              <InputGroupInput
+                {...field}
+                id={field.name}
+                inputMode="numeric"
+                autoFocus={hasFinePointer()}
+                className="text-xl font-semibold tabular-nums sm:text-2xl pointer-coarse:text-xl!"
+                aria-invalid={fieldState.invalid}
+              />
             </InputGroup>
             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
           </Field>
         )}
       />
-      <div className="grid grid-cols-4 gap-2">
+      <div className="flex flex-wrap gap-2">
         {quickTenders(total).map((amount, index) => (
-          <Button key={amount} type="button" variant="outline" size="sm" onClick={() => form.setValue("tendered", String(amount), { shouldValidate: true })}>
+          <Button
+            key={amount}
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-w-[4.5rem] flex-1 px-2"
+            onClick={() => form.setValue("tendered", String(amount), { shouldValidate: true })}
+          >
             {index === 0 ? "Exact" : amount.toLocaleString("en-PK")}
           </Button>
         ))}
       </div>
-      <div className="flex items-center justify-between border bg-muted/50 px-4 py-3">
-        <span className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Change to give</span>
-        <span className="font-heading text-2xl font-bold text-gold tabular-nums">{change >= 0 ? formatMoney(change) : "—"}</span>
+      <div className="flex items-center justify-between gap-3 border bg-muted/50 px-4 py-3">
+        <span className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Change to give</span>
+        <span className="shrink-0 font-heading text-xl font-bold text-gold tabular-nums sm:text-2xl">{change >= 0 ? formatMoney(change) : "—"}</span>
       </div>
-      <DialogFooter>
-        <Button type="submit" size="lg" className="w-full">
+      <DialogFooter sticky>
+        <Button type="submit" size="lg" className={ctaClass}>
           Complete cash sale
         </Button>
       </DialogFooter>
@@ -66,16 +87,20 @@ const CashForm = ({ total, onPay }) => {
 
 const CardForm = ({ total, onPay }) => {
   const [showRef, setShowRef] = useState(false)
-  const form = useForm({ resolver: zodResolver(cardPaymentSchema), defaultValues: { reference: "" } })
+  const [reference, setReference] = useState("")
 
-  const handleSubmit = form.handleSubmit(({ reference }) => onPay([{ method: "card", amount: total, reference: reference?.trim() || null }]))
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    if (referenceError(reference)) return
+    onPay([{ method: "card", amount: total, reference: reference.trim() || null }])
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="border bg-muted/40 p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Amount on terminal</span>
-          <span className="font-heading text-2xl font-bold text-gold tabular-nums">{formatMoney(total)}</span>
+      <div className="space-y-3 border bg-muted/40 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Amount on terminal</span>
+          <span className="shrink-0 font-heading text-xl font-bold text-gold tabular-nums sm:text-2xl">{formatMoney(total)}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <CreditCardIcon className="size-4 shrink-0 text-gold" />
@@ -84,59 +109,37 @@ const CardForm = ({ total, onPay }) => {
       </div>
 
       {showRef ? (
-        <Controller
-          name="reference"
-          control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor={field.name}>Bank slip approval / auth code</FieldLabel>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRef(false)
-                    form.setValue("reference", "")
-                  }}
-                  className="text-[10px] uppercase text-muted-foreground hover:text-foreground"
-                >
-                  Hide
-                </button>
-              </div>
-              <InputGroup>
-                <InputGroupAddon>
-                  <InputGroupText>Appr #</InputGroupText>
-                </InputGroupAddon>
-                <InputGroupInput
-                  {...field}
-                  id={field.name}
-                  placeholder="e.g. 048291"
-                  className="font-mono text-xs"
-                  aria-invalid={fieldState.invalid}
-                />
-              </InputGroup>
-              {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-            </Field>
-          )}
+        <CardReferenceField
+          id="card-reference"
+          value={reference}
+          onChange={setReference}
+          onHide={() => {
+            setShowRef(false)
+            setReference("")
+          }}
         />
       ) : (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => setShowRef(true)}
-            className="text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-          >
-            + Add bank slip approval code
-          </button>
-        </div>
+        <AddReferenceLink onClick={() => setShowRef(true)} />
       )}
 
-      <DialogFooter>
-        <Button type="submit" size="lg" className="w-full">
+      <DialogFooter sticky>
+        <Button type="submit" size="lg" className={ctaClass} disabled={Boolean(referenceError(reference))}>
           Card approved, complete sale
         </Button>
       </DialogFooter>
     </form>
   )
+}
+
+const getSplitPresets = (totalRupees) => {
+  const half = Math.floor(totalRupees / 2)
+  const candidates = [1000, 2000, 5000, 10000].filter((amt) => amt > 0 && amt < totalRupees && amt !== half)
+  const presets = [{ label: "50 / 50", amount: half }]
+  for (const amt of candidates) {
+    if (presets.length >= 4) break
+    presets.push({ label: amt.toLocaleString("en-PK"), amount: amt })
+  }
+  return presets
 }
 
 const SplitForm = ({ total, onPay }) => {
@@ -152,7 +155,7 @@ const SplitForm = ({ total, onPay }) => {
   const cardRupees = Math.max(0, totalRupees - cashRupees)
   const changeRupees = Math.max(0, tenderedRupees - cashRupees)
 
-  const isValid = cashRupees > 0 && cashRupees < totalRupees && cardRupees > 0 && tenderedRupees >= cashRupees
+  const isValid = cashRupees > 0 && cashRupees < totalRupees && cardRupees > 0 && tenderedRupees >= cashRupees && !referenceError(reference)
 
   const handleQuickCash = (amount) => {
     setCashPart(String(amount))
@@ -170,36 +173,35 @@ const SplitForm = ({ total, onPay }) => {
     ])
   }
 
-  // Generate split presets like 50%, Rs 500, Rs 1000, Rs 5000 that are less than total
-  const splitPresets = [
-    { label: "50 / 50", amount: Math.floor(totalRupees / 2) },
-    { label: "1,000", amount: 1000 },
-    { label: "2,000", amount: 2000 },
-    { label: "5,000", amount: 5000 },
-  ].filter(({ amount }) => amount > 0 && amount < totalRupees)
+  const splitPresets = getSplitPresets(totalRupees)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="border bg-muted/40 p-3.5 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Card on terminal</span>
-          <span className="font-heading text-xl sm:text-2xl font-bold text-gold tabular-nums">{formatMoney(toPaisa(cardRupees))}</span>
+      {/* The one place the two amounts are shown. Everything below edits or explains them. */}
+      <dl className="grid grid-cols-2 divide-x border bg-muted/40">
+        <div className="flex min-w-0 flex-col gap-1 p-3">
+          <dt className="flex items-center gap-1.5 text-2xs font-semibold tracking-label text-muted-foreground uppercase">
+            <MoneyIcon className="size-3.5 shrink-0 text-gold" />
+            Cash
+          </dt>
+          <dd className="truncate font-heading text-xl font-bold text-foreground tabular-nums">{formatMoney(toPaisa(cashRupees))}</dd>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <CreditCardIcon className="size-4 shrink-0 text-gold" />
-          <span>Swipe or tap {formatMoney(toPaisa(cardRupees))} on bank card machine</span>
+        <div className="flex min-w-0 flex-col gap-1 p-3 text-right">
+          <dt className="flex items-center justify-end gap-1.5 text-2xs font-semibold tracking-label text-muted-foreground uppercase">
+            <CreditCardIcon className="size-3.5 shrink-0 text-gold" />
+            Card
+          </dt>
+          <dd className="truncate font-heading text-xl font-bold text-gold tabular-nums">{formatMoney(toPaisa(cardRupees))}</dd>
         </div>
-      </div>
+      </dl>
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="split-cash-part">Cash portion</FieldLabel>
-            <span className="text-xs text-muted-foreground tabular-nums">
-              Total: {formatMoney(total)}
-            </span>
+          <div className="flex items-center justify-between gap-2">
+            <FieldLabel htmlFor="split-cash-part">Cash to charge</FieldLabel>
+            <span className="text-2xs text-muted-foreground tabular-nums">Total {formatMoney(total)}</span>
           </div>
-          <InputGroup className="h-12 sm:h-14">
+          <InputGroup>
             <InputGroupAddon>
               <InputGroupText>Rs</InputGroupText>
             </InputGroupAddon>
@@ -209,103 +211,83 @@ const SplitForm = ({ total, onPay }) => {
               onChange={(e) => {
                 const val = e.target.value.replace(/\D/g, "")
                 setCashPart(val)
-                setTendered(val)
+                if (!tendered || tendered === cashPart) setTendered(val)
               }}
               inputMode="numeric"
-              placeholder="e.g. 5000"
-              className="text-xl sm:text-2xl font-semibold tabular-nums"
+              placeholder="0"
+              className="font-semibold tabular-nums"
             />
           </InputGroup>
         </Field>
 
-        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+        <Field>
+          <div className="flex items-center justify-between gap-2">
+            <FieldLabel htmlFor="split-tendered">Cash received</FieldLabel>
+            {cashRupees > 0 && tenderedRupees !== cashRupees && (
+              <button type="button" onClick={() => setTendered(String(cashRupees))} className="py-0.5 text-2xs tracking-widest text-gold uppercase hover:underline">
+                Exact
+              </button>
+            )}
+          </div>
+          <InputGroup>
+            <InputGroupAddon>
+              <InputGroupText>Rs</InputGroupText>
+            </InputGroupAddon>
+            <InputGroupInput id="split-tendered" value={tendered} onChange={(e) => setTendered(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="0" className="font-semibold tabular-nums" />
+          </InputGroup>
+        </Field>
+      </div>
+
+      {splitPresets.length > 0 && (
+        <div role="group" aria-label="Quick cash amounts" className="flex flex-wrap gap-2">
           {splitPresets.map(({ label, amount }) => (
             <Button
               key={label}
               type="button"
               variant="outline"
               size="sm"
-              className="h-9 text-xs font-semibold touch-manipulation pointer-coarse:h-11 active:scale-95"
+              aria-pressed={cashRupees === amount}
+              className={cn("min-w-[4.5rem] flex-1 px-2", cashRupees === amount && "border-gold/50 bg-gold/15 text-gold hover:bg-gold/20 hover:text-gold")}
               onClick={() => handleQuickCash(amount)}
             >
               {label}
             </Button>
           ))}
         </div>
+      )}
 
-        <Field>
-          <FieldLabel htmlFor="split-tendered">Cash received (tendered)</FieldLabel>
-          <InputGroup className="h-11 sm:h-12">
-            <InputGroupAddon>
-              <InputGroupText>Rs</InputGroupText>
-            </InputGroupAddon>
-            <InputGroupInput
-              id="split-tendered"
-              value={tendered}
-              onChange={(e) => setTendered(e.target.value.replace(/\D/g, ""))}
-              inputMode="numeric"
-              placeholder="e.g. 5000"
-              className="text-lg sm:text-xl font-semibold tabular-nums"
-            />
-          </InputGroup>
-        </Field>
+      <div className="flex items-center justify-between gap-3 border bg-muted/40 px-4 py-3">
+        <span className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Change to give</span>
+        <span className="shrink-0 font-heading text-xl font-bold text-gold tabular-nums">{tenderedRupees >= cashRupees ? formatMoney(toPaisa(changeRupees)) : "—"}</span>
+      </div>
 
-        <div className="flex items-center justify-between border bg-muted/50 px-4 py-2.5 sm:py-3">
-          <span className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Change to give</span>
-          <span className="font-heading text-xl sm:text-2xl font-bold text-gold tabular-nums">
-            {tenderedRupees >= cashRupees ? formatMoney(toPaisa(changeRupees)) : "—"}
-          </span>
-        </div>
+      {tenderedRupees > 0 && tenderedRupees < cashRupees && <p className="text-xs text-destructive">Received amount is short by {formatMoney(toPaisa(cashRupees - tenderedRupees))}</p>}
+      {cashRupees >= totalRupees && <p className="text-xs text-warning">Cash covers the full sale. Use the Cash tab or reduce the cash amount.</p>}
+      {cashRupees <= 0 && <p className="text-xs text-warning">Enter a cash amount greater than zero.</p>}
 
+      <div className="space-y-3 border p-4">
+        <p className="flex items-start gap-2 text-xs text-muted-foreground">
+          <CreditCardIcon className="mt-0.5 size-4 shrink-0 text-gold" />
+          <span>Take the card amount on the bank terminal first, then complete the sale once it is approved.</span>
+        </p>
         {showRef ? (
-          <Field>
-            <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="split-card-ref">Bank slip approval / auth code</FieldLabel>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowRef(false)
-                  setReference("")
-                }}
-                className="text-[10px] uppercase text-muted-foreground hover:text-foreground"
-              >
-                Hide
-              </button>
-            </div>
-            <InputGroup className="h-9">
-              <InputGroupAddon>
-                <InputGroupText>Appr #</InputGroupText>
-              </InputGroupAddon>
-              <InputGroupInput
-                id="split-card-ref"
-                value={reference}
-                onChange={(e) => setReference(e.target.value)}
-                placeholder="e.g. 091823"
-                className="font-mono text-xs"
-              />
-            </InputGroup>
-          </Field>
+          <CardReferenceField
+            id="split-card-ref"
+            value={reference}
+            onChange={setReference}
+            onHide={() => {
+              setShowRef(false)
+              setReference("")
+            }}
+          />
         ) : (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => setShowRef(true)}
-              className="text-[11px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-            >
-              + Add card approval code
-            </button>
-          </div>
+          <AddReferenceLink onClick={() => setShowRef(true)}>+ Add card approval code</AddReferenceLink>
         )}
       </div>
 
-      <DialogFooter>
-        <Button
-          type="submit"
-          size="lg"
-          className="h-12 sm:h-14 w-full touch-manipulation pointer-coarse:h-14 text-sm font-semibold active:scale-95"
-          disabled={!isValid}
-        >
-          Complete split sale ({formatMoney(toPaisa(cashRupees))} cash + {formatMoney(toPaisa(cardRupees))} card)
+      <DialogFooter sticky>
+        <Button type="submit" size="lg" className={ctaClass} disabled={!isValid}>
+          Complete split sale
         </Button>
       </DialogFooter>
     </form>
@@ -321,7 +303,8 @@ export const PaymentDialog = ({ total, count, onPay, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md [scrollbar-width:thin] p-4 sm:p-6">
+      {/* One width for every tab and anchored near the top: switching tabs never resizes or re-centres the dialog. */}
+      <DialogContent className="top-4 max-h-[calc(100dvh-2rem)] -translate-y-0 sm:top-[6dvh] sm:max-h-[calc(94dvh-1rem)] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Take payment</DialogTitle>
           <DialogDescription>
@@ -330,70 +313,56 @@ export const PaymentDialog = ({ total, count, onPay, onClose }) => {
         </DialogHeader>
 
         {settings?.customerInfoEnabled !== false && (
-          <div className="space-y-2 border-b pb-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                Customer (optional)
-              </span>
+          <div className="min-w-0 space-y-2 border-b pb-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">Customer (optional)</span>
               {(customerName || customerPhone) && (
                 <button
                   type="button"
                   onClick={() => setCustomer({ name: "", phone: "" })}
-                  className="text-[10px] tracking-wider text-muted-foreground uppercase transition-colors hover:text-foreground"
+                  className="py-0.5 text-2xs tracking-widest text-muted-foreground uppercase transition-colors hover:text-foreground"
                 >
                   Clear
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <InputGroup className="h-9">
+            <div className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+              <InputGroup>
                 <InputGroupAddon>
-                  <UserIcon className="size-3.5 text-gold" />
+                  <UserIcon className="size-3.5 shrink-0 text-gold" />
                 </InputGroupAddon>
-                <InputGroupInput
-                  placeholder="Customer name"
-                  value={customerName}
-                  onChange={(e) => setCustomer({ name: e.target.value })}
-                  className="text-xs"
-                />
+                <InputGroupInput placeholder="Customer name" value={customerName} onChange={(e) => setCustomer({ name: e.target.value })} autoComplete="off" />
               </InputGroup>
-              <InputGroup className="h-9">
+              <InputGroup>
                 <InputGroupAddon>
-                  <PhoneIcon className="size-3.5 text-gold" />
+                  <PhoneIcon className="size-3.5 shrink-0 text-gold" />
                 </InputGroupAddon>
-                <InputGroupInput
-                  placeholder="Phone number"
-                  value={customerPhone}
-                  onChange={(e) => setCustomer({ phone: e.target.value })}
-                  className="text-xs"
-                />
+                <InputGroupInput placeholder="Phone number" type="tel" inputMode="tel" value={customerPhone} onChange={(e) => setCustomer({ phone: e.target.value })} autoComplete="off" />
               </InputGroup>
             </div>
           </div>
         )}
 
         <Tabs value={method} onValueChange={setMethod}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="cash">
-              <MoneyIcon />
-              Cash
-            </TabsTrigger>
-            <TabsTrigger value="card">
-              <CreditCardIcon />
-              Card
-            </TabsTrigger>
-            <TabsTrigger value="split">
-              <ArrowsSplitIcon />
-              Split
-            </TabsTrigger>
+          <TabsList className="grid h-10 w-full min-w-0 grid-cols-3 pointer-coarse:h-12">
+            {[
+              ["cash", "Cash", MoneyIcon],
+              ["card", "Card", CreditCardIcon],
+              ["split", "Split", ArrowsSplitIcon],
+            ].map(([value, label, Icon]) => (
+              <TabsTrigger key={value} value={value} className="min-w-0 gap-1.5 px-2 text-xs pointer-coarse:h-full sm:px-3">
+                <Icon className="size-4 shrink-0 text-gold" />
+                <span className="truncate">{label}</span>
+              </TabsTrigger>
+            ))}
           </TabsList>
-          <TabsContent value="cash" className="pt-4">
+          <TabsContent value="cash" className="pt-3">
             <CashForm total={total} onPay={onPay} />
           </TabsContent>
-          <TabsContent value="card" className="pt-4">
+          <TabsContent value="card" className="pt-3">
             <CardForm total={total} onPay={onPay} />
           </TabsContent>
-          <TabsContent value="split" className="pt-4">
+          <TabsContent value="split" className="pt-3">
             <SplitForm total={total} onPay={onPay} />
           </TabsContent>
         </Tabs>

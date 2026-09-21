@@ -1,20 +1,27 @@
 "use server"
 
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { staff } from "@/features/demo/lib/staff"
-import { demoUsers, homeFor } from "./lib/demo-users"
-import { DISABLED_COOKIE, SESSION_COOKIE, getDisabledStaff, requireRole } from "./lib/session"
+import { homeFor } from "./lib/demo-users"
+import { USER_ID_PATTERN, cleanIdentity, encodeSession, serializeDisabled } from "./lib/session-cookie"
+import { DISABLED_COOKIE, SESSION_COOKIE, getDisabledStaff, getSession, requireRole } from "./lib/session"
 
-const cookieOptions = { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" }
+// Secure cookies are only accepted over https. Follow the actual protocol so the demo also signs in
+// on http://localhost and over a local network, while production behind https stays secure.
+const cookieOptions = async () => ({
+  httpOnly: true,
+  sameSite: "lax",
+  secure: (await headers()).get("x-forwarded-proto") === "https",
+  path: "/",
+})
 
-export const loginAs = async (role) => {
-  const user = demoUsers[role]
-  if (!user) return
-  if ((await getDisabledStaff()).includes(user.id)) redirect("/?blocked=1")
+export const signIn = async (formData) => {
+  const identity = cleanIdentity({ id: formData.get("id"), name: formData.get("name"), role: formData.get("role") })
+  if (!identity) redirect("/")
+  if ((await getDisabledStaff()).includes(identity.id)) redirect("/?blocked=1")
   const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE, role, cookieOptions)
-  redirect(homeFor(role))
+  cookieStore.set(SESSION_COOKIE, encodeSession(identity), await cookieOptions())
+  redirect(homeFor(identity.role))
 }
 
 export const logout = async () => {
@@ -24,12 +31,21 @@ export const logout = async () => {
 }
 
 export const setStaffAccess = async (userId, enabled) => {
-  await requireRole("admin")
-  if (!staff[userId] || staff[userId].role === "admin") return { error: "This person's access cannot be changed" }
+  const owner = await requireRole("admin")
+  if (typeof userId !== "string" || !USER_ID_PATTERN.test(userId) || userId === owner.id) {
+    return { error: "This person's access cannot be changed" }
+  }
   const disabled = new Set(await getDisabledStaff())
   if (enabled) disabled.delete(userId)
   else disabled.add(userId)
   const cookieStore = await cookies()
-  cookieStore.set(DISABLED_COOKIE, [...disabled].join(","), cookieOptions)
+  cookieStore.set(DISABLED_COOKIE, serializeDisabled([...disabled]), await cookieOptions())
   return { disabled: [...disabled] }
+}
+
+// "Reset demo data" also turns everyone's access back on.
+export const resetStaffAccess = async () => {
+  if (!(await getSession())) return
+  const cookieStore = await cookies()
+  cookieStore.delete(DISABLED_COOKIE)
 }

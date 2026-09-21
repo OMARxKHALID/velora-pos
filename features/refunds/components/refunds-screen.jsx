@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Segmented } from "@/components/ui/segmented"
 import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
-import { staffName } from "@/features/demo/lib/staff"
+import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { SaleDetailSheet } from "@/features/sales/components/sale-detail-sheet"
 import { StatusBadge } from "@/features/sales/components/sale-status-badges"
@@ -22,8 +22,9 @@ const tabs = [
 
 const RefundCard = ({ refund, onOpenSale, onDecide }) => {
   const { productById, variantById } = useCatalog()
+  const nameOf = useStaffName()
   return (
-    <li className="flex flex-col gap-4 p-4 md:flex-row md:items-center">
+    <li className="flex flex-col gap-4 p-4 @2xl:flex-row @2xl:items-center">
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -34,7 +35,7 @@ const RefundCard = ({ refund, onOpenSale, onDecide }) => {
             {refund.saleNumber}
           </button>
           <span className="text-xs text-muted-foreground">
-            {staffName(refund.requestedBy)} ·{" "}
+            {nameOf(refund.requestedBy)} ·{" "}
             {refund.status === "pending"
               ? timeAgo(refund.createdAt)
               : formatDateTime(refund.createdAt)}
@@ -59,19 +60,23 @@ const RefundCard = ({ refund, onOpenSale, onDecide }) => {
           })}
         </ul>
         <p className="text-sm text-muted-foreground">“{refund.reason}”</p>
+        {refund.status === "pending" && refund.method === "cash" && (
+          <p className="text-xs text-muted-foreground">Cash is paid from whichever drawer is open when you approve.</p>
+        )}
         {refund.decidedBy && (
           <p className="text-xs text-muted-foreground">
-            {refund.status} by {staffName(refund.decidedBy)} ·{" "}
+            {refund.status} by {nameOf(refund.decidedBy)} ·{" "}
             {formatDateTime(refund.decidedAt)}
           </p>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-3 md:flex-col md:flex-nowrap md:items-end">
-        <span className="font-heading text-xl font-bold text-gold tabular-nums">
-          {formatMoney(refund.total)}
-        </span>
+      <div className="flex flex-wrap items-center gap-3 @2xl:flex-col @2xl:flex-nowrap @2xl:items-end">
+        <div className="flex flex-col @2xl:items-end">
+          <span className="font-heading text-xl font-bold text-gold tabular-nums">{formatMoney(refund.total)}</span>
+          {refund.taxTotal > 0 && <span className="text-xs text-muted-foreground tabular-nums">incl. {formatMoney(refund.taxTotal)} tax</span>}
+        </div>
         {refund.status === "pending" && (
-          <div className="ml-auto flex gap-2 md:ml-0">
+          <div className="ml-auto flex gap-2 @2xl:ml-0">
             <Button
               size="sm"
               variant="outline"

@@ -1,4 +1,5 @@
 import { indexCatalog, seedCatalog } from "@/features/catalog/lib/catalog"
+import { lineDiscount } from "@/features/pricing/lib/pricing"
 import {
   applyAdjustment,
   applyCloseShift,
@@ -11,7 +12,8 @@ import {
   expectedCash,
 } from "./ledger"
 
-const HOUR = 3600000
+const MINUTE = 60000
+const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 
 const mulberry32 = (seed) => () => {
@@ -41,7 +43,7 @@ const seedCustomers = [
 export const createSeed = (now = Date.now()) => {
   const catalog = seedCatalog()
   const { products, variants } = catalog
-  const { variantsByProduct } = indexCatalog(catalog)
+  const { productById, variantsByProduct } = indexCatalog(catalog)
   const random = mulberry32(2026)
   const pick = (list) => list[Math.floor(random() * list.length)]
   const between = (min, max) => min + Math.floor(random() * (max - min + 1))
@@ -76,21 +78,20 @@ export const createSeed = (now = Date.now()) => {
     const weekend = [0, 6].includes(new Date(day).getDay())
 
     if (day === start + 14 * DAY) {
-      run(applyPurchase, {
-        lines: variants
-          .filter(({ id }) => (state.stock[id] ?? 0) <= 1)
-          .slice(0, 140)
-          .map(({ id, cost }) => ({ variantId: id, quantity: between(4, 8), unitCost: cost })),
-        supplier: "Velora Warehouse",
-        receivedBy: "u-manager",
-        at: day + 9 * HOUR,
-      })
+      // Depending on the weekday the seed starts on, nothing may be low yet. That must not break the reset.
+      const lowLines = variants
+        .filter(({ id }) => (state.stock[id] ?? 0) <= 1)
+        .slice(0, 140)
+        .map(({ id, cost }) => ({ variantId: id, quantity: between(4, 8), unitCost: cost }))
+      if (lowLines.length) run(applyPurchase, { lines: lowLines, supplier: "Velora Warehouse", receivedBy: "u-manager", at: day + 9 * HOUR })
     }
 
     for (const plan of shifts) {
       const openAt = day + plan.from * HOUR
-      const closeAt = isToday ? Math.min(day + plan.to * HOUR, now - HOUR) : day + plan.to * HOUR
-      if (isToday && closeAt <= openAt + HOUR) continue
+      // Today's shift is already closed a few minutes ago, so the counter is free for a live demo,
+      // but there is still something to show on "Today" from mid-morning onwards.
+      const closeAt = isToday ? Math.min(day + plan.to * HOUR, now - 10 * MINUTE) : day + plan.to * HOUR
+      if (isToday && closeAt <= openAt + 30 * MINUTE) continue
 
       const shift = run(applyOpenShift, { cashierId: plan.cashierId, openingCash: 1000000, at: openAt })
       const saleCount = Math.round(((closeAt - openAt) / HOUR) * (weekend ? 2.6 : 1.8) * (0.7 + random() * 0.6))
@@ -109,12 +110,20 @@ export const createSeed = (now = Date.now()) => {
         }
 
         const discounted = random() < plan.discountChance
-        const discountRate = discounted ? pick([0.05, 0.1, 0.15]) : 0
+        const discountPct = discounted ? pick([5, 10, 15]) : 0
+        // Same rules the cart uses: shop offers first, then the cashier's cart discount, both whole rupees.
         const withDiscount = lines.map((line) => {
-          const price = variants.find(({ id }) => id === line.variantId).price
-          return { ...line, discount: Math.floor((price * discountRate) / 10000) * 10000 }
+          const variant = variants.find(({ id }) => id === line.variantId)
+          return {
+            ...line,
+            productDiscount: lineDiscount(variant.price, productById[variant.productId].discountPct ?? 0),
+            discount: lineDiscount(variant.price, discountPct),
+          }
         })
-        const total = withDiscount.reduce((sum, line) => sum + variants.find(({ id }) => id === line.variantId).price - line.discount, 0)
+        const total = withDiscount.reduce(
+          (sum, line) => sum + variants.find(({ id }) => id === line.variantId).price - line.discount - line.productDiscount,
+          0
+        )
         const byCard = random() < 0.4
         const tendered = byCard ? total : Math.ceil(total / 100000) * 100000
 
@@ -125,8 +134,8 @@ export const createSeed = (now = Date.now()) => {
           payments: [{ method: byCard ? "card" : "cash", amount: tendered }],
           cashierId: plan.cashierId,
           shiftId: shift.id,
-          approvedBy: discountRate > 0.05 ? "u-manager" : null,
-          at: at,
+          approvedBy: discountPct > 5 ? "u-manager" : null,
+          at,
           customerName: customer?.name,
           customerPhone: customer?.phone,
         })
@@ -142,10 +151,10 @@ export const createSeed = (now = Date.now()) => {
           method: sale.payments[0].method,
           requestedBy: plan.cashierId,
           shiftId: shift.id,
-          at: new Date(sale.soldAt).getTime() + HOUR,
+          at: Math.min(sale.soldAt + HOUR, closeAt),
         })
         if (day < today - DAY) {
-          run(applyRefundDecision, { refundId: refund.id, approve: random() < 0.75, userId: "u-manager", at: refund.createdAt + HOUR })
+          run(applyRefundDecision, { refundId: refund.id, approve: random() < 0.75, userId: "u-manager", at: Math.min(refund.createdAt + HOUR, closeAt) })
         }
       }
 
@@ -170,7 +179,7 @@ export const createSeed = (now = Date.now()) => {
       method: sale.payments[0].method,
       requestedBy: sale.cashierId,
       shiftId: sale.shiftId,
-      at: new Date(sale.soldAt).getTime() + 30 * 60000,
+      at: Math.min(sale.soldAt + 30 * MINUTE, now),
     })
   }
 

@@ -1,1 +1,0 @@
-export { cartTotals } from "@/features/pricing/lib/pricing"

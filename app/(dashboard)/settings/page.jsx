@@ -4,11 +4,11 @@ import { DemoReady } from "@/features/demo/components/demo-ready"
 import { SettingsScreen } from "@/features/settings/components/settings-screen"
 
 const SettingsPage = async () => {
-  await requireRole("admin", "manager")
+  await requireRole("admin")
 
   return (
     <>
-      <PageHeader title="Settings" description="Tax and discounts for the whole shop." />
+      <PageHeader title="Settings" description="Tax, discounts and the supervisor PIN for the whole shop." />
       <DemoReady>
         <SettingsScreen />
       </DemoReady>

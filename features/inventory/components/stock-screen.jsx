@@ -27,11 +27,10 @@ const SizeChips = ({ sizes, threshold }) => (
   <div className="flex">
     {sizes.map(({ variant, quantity }) => {
       const out = quantity <= 0
-      const limit = threshold !== null && Number.isFinite(threshold) ? threshold : variant.lowStockAt
-      const low = !out && quantity <= limit
+      const low = !out && quantity <= (Number.isFinite(threshold) ? threshold : variant.lowStockAt)
       return (
         <div key={variant.id} title={`EU ${variant.attributes.size}: ${quantity} pairs`} className="flex w-8 flex-col items-center gap-1">
-          <span className="text-[0.6rem] leading-none text-muted-foreground tabular-nums">{variant.attributes.size}</span>
+          <span className="text-2xs leading-none text-muted-foreground tabular-nums">{variant.attributes.size}</span>
           <span className={cn("text-sm leading-none tabular-nums", out && "text-destructive", low && "font-semibold text-warning")}>{out ? "–" : quantity}</span>
           <span className={cn("h-0.5 w-5", out ? "bg-destructive" : low ? "bg-warning" : "bg-border")} />
         </div>
@@ -71,38 +70,34 @@ export const StockScreen = ({ user }) => {
 
   return (
     <>
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-          <InputGroup className="h-9 w-full sm:w-64 lg:w-72">
-            <InputGroupAddon>
-              <MagnifyingGlassIcon />
-            </InputGroupAddon>
-            <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Shoe, brand, SKU or barcode" />
-          </InputGroup>
-          <div className="overflow-x-auto pb-0.5 sm:pb-0 [scrollbar-width:none]">
-            <Segmented options={filters} value={filter} onChange={withReset(setFilter)} />
-          </div>
-        </div>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <InputGroup className="w-full @xl:w-72">
+          <InputGroupAddon>
+            <MagnifyingGlassIcon />
+          </InputGroupAddon>
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Shoe, brand, SKU or barcode" />
+        </InputGroup>
+        <Segmented label="Stock level" options={filters} value={filter} onChange={withReset(setFilter)} />
         {canEdit && (
-          <Button size="sm" className="w-full shrink-0 touch-manipulation sm:w-auto active:scale-95" onClick={() => setReceiving(true)}>
+          <Button size="sm" className="w-full @2xl:ml-auto @2xl:w-auto" onClick={() => setReceiving(true)}>
             <PackageIcon />
             Receive delivery
           </Button>
         )}
       </div>
 
-      <div className="overflow-x-auto border bg-card [scrollbar-width:thin]">
+      <div className="border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Shoe</TableHead>
-              <TableHead className="hidden md:table-cell">Stock by size (EU)</TableHead>
+              <TableHead className="hidden @2xl:table-cell">Stock by size (EU)</TableHead>
               <TableHead className="text-right">Pairs</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {pagination.rows.map((row) => (
-              <TableRow key={row.key} className={cn(canEdit && "cursor-pointer")} onClick={() => canEdit && setAdjusting(row)}>
+              <TableRow key={row.key} onClick={canEdit ? () => setAdjusting(row) : undefined}>
                 <TableCell>
                   <div className="flex items-center gap-2.5">
                     <ColorDot color={row.color} />
@@ -115,8 +110,12 @@ export const StockScreen = ({ user }) => {
                       </p>
                     </div>
                   </div>
+                  {/* On narrow screens the size column is hidden, so the sizes sit under the name. */}
+                  <div className="mt-2.5 max-w-[calc(100cqw-6rem)] overflow-x-auto pb-1 @2xl:hidden">
+                    <SizeChips sizes={row.sizes} threshold={lowLimit} />
+                  </div>
                 </TableCell>
-                <TableCell className="hidden md:table-cell">
+                <TableCell className="hidden @2xl:table-cell">
                   <SizeChips sizes={row.sizes} threshold={lowLimit} />
                 </TableCell>
                 <TableCell className="text-right font-semibold tabular-nums">{row.total}</TableCell>

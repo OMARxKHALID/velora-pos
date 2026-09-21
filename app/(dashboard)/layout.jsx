@@ -16,7 +16,9 @@ const DashboardLayout = async ({ children }) => {
         <AppSidebar user={user} />
         <SidebarInset className="min-w-0">
           <AppHeader user={user} />
-          <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">{children}</main>
+          <div data-slot="page-content" className="@container flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
+            {children}
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </DemoStoreProvider>

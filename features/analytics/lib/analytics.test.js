@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test"
 import { seedCatalog } from "@/features/catalog/lib/catalog"
 import { applyOpenShift, applyPurchase, applyRefundDecision, applyRefundRequest, applySale, emptyLedger } from "@/features/demo/lib/ledger"
-import { brandPerformance, cashierStats, notSelling, paymentSplit, periodFor, stockValue, summarize } from "./analytics"
+import { createSeed } from "@/features/demo/lib/seed"
+import { initialStaff } from "@/features/demo/lib/staff"
+import { brandPerformance, cashierIdsFor, cashierStats, dailySeries, hourlySeries, lowStock, notSelling, paymentSplit, periodFor, stockValue, summarize } from "./analytics"
 
 test("net revenue and profit subtract approved refunds, keeping cost when restocked", () => {
   const catalog = seedCatalog()
@@ -42,4 +44,45 @@ test("brands, dead stock and payment split come from the same sales", () => {
   expect(notSelling(state, 14, at + 1).map(({ product }) => product.id)).toEqual(["p-02"])
   expect(paymentSplit(state.sales)).toEqual({ cash: sold.price, card: 0, cashShare: 1 })
   expect(stockValue(state).pairs).toBe(5)
+})
+
+test("charts add up to the headline numbers because refunds come off the day they were approved", () => {
+  const state = createSeed(new Date(2026, 8, 16, 15).getTime())
+  const period = periodFor("30d", new Date(2026, 8, 16, 15).getTime())
+  const summary = summarize(state, period.from, period.to)
+  expect(summary.refunds.length).toBeGreaterThan(0)
+
+  const days = dailySeries(summary, period.from, period.days)
+  expect(days.reduce((sum, { revenue }) => sum + revenue, 0)).toBeCloseTo(summary.revenue / 100, 2)
+  expect(days.reduce((sum, { profit }) => sum + profit, 0)).toBeCloseTo(summary.profit / 100, 2)
+})
+
+test("the hourly chart shows opening hours and stretches to include late or early trade", () => {
+  const empty = { sales: [], impacts: [] }
+  expect(hourlySeries(empty).map(({ hour }) => hour)).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21])
+
+  const sale = (hour) => ({ soldAt: new Date(2026, 8, 16, hour, 5).getTime(), total: 100000, taxTotal: 0, items: [{ total: 100000, unitCost: 40000, quantity: 1 }] })
+  const stretched = hourlySeries({ sales: [sale(8), sale(23)], impacts: [] })
+  expect(stretched[0].hour).toBe(8)
+  expect(stretched.at(-1).hour).toBe(23)
+  expect(stretched.reduce((sum, { sales }) => sum + sales, 0)).toBe(2)
+
+  const refunded = hourlySeries({ sales: [sale(12)], impacts: [{ at: new Date(2026, 8, 16, 14).getTime(), revenue: 40000, profit: 10000 }] })
+  expect(refunded.find(({ hour }) => hour === 12).revenue).toBe(1000)
+  expect(refunded.find(({ hour }) => hour === 14).revenue).toBe(-400)
+})
+
+test("low stock follows the shop setting when one is given", () => {
+  const state = createSeed(new Date(2026, 8, 16, 15).getTime())
+  expect(lowStock(state, 5).length).toBeGreaterThan(lowStock(state, 0).length)
+  expect(lowStock(state).every(({ quantity, variant }) => quantity <= variant.lowStockAt)).toBe(true)
+})
+
+test("the staff panel lists current cashiers and anyone who has sold", () => {
+  const state = createSeed(new Date(2026, 8, 16, 15).getTime())
+  const staff = { ...initialStaff, "u-cashier-new": { id: "u-cashier-new", name: "New", role: "cashier" }, "u-cashier-gone": { id: "u-cashier-gone", name: "Gone", role: "cashier", removed: true } }
+  const ids = cashierIdsFor(state, staff)
+  expect(ids).toContain("u-cashier")
+  expect(ids).toContain("u-cashier-new")
+  expect(ids).not.toContain("u-cashier-gone")
 })

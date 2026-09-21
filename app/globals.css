@@ -5,6 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+    --text-2xs: 0.6875rem;
+    --text-2xs--line-height: 1rem;
+    --tracking-label: 0.16em;
+    --color-destructive-foreground: var(--destructive-foreground);
     --font-heading: var(--font-display);
     --font-sans: var(--font-sans);
     --color-sidebar-ring: var(--sidebar-ring);
@@ -70,6 +74,7 @@
     --accent: #f5ecd0;
     --accent-foreground: #5c4712;
     --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
     --success: #16a34a;
     --success-foreground: #ffffff;
     --warning: #ea580c;
@@ -112,6 +117,7 @@
     --accent: #2e2715;
     --accent-foreground: #e6c766;
     --destructive: #f87171;
+    --destructive-foreground: #0c0b09;
     --success: #22c55e;
     --success-foreground: #0c0b09;
     --warning: #fb923c;
@@ -140,13 +146,14 @@
 @layer base {
   * {
     @apply border-border outline-ring/50 [scrollbar-width:thin] [scrollbar-color:color-mix(in_oklch,var(--muted-foreground)_35%,transparent)_transparent];
-    }
-  body {
-    @apply bg-background text-foreground [-webkit-tap-highlight-color:transparent];
-    }
+  }
   html {
-    @apply font-sans;
-    }
+    @apply font-sans [-webkit-text-size-adjust:100%];
+  }
+  /* "clip" (not "hidden") so body does not become a scroll container: that is what stopped the sticky header from sticking. */
+  body {
+    @apply bg-background text-foreground [-webkit-tap-highlight-color:transparent] overflow-x-clip min-h-dvh;
+  }
   button, a, input, select, textarea, label, [role=button], [role=menuitem], [role=tab] {
     @apply touch-manipulation;
   }
@@ -161,5 +168,24 @@
   input[type=checkbox]:not(:disabled),
   input[type=radio]:not(:disabled) {
     cursor: pointer;
+  }
+}
+
+/* Shell geometry lives in one place so full-height screens (the POS) do not repeat magic numbers. */
+:root {
+  --app-header-h: 3.5rem;
+  --app-page-pad: 1rem;
+}
+@media (min-width: 768px) {
+  :root {
+    --app-page-pad: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

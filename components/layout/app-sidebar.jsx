@@ -1,9 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ArrowCounterClockwiseIcon, CaretUpDownIcon, CheckIcon, PlusIcon, SignOutIcon, StorefrontIcon } from "@phosphor-icons/react"
-import { toast } from "sonner"
 import {
   Sidebar,
   SidebarContent,
@@ -34,10 +34,11 @@ import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS, shopName, shops } from "@/features/shops/lib/shops"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { navItems } from "./nav-items"
+import { ResetDemoDialog } from "./reset-demo-dialog"
 import { ThemeToggle } from "./theme-toggle"
 import { VeloraLogo } from "./velora-logo"
 
-const initials = (name) => name.split(" ").map((part) => part[0]).join("")
+const initials = (name) => name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("")
 
 const ShopSwitcher = ({ user }) => {
   const scope = useShopScope(user)
@@ -77,14 +78,7 @@ export const AppSidebar = ({ user }) => {
   const pendingRefunds = useDemoStore(({ refunds }) => refunds.filter(({ status }) => status === "pending").length)
   const badges = { "/refunds": pendingRefunds }
 
-  const resetDemo = useDemoStore(({ resetDemo }) => resetDemo)
-
-  const handleLogout = () => logout()
-
-  const handleReset = () => {
-    resetDemo()
-    toast.success("Demo data reset", { description: "30 days of fresh sales, shifts and refunds." })
-  }
+  const [resetOpen, setResetOpen] = useState(false)
 
   return (
     <Sidebar collapsible="icon">
@@ -147,11 +141,11 @@ export const AppSidebar = ({ user }) => {
                   <DropdownMenuLabel>Signed in as {roleLabels[user.role]}</DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleReset}>
+                <DropdownMenuItem onClick={() => setResetOpen(true)}>
                   <ArrowCounterClockwiseIcon />
                   Reset demo data
                 </DropdownMenuItem>
-                <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+                <DropdownMenuItem variant="destructive" onClick={() => logout()}>
                   <SignOutIcon />
                   Switch user
                 </DropdownMenuItem>
@@ -161,6 +155,7 @@ export const AppSidebar = ({ user }) => {
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
+      <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />
     </Sidebar>
   )
 }
