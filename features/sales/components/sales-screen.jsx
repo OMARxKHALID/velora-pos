@@ -103,23 +103,27 @@ export const SalesScreen = ({ user }) => {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <InputGroup className="h-9 w-full sm:w-80">
-          <InputGroupAddon>
-            <MagnifyingGlassIcon />
-          </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Receipt no, customer, or shoe name" />
-        </InputGroup>
-        <Segmented options={ranges} value={range} onChange={withReset(setRange)} />
-        {user.role !== "cashier" && (
-          <Segmented options={[{ key: "all", label: "All cashiers" }, ...cashiers.map(({ id, name }) => ({ key: id, label: name.split(" ")[0] }))]} value={cashier} onChange={withReset(setCashier)} />
-        )}
-        <div className="ml-auto flex items-center gap-2">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+          <InputGroup className="h-9 w-full sm:w-72 lg:w-80">
+            <InputGroupAddon>
+              <MagnifyingGlassIcon />
+            </InputGroupAddon>
+            <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Receipt no, customer, or shoe name" />
+          </InputGroup>
+          <div className="flex items-center gap-2 overflow-x-auto pb-0.5 sm:pb-0 [scrollbar-width:none]">
+            <Segmented options={ranges} value={range} onChange={withReset(setRange)} />
+            {user.role !== "cashier" && (
+              <Segmented options={[{ key: "all", label: "All cashiers" }, ...cashiers.map(({ id, name }) => ({ key: id, label: name.split(" ")[0] }))]} value={cashier} onChange={withReset(setCashier)} />
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 sm:shrink-0">
           {closedShifts.length > 0 && (
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 text-xs touch-manipulation active:scale-95"
+              className="flex-1 gap-1.5 text-xs touch-manipulation sm:flex-initial active:scale-95"
               onClick={() => setSelectedShift(closedShifts[0])}
             >
               <ReceiptIcon className="size-4 text-gold" />
@@ -129,7 +133,7 @@ export const SalesScreen = ({ user }) => {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 text-xs touch-manipulation active:scale-95"
+            className="flex-1 gap-1.5 text-xs touch-manipulation sm:flex-initial active:scale-95"
             disabled={!visible.length}
             onClick={handleExportSalesCsv}
           >
@@ -139,7 +143,7 @@ export const SalesScreen = ({ user }) => {
         </div>
       </div>
 
-      <div className="border bg-card">
+      <div className="overflow-x-auto border bg-card [scrollbar-width:thin]">
         <Table>
           <TableHeader>
             <TableRow>

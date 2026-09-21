@@ -38,7 +38,7 @@ export const ImportCatalogDialog = ({ user, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-2xl [scrollbar-width:thin] p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Import products</DialogTitle>
           <DialogDescription>
@@ -78,7 +78,7 @@ export const ImportCatalogDialog = ({ user, onClose }) => {
             )}
 
             {result.rows.length > 0 && (
-              <div className="border">
+              <div className="overflow-x-auto border [scrollbar-width:thin]">
                 <Table>
                   <TableHeader>
                     <TableRow>

@@ -67,18 +67,20 @@ export const MovementsScreen = ({ user }) => {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <InputGroup className="h-9 w-full sm:w-72">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+        <InputGroup className="h-9 w-full sm:w-64 lg:w-72">
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
           <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Shoe, SKU, receipt or person" />
         </InputGroup>
-        <Segmented options={types} value={type} onChange={withReset(setType)} />
-        <Segmented options={ranges} value={range} onChange={withReset(setRange)} />
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5 sm:pb-0 [scrollbar-width:none]">
+          <Segmented options={types} value={type} onChange={withReset(setType)} />
+          <Segmented options={ranges} value={range} onChange={withReset(setRange)} />
+        </div>
       </div>
 
-      <div className="border bg-card">
+      <div className="overflow-x-auto border bg-card [scrollbar-width:thin]">
         <Table>
           <TableHeader>
             <TableRow>

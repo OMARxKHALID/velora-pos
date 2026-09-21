@@ -116,31 +116,35 @@ export const ProductsScreen = ({ user }) => {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <InputGroup className="h-9 w-full sm:w-72">
-          <InputGroupAddon>
-            <MagnifyingGlassIcon />
-          </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Name, brand or category" />
-        </InputGroup>
-        <Segmented options={statuses} value={status} onChange={withReset(setStatus)} />
-        <div className="ml-auto flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setImporting(true)}>
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+          <InputGroup className="h-9 w-full sm:w-64 lg:w-72">
+            <InputGroupAddon>
+              <MagnifyingGlassIcon />
+            </InputGroupAddon>
+            <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Name, brand or category" />
+          </InputGroup>
+          <div className="overflow-x-auto pb-0.5 sm:pb-0 [scrollbar-width:none]">
+            <Segmented options={statuses} value={status} onChange={withReset(setStatus)} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 sm:shrink-0">
+          <Button size="sm" variant="outline" className="touch-manipulation active:scale-95" onClick={() => setImporting(true)}>
             <UploadSimpleIcon />
             <span className="hidden sm:inline">Import</span>
           </Button>
-          <Button size="sm" variant="outline" onClick={handleExport}>
+          <Button size="sm" variant="outline" className="touch-manipulation active:scale-95" onClick={handleExport}>
             <DownloadSimpleIcon />
             <span className="hidden sm:inline">Export</span>
           </Button>
-          <Button size="sm" onClick={() => setEditing("new")}>
+          <Button size="sm" className="flex-1 touch-manipulation sm:flex-initial active:scale-95" onClick={() => setEditing("new")}>
             <PlusIcon />
             Add product
           </Button>
         </div>
       </div>
 
-      <div className="border bg-card">
+      <div className="overflow-x-auto border bg-card [scrollbar-width:thin]">
         <Table>
           <TableHeader>
             <TableRow>

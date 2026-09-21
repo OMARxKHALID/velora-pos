@@ -170,38 +170,36 @@ const SplitForm = ({ total, onPay }) => {
     ])
   }
 
+  // Generate split presets like 50%, Rs 500, Rs 1000, Rs 5000 that are less than total
+  const splitPresets = [
+    { label: "50 / 50", amount: Math.floor(totalRupees / 2) },
+    { label: "1,000", amount: 1000 },
+    { label: "2,000", amount: 2000 },
+    { label: "5,000", amount: 5000 },
+  ].filter(({ amount }) => amount > 0 && amount < totalRupees)
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2 border bg-muted/40 p-3.5">
+      <div className="border bg-muted/40 p-3.5 space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Total sale</span>
-          <span className="font-heading text-xl font-bold text-gold tabular-nums">{formatMoney(total)}</span>
+          <span className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Card on terminal</span>
+          <span className="font-heading text-xl sm:text-2xl font-bold text-gold tabular-nums">{formatMoney(toPaisa(cardRupees))}</span>
         </div>
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <div className="border bg-background p-2">
-            <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Cash portion</span>
-            <span className="text-sm font-semibold tabular-nums">{formatMoney(toPaisa(cashRupees))}</span>
-          </div>
-          <div className="border bg-background p-2">
-            <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Card portion</span>
-            <span className="text-sm font-semibold text-gold tabular-nums">{formatMoney(toPaisa(cardRupees))}</span>
-          </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <CreditCardIcon className="size-4 shrink-0 text-gold" />
+          <span>Swipe or tap {formatMoney(toPaisa(cardRupees))} on bank card machine</span>
         </div>
       </div>
 
       <div className="space-y-3">
         <Field>
           <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="split-cash-part">Cash amount to charge</FieldLabel>
-            <button
-              type="button"
-              onClick={() => handleQuickCash(Math.floor(totalRupees / 2))}
-              className="text-[11px] font-medium text-gold hover:underline"
-            >
-              50 / 50 split
-            </button>
+            <FieldLabel htmlFor="split-cash-part">Cash portion</FieldLabel>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              Total: {formatMoney(total)}
+            </span>
           </div>
-          <InputGroup className="h-11">
+          <InputGroup className="h-12 sm:h-14">
             <InputGroupAddon>
               <InputGroupText>Rs</InputGroupText>
             </InputGroupAddon>
@@ -215,14 +213,29 @@ const SplitForm = ({ total, onPay }) => {
               }}
               inputMode="numeric"
               placeholder="e.g. 5000"
-              className="text-base font-semibold tabular-nums"
+              className="text-xl sm:text-2xl font-semibold tabular-nums"
             />
           </InputGroup>
         </Field>
 
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+          {splitPresets.map(({ label, amount }) => (
+            <Button
+              key={label}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs font-semibold touch-manipulation pointer-coarse:h-11 active:scale-95"
+              onClick={() => handleQuickCash(amount)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+
         <Field>
-          <FieldLabel htmlFor="split-tendered">Cash received from customer</FieldLabel>
-          <InputGroup className="h-11">
+          <FieldLabel htmlFor="split-tendered">Cash received (tendered)</FieldLabel>
+          <InputGroup className="h-11 sm:h-12">
             <InputGroupAddon>
               <InputGroupText>Rs</InputGroupText>
             </InputGroupAddon>
@@ -232,14 +245,14 @@ const SplitForm = ({ total, onPay }) => {
               onChange={(e) => setTendered(e.target.value.replace(/\D/g, ""))}
               inputMode="numeric"
               placeholder="e.g. 5000"
-              className="text-base font-semibold tabular-nums"
+              className="text-lg sm:text-xl font-semibold tabular-nums"
             />
           </InputGroup>
         </Field>
 
-        <div className="flex items-center justify-between border bg-muted/50 px-3.5 py-2">
-          <span className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Change to return</span>
-          <span className="font-heading text-lg font-bold text-gold tabular-nums">
+        <div className="flex items-center justify-between border bg-muted/50 px-4 py-2.5 sm:py-3">
+          <span className="text-xs font-semibold tracking-[0.2em] text-muted-foreground uppercase">Change to give</span>
+          <span className="font-heading text-xl sm:text-2xl font-bold text-gold tabular-nums">
             {tenderedRupees >= cashRupees ? formatMoney(toPaisa(changeRupees)) : "—"}
           </span>
         </div>
@@ -247,7 +260,7 @@ const SplitForm = ({ total, onPay }) => {
         {showRef ? (
           <Field>
             <div className="flex items-center justify-between">
-              <FieldLabel htmlFor="split-card-ref">Card approval / auth code</FieldLabel>
+              <FieldLabel htmlFor="split-card-ref">Bank slip approval / auth code</FieldLabel>
               <button
                 type="button"
                 onClick={() => {
@@ -286,8 +299,13 @@ const SplitForm = ({ total, onPay }) => {
       </div>
 
       <DialogFooter>
-        <Button type="submit" size="lg" className="w-full" disabled={!isValid}>
-          Complete split sale ({formatMoney(toPaisa(cashRupees))} + {formatMoney(toPaisa(cardRupees))})
+        <Button
+          type="submit"
+          size="lg"
+          className="h-12 sm:h-14 w-full touch-manipulation pointer-coarse:h-14 text-sm font-semibold active:scale-95"
+          disabled={!isValid}
+        >
+          Complete split sale ({formatMoney(toPaisa(cashRupees))} cash + {formatMoney(toPaisa(cardRupees))} card)
         </Button>
       </DialogFooter>
     </form>
@@ -303,7 +321,7 @@ export const PaymentDialog = ({ total, count, onPay, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md [scrollbar-width:thin] p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Take payment</DialogTitle>
           <DialogDescription>

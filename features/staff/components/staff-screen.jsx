@@ -4,10 +4,12 @@ import { useState, useTransition } from "react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import {
+  CheckCircleIcon,
   DotsThreeVerticalIcon,
   InfoIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  ProhibitIcon,
   TrashIcon,
   UserSwitchIcon,
   WarningIcon,
@@ -76,7 +78,7 @@ const CreateStaffDialog = ({ onClose, onCreate }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md [scrollbar-width:thin] p-4 sm:p-6">
         <DialogHeader>
           <DialogTitle>Add staff member</DialogTitle>
           <DialogDescription>
@@ -246,26 +248,30 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
   return (
     <div className="space-y-4">
       {/* Top Filter, Search & Add Toolbar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <InputGroup className="h-9 w-full sm:w-72">
-          <InputGroupAddon>
-            <MagnifyingGlassIcon />
-          </InputGroupAddon>
-          <InputGroupInput
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Staff name, email or phone"
-          />
-        </InputGroup>
-        <Segmented options={roleFilters} value={roleFilter} onChange={setRoleFilter} />
-        <Button size="sm" className="ml-auto" onClick={() => setCreating(true)}>
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+          <InputGroup className="h-9 w-full sm:w-64 lg:w-72">
+            <InputGroupAddon>
+              <MagnifyingGlassIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Staff name, email or phone"
+            />
+          </InputGroup>
+          <div className="overflow-x-auto pb-0.5 sm:pb-0 [scrollbar-width:none]">
+            <Segmented options={roleFilters} value={roleFilter} onChange={setRoleFilter} />
+          </div>
+        </div>
+        <Button size="sm" className="w-full shrink-0 touch-manipulation sm:w-auto active:scale-95" onClick={() => setCreating(true)}>
           <PlusIcon />
           Add staff member
         </Button>
       </div>
 
       {/* Main Responsive Table */}
-      <div className="border bg-card">
+      <div className="overflow-x-auto border bg-card [scrollbar-width:thin]">
         <Table>
           <TableHeader>
             <TableRow>
@@ -291,8 +297,8 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar size="default">
-                        <AvatarFallback className="font-semibold">
+                      <Avatar size="default" className="size-8 sm:size-9 shrink-0">
+                        <AvatarFallback className="font-semibold text-xs sm:text-sm">
                           {person.avatar || person.name.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -367,7 +373,7 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
                             variant={off ? "default" : "outline"}
                             disabled={pending}
                             onClick={() => handleToggleAccess(person)}
-                            className="touch-manipulation pointer-coarse:h-9"
+                            className="hidden touch-manipulation pointer-coarse:h-9 sm:inline-flex"
                           >
                             {off ? "Turn on" : "Turn off"}
                           </Button>
@@ -391,6 +397,23 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
                                 <DropdownMenuItem onClick={() => setSelectedUser(person)}>
                                   <InfoIcon className="mr-2 size-4" />
                                   View user details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="sm:hidden"
+                                  disabled={pending}
+                                  onClick={() => handleToggleAccess(person)}
+                                >
+                                  {off ? (
+                                    <>
+                                      <CheckCircleIcon className="mr-2 size-4 text-success" />
+                                      Turn on access
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ProhibitIcon className="mr-2 size-4 text-destructive" />
+                                      Turn off access
+                                    </>
+                                  )}
                                 </DropdownMenuItem>
                               </DropdownMenuGroup>
                               <DropdownMenuSeparator />
@@ -462,7 +485,7 @@ export const StaffScreen = ({ disabled: initial = [] }) => {
       {/* User Details Modal */}
       {selectedUser && (
         <Dialog open onOpenChange={(open) => !open && setSelectedUser(null)}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-md [scrollbar-width:thin] p-4 sm:p-6">
             <DialogHeader>
               <div className="flex items-center gap-3">
                 <Avatar size="lg">

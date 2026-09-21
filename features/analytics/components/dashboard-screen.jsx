@@ -119,7 +119,9 @@ export const DashboardScreen = ({ user }) => {
 
   return (
     <>
-      <Segmented options={ranges} value={range} onChange={setRange} />
+      <div className="overflow-x-auto pb-0.5 sm:pb-0 [scrollbar-width:none]">
+        <Segmented options={ranges} value={range} onChange={setRange} />
+      </div>
 
       <StatStrip
         stats={[
