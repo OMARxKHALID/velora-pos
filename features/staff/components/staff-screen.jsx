@@ -18,6 +18,7 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { setStaffAccess } from "@/features/auth/actions"
 import { roleLabels } from "@/features/auth/lib/demo-users"
 import { activeStaff } from "@/features/demo/lib/staff"
@@ -47,7 +48,6 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
   const removeStaff = useDemoStore(({ removeStaff }) => removeStaff)
   const addStaff = useDemoStore(({ addStaff }) => addStaff)
 
-  // The server owns who is turned off. Show its answer as soon as we have it, and follow it when it changes (for example after a reset).
   const [seen, setSeen] = useState(serverDisabled)
   const [disabled, setDisabled] = useState(serverDisabled)
   if (serverDisabled !== seen) {
@@ -57,6 +57,7 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
 
   const [roleFilter, setRoleFilter] = useState("all")
   const [query, setQuery] = useState("")
+  const [page, setPage] = useState(1)
   const [pending, startTransition] = useTransition()
   const [selectedId, setSelectedId] = useState(null)
   const [removing, setRemoving] = useState(null)
@@ -71,6 +72,13 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
       (roleFilter === "all" || person.role === roleFilter) &&
       (!search || [person.name, person.email, person.phone, person.shop, roleLabels[person.role]].some((value) => value?.toLowerCase().includes(search)))
   )
+
+  const pagination = paginate(visible, page)
+
+  const withReset = (setter) => (value) => {
+    setter(value)
+    setPage(1)
+  }
 
   const activityOf = (id) => {
     const mine = sales.filter(({ cashierId }) => cashierId === id)
@@ -135,9 +143,9 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Staff name, email or phone" />
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Staff name, email or phone" />
         </InputGroup>
-        <Segmented label="Role" options={roleFilters} value={roleFilter} onChange={setRoleFilter} />
+        <Segmented label="Role" options={roleFilters} value={roleFilter} onChange={withReset(setRoleFilter)} />
         <Button size="sm" className="w-full @2xl:ml-auto @2xl:w-auto" onClick={() => setCreating(true)}>
           <PlusIcon />
           Add staff member
@@ -157,7 +165,7 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visible.map((person) => {
+            {pagination.rows.map((person) => {
               const off = disabled.includes(person.id)
               const lastActive = activityOf(person.id).lastActive
               const isOwner = person.role === "admin"
@@ -241,6 +249,7 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
           </TableBody>
         </Table>
         {!visible.length && <p className="py-12 text-center text-sm text-muted-foreground">No staff members match.</p>}
+        <TablePagination {...pagination} onPageChange={setPage} />
       </div>
 
       <p className="text-xs text-muted-foreground">Tap a staff member to see their profile and activity. Everyone on this list can sign in from the start page.</p>

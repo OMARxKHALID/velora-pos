@@ -18,7 +18,6 @@ import { cashTenderSchema } from "../schemas"
 import { useCartStore } from "../store/cart-store-provider"
 import { AddReferenceLink, CardReferenceField } from "./card-reference-field"
 
-// Full-size primary action, one style for every tab. Labels may wrap instead of forcing the dialog wider.
 const ctaClass = "h-12 w-full whitespace-normal pointer-coarse:h-14"
 
 const quickTenders = (total) => {
@@ -177,7 +176,6 @@ const SplitForm = ({ total, onPay }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* The one place the two amounts are shown. Everything below edits or explains them. */}
       <dl className="grid grid-cols-2 divide-x border bg-muted/40">
         <div className="flex min-w-0 flex-col gap-1 p-3">
           <dt className="flex items-center gap-1.5 text-2xs font-semibold tracking-label text-muted-foreground uppercase">
@@ -303,7 +301,6 @@ export const PaymentDialog = ({ total, count, onPay, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      {/* One width for every tab and anchored near the top: switching tabs never resizes or re-centres the dialog. */}
       <DialogContent className="top-4 max-h-[calc(100dvh-2rem)] -translate-y-0 sm:top-[6dvh] sm:max-h-[calc(94dvh-1rem)] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Take payment</DialogTitle>
