@@ -222,7 +222,11 @@ const SplitForm = ({ total, onPay }) => {
           <div className="flex items-center justify-between gap-2">
             <FieldLabel htmlFor="split-tendered">Cash received</FieldLabel>
             {cashRupees > 0 && tenderedRupees !== cashRupees && (
-              <button type="button" onClick={() => setTendered(String(cashRupees))} className="py-0.5 text-2xs tracking-widest text-gold uppercase hover:underline">
+              <button
+                type="button"
+                onClick={() => setTendered(String(cashRupees))}
+                className="py-0.5 text-2xs tracking-widest text-gold uppercase hover:underline pointer-coarse:py-2"
+              >
                 Exact
               </button>
             )}
@@ -317,7 +321,7 @@ export const PaymentDialog = ({ total, count, onPay, onClose }) => {
                 <button
                   type="button"
                   onClick={() => setCustomer({ name: "", phone: "" })}
-                  className="py-0.5 text-2xs tracking-widest text-muted-foreground uppercase transition-colors hover:text-foreground"
+                  className="py-0.5 text-2xs tracking-widest text-muted-foreground uppercase transition-colors hover:text-foreground pointer-coarse:py-2"
                 >
                   Clear
                 </button>

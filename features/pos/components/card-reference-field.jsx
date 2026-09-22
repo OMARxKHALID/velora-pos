@@ -15,7 +15,7 @@ export const CardReferenceField = ({ id, value, onChange, onHide }) => {
     <Field data-invalid={Boolean(error)}>
       <div className="flex items-center justify-between gap-2">
         <FieldLabel htmlFor={id}>Bank slip approval / auth code</FieldLabel>
-        <button type="button" onClick={onHide} className="py-0.5 text-2xs tracking-widest text-muted-foreground uppercase hover:text-foreground">
+        <button type="button" onClick={onHide} className="py-0.5 text-2xs tracking-widest text-muted-foreground uppercase hover:text-foreground pointer-coarse:py-2">
           Hide
         </button>
       </div>

@@ -9,7 +9,7 @@ export const ColorDot = ({ color = "", className }) => {
       title={color}
       aria-hidden="true"
       className={cn(
-        "inline-block size-3 shrink-0 rounded-full border border-foreground/20",
+        "inline-block size-3.5 shrink-0 rounded-full border border-foreground/20",
         !style && "border-dashed border-muted-foreground",
         className
       )}

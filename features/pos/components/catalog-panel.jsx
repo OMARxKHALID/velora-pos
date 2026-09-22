@@ -54,7 +54,7 @@ const ProductCard = ({ product, available, lowLimit, onPick }) => {
           <span className="text-sm font-semibold text-gold tabular-nums">{formatMoney(product.price)}</span>
           <span className="flex gap-0.5">
             {product.colors.map((color) => (
-              <ColorDot key={color} color={color} className="size-2.5" />
+              <ColorDot key={color} color={color} className="size-3.5" />
             ))}
           </span>
         </div>

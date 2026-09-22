@@ -56,7 +56,7 @@ const ColorChip = ({ color, suffix, onClick }) => (
     onClick={onClick}
     className="flex h-7 items-center gap-1.5 border border-transparent px-2 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground pointer-coarse:h-10 pointer-coarse:px-3"
   >
-    <ColorDot color={color} className="size-2.5" />
+    <ColorDot color={color} className="size-3.5" />
     {color}
     {suffix && <span className="text-2xs tabular-nums">{suffix}</span>}
   </button>
@@ -87,7 +87,12 @@ const ColorPicker = ({ value, onChange, popular }) => {
             <span key={color} className="flex h-8 items-center gap-2 border border-primary/60 bg-accent/60 pr-1 pl-2.5 text-xs pointer-coarse:h-11">
               <ColorDot color={color} />
               {color}
-              <button type="button" aria-label={`Remove ${color}`} onClick={() => onChange(value.filter((item) => item !== color))} className="p-1 text-muted-foreground hover:text-foreground pointer-coarse:p-2.5">
+              <button
+                type="button"
+                aria-label={`Remove ${color}`}
+                onClick={() => onChange(value.filter((item) => item !== color))}
+                className="flex items-center justify-center p-1 text-muted-foreground hover:text-foreground pointer-coarse:size-10"
+              >
                 <XIcon className="size-3" />
               </button>
             </span>

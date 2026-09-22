@@ -8,7 +8,7 @@ const colors = {
 }
 
 export const RoleBadge = ({ role, className }) => (
-  <span className={cn("inline-flex items-center border px-1.5 py-0.5 text-2xs font-bold tracking-widest uppercase", colors[role], className)}>
+  <span className={cn("inline-flex h-5 items-center border px-1.5 text-2xs font-semibold tracking-widest uppercase", colors[role], className)}>
     {roleLabels[role] ?? role}
   </span>
 )

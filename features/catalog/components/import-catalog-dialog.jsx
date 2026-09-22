@@ -96,7 +96,7 @@ export const ImportCatalogDialog = ({ user, onClose }) => {
                         </TableCell>
                         <TableCell className="text-sm">
                           <span className="flex items-center gap-1.5">
-                            <ColorDot color={row.color} className="size-2.5" />
+                            <ColorDot color={row.color} className="size-3.5" />
                             {row.color} · EU {row.size}
                           </span>
                         </TableCell>

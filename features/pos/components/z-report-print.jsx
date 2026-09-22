@@ -20,7 +20,7 @@ export const ZReportPrint = ({ shift, summary, printedAt, ref }) => {
   return (
     <div ref={ref} className="mx-auto w-[302px] bg-white px-4 py-5 font-mono text-[11px] leading-relaxed text-black">
       <div className="text-center">
-        <p className="font-heading text-xl font-bold tracking-[0.25em]">VELORA</p>
+        <p className="font-heading text-xl font-bold tracking-[0.3em]">VELORA</p>
         <p className="text-[9px] font-semibold tracking-[0.35em] uppercase">End of Day · Z-Report</p>
         <p className="mt-1.5 text-[10px] text-zinc-700">Register closing report</p>
       </div>

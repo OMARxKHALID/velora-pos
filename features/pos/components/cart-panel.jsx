@@ -61,7 +61,7 @@ const CartLine = ({ row, highlight, canAdd, onQuantity }) => (
     <div className="min-w-0 flex-1 space-y-1">
       <p className="truncate text-sm font-medium">{row.product.name}</p>
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <ColorDot color={row.variant.attributes.color} className="size-2.5" />
+        <ColorDot color={row.variant.attributes.color} className="size-3.5" />
         {row.variant.attributes.color} · EU {row.variant.attributes.size}
         {row.entry === "manual" && <span className="text-2xs tracking-widest uppercase">· manual</span>}
       </p>

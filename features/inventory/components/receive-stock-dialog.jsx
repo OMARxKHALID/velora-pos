@@ -136,7 +136,7 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm">{productById[variant.productId].name}</p>
                           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <ColorDot color={variant.attributes.color} className="size-2.5" />
+                            <ColorDot color={variant.attributes.color} className="size-3.5" />
                             {variant.attributes.color} · EU {variant.attributes.size} · {stock[variant.id] ?? 0} on hand
                           </p>
                         </div>

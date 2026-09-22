@@ -53,7 +53,7 @@ const ParkedCard = ({ parked, catalog, settings, stock, onResume, onDiscard }) =
       </div>
 
       <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
-        <span className="font-heading text-base font-bold text-gold tabular-nums">{formatMoney(total)}</span>
+        <span className="font-heading text-lg font-bold text-gold tabular-nums">{formatMoney(total)}</span>
         <div className="flex items-center gap-1.5">
           <Button size="icon-sm" variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => onDiscard(parked.id)} aria-label="Discard held sale">
             <TrashIcon />

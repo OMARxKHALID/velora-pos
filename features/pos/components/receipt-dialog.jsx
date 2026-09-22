@@ -24,7 +24,7 @@ export const ReceiptDialog = ({ sale, onClose }) => {
             {sale.change > 0 ? `Give ${formatMoney(sale.change)} change.` : "No change due."} Receipt {sale.number}.
           </DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto border-y bg-muted/40 py-4 [scrollbar-width:thin]">
+        <div className="min-h-0 flex-1 overflow-auto border-y bg-muted/40 py-4 [scrollbar-width:thin]">
           <Receipt sale={sale} ref={receipt} />
         </div>
         <DialogFooter className="shrink-0 p-4 pt-3 sm:p-6 sm:pt-4">
