@@ -10,6 +10,11 @@ export const paginate = (list, page, size = PAGE_SIZE) => {
   return { rows: list.slice((current - 1) * size, current * size), page: current, pageCount, total: list.length, size }
 }
 
+export const resetsPage = (setPage) => (setter) => (value) => {
+  setter(value)
+  setPage(1)
+}
+
 const pageNumbers = (page, pageCount) => {
   const pages = new Set([1, pageCount, page - 1, page, page + 1].filter((value) => value >= 1 && value <= pageCount))
   return [...pages].toSorted((a, b) => a - b).flatMap((value, index, list) => (index && value - list[index - 1] > 1 ? ["gap", value] : [value]))

@@ -18,7 +18,7 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { TablePagination, paginate } from "@/components/ui/table-pagination"
+import { TablePagination, paginate, resetsPage } from "@/components/ui/table-pagination"
 import { setStaffAccess } from "@/features/auth/actions"
 import { roleLabels } from "@/features/auth/lib/demo-users"
 import { activeStaff } from "@/features/demo/lib/staff"
@@ -75,10 +75,7 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
 
   const pagination = paginate(visible, page)
 
-  const withReset = (setter) => (value) => {
-    setter(value)
-    setPage(1)
-  }
+  const withReset = resetsPage(setPage)
 
   const activityOf = (id) => {
     const mine = sales.filter(({ cashierId }) => cashierId === id)

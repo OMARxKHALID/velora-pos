@@ -85,7 +85,7 @@ export const createDemoStore = () =>
           requestRefund: run(applyRefundRequest),
           decideRefund: (input) => {
             const decider = get().staff[input.userId]
-            if (!decider || decider.role === "cashier") throw new Error("Only a supervisor can decide a refund.")
+            if (!decider || decider.removed || decider.role === "cashier") throw new Error("Only a supervisor can decide a refund.")
             return run(applyRefundDecision)(input)
           },
           openShift: run(applyOpenShift),

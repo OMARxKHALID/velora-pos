@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { TablePagination, paginate } from "@/components/ui/table-pagination"
+import { TablePagination, paginate, resetsPage } from "@/components/ui/table-pagination"
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
@@ -63,10 +63,7 @@ export const StockScreen = ({ user }) => {
   )
   const pagination = paginate(visible, page)
 
-  const withReset = (setter) => (value) => {
-    setter(value)
-    setPage(1)
-  }
+  const withReset = resetsPage(setPage)
 
   return (
     <>
