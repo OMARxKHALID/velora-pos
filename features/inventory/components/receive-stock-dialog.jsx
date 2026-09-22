@@ -162,7 +162,7 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
             <span className="text-muted-foreground">
               {pairs} pairs · {fields.length} sizes
             </span>
-            <span className="font-heading text-lg font-bold text-gold tabular-nums">{formatMoney(cost)} at cost</span>
+            <span className="font-sans text-lg font-bold text-gold tabular-nums">{formatMoney(cost)} at cost</span>
           </div>
 
           <DialogFooter>

@@ -204,7 +204,7 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
             )}
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Refund amount</span>
-              <span className="font-heading text-2xl font-bold text-gold tabular-nums">{formatMoney(quote.total)}</span>
+              <span className="font-sans text-2xl font-bold text-gold tabular-nums">{formatMoney(quote.total)}</span>
             </div>
           </div>
 

@@ -44,10 +44,10 @@ export const StaffDetailsDialog = ({ person, activity, onTransfer, onRemove, onC
 
         <div className="grid grid-cols-2 gap-3 border p-3">
           <Fact label="Sales handled">
-            <span className="font-heading text-lg font-bold">{activity.sales}</span>
+            <span className="font-sans text-lg font-bold">{activity.sales}</span>
           </Fact>
           <Fact label="Shifts logged">
-            <span className="font-heading text-lg font-bold">{activity.shifts}</span>
+            <span className="font-sans text-lg font-bold">{activity.shifts}</span>
           </Fact>
         </div>
 

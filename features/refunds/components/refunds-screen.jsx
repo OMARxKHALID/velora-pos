@@ -72,7 +72,7 @@ const RefundCard = ({ refund, onOpenSale, onDecide }) => {
       </div>
       <div className="flex flex-wrap items-center gap-3 @2xl:flex-col @2xl:flex-nowrap @2xl:items-end">
         <div className="flex flex-col @2xl:items-end">
-          <span className="font-heading text-xl font-bold text-gold tabular-nums">{formatMoney(refund.total)}</span>
+          <span className="font-sans text-xl font-bold text-gold tabular-nums">{formatMoney(refund.total)}</span>
           {refund.taxTotal > 0 && <span className="text-xs text-muted-foreground tabular-nums">incl. {formatMoney(refund.taxTotal)} tax</span>}
         </div>
         {refund.status === "pending" && (

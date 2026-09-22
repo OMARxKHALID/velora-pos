@@ -73,7 +73,7 @@ const CashForm = ({ total, onPay }) => {
       </div>
       <div className="flex items-center justify-between gap-3 border bg-muted/50 px-4 py-3">
         <span className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Change to give</span>
-        <span className="shrink-0 font-heading text-xl font-bold text-gold tabular-nums sm:text-2xl">{change >= 0 ? formatMoney(change) : "—"}</span>
+        <span className="shrink-0 font-sans text-xl font-bold text-gold tabular-nums sm:text-2xl">{change >= 0 ? formatMoney(change) : "—"}</span>
       </div>
       <DialogFooter sticky>
         <Button type="submit" size="lg" className={ctaClass}>
@@ -99,7 +99,7 @@ const CardForm = ({ total, onPay }) => {
       <div className="space-y-3 border bg-muted/40 p-4">
         <div className="flex items-center justify-between gap-3">
           <span className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Amount on terminal</span>
-          <span className="shrink-0 font-heading text-xl font-bold text-gold tabular-nums sm:text-2xl">{formatMoney(total)}</span>
+          <span className="shrink-0 font-sans text-xl font-bold text-gold tabular-nums sm:text-2xl">{formatMoney(total)}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <CreditCardIcon className="size-4 shrink-0 text-gold" />
@@ -182,14 +182,14 @@ const SplitForm = ({ total, onPay }) => {
             <MoneyIcon className="size-3.5 shrink-0 text-gold" />
             Cash
           </dt>
-          <dd className="truncate font-heading text-xl font-bold text-foreground tabular-nums">{formatMoney(toPaisa(cashRupees))}</dd>
+          <dd className="truncate font-sans text-xl font-bold text-foreground tabular-nums">{formatMoney(toPaisa(cashRupees))}</dd>
         </div>
         <div className="flex min-w-0 flex-col gap-1 p-3 text-right">
           <dt className="flex items-center justify-end gap-1.5 text-2xs font-semibold tracking-label text-muted-foreground uppercase">
             <CreditCardIcon className="size-3.5 shrink-0 text-gold" />
             Card
           </dt>
-          <dd className="truncate font-heading text-xl font-bold text-gold tabular-nums">{formatMoney(toPaisa(cardRupees))}</dd>
+          <dd className="truncate font-sans text-xl font-bold text-gold tabular-nums">{formatMoney(toPaisa(cardRupees))}</dd>
         </div>
       </dl>
 
@@ -260,7 +260,7 @@ const SplitForm = ({ total, onPay }) => {
 
       <div className="flex items-center justify-between gap-3 border bg-muted/40 px-4 py-3">
         <span className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Change to give</span>
-        <span className="shrink-0 font-heading text-xl font-bold text-gold tabular-nums">{tenderedRupees >= cashRupees ? formatMoney(toPaisa(changeRupees)) : "—"}</span>
+        <span className="shrink-0 font-sans text-xl font-bold text-gold tabular-nums">{tenderedRupees >= cashRupees ? formatMoney(toPaisa(changeRupees)) : "—"}</span>
       </div>
 
       {tenderedRupees > 0 && tenderedRupees < cashRupees && <p className="text-xs text-destructive">Received amount is short by {formatMoney(toPaisa(cashRupees - tenderedRupees))}</p>}

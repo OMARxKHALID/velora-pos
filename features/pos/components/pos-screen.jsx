@@ -253,7 +253,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
             </span>
             <span className="min-w-0">
               <span className="block text-xs text-muted-foreground">{count ? `${count} ${count === 1 ? "item" : "items"} · tap to view` : "Cart is empty"}</span>
-              <span className="block font-heading text-lg font-bold text-gold tabular-nums">{formatMoney(total)}</span>
+              <span className="block font-sans text-lg font-bold text-gold tabular-nums">{formatMoney(total)}</span>
             </span>
           </button>
           <Button size="lg" className="h-12 shrink-0 px-6" disabled={!count} onClick={handleCharge}>

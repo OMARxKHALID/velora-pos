@@ -136,7 +136,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
                 )}
                 <div className="flex justify-between border-t pt-1.5">
                   <dt className="font-semibold tracking-label uppercase">Total</dt>
-                  <dd className="font-heading text-lg font-bold text-gold">{formatMoney(sale.total)}</dd>
+                  <dd className="font-sans text-lg font-bold text-gold">{formatMoney(sale.total)}</dd>
                 </div>
                 {sale.payments.map((payment, index) => (
                   <div key={`${payment.method}-${index}`} className="flex justify-between text-xs text-muted-foreground pt-1">
