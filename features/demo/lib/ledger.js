@@ -1,5 +1,5 @@
 import { REGISTER_CODE, REGISTER_ID, SHOP_ID, indexCatalog } from "@/features/catalog/lib/catalog"
-import { effectiveRate, netRevenue, taxFor } from "@/features/pricing/lib/pricing"
+import { effectiveRate, lineDiscount, netRevenue, taxFor } from "@/features/pricing/lib/pricing"
 import { newId } from "@/lib/id"
 import { roundToRupee, sumBy } from "@/lib/money"
 
@@ -80,7 +80,9 @@ export const applySale = (
     if (!Number.isInteger(quantity) || quantity < 1) throw new Error("Quantity must be at least 1")
     const gross = variant.price * quantity
     if (discount < 0 || discount > gross) throw new Error("Invalid discount")
-    if (productDiscount < 0 || productDiscount > gross - discount) throw new Error("Invalid product discount")
+    if (discount && !settings.cartDiscountEnabled) throw new Error("Cart discounts are turned off")
+    const listedDiscount = settings.productDiscountEnabled ? lineDiscount(gross, productById[variant.productId].discountPct ?? 0) : 0
+    if (productDiscount !== listedDiscount || productDiscount > gross - discount) throw new Error("Invalid product discount")
     return {
       variantId,
       productName: productById[variant.productId].name,
@@ -280,6 +282,7 @@ export const applyRefundDecision = (state, { refundId, approve, userId, at }) =>
 
   const sale = state.sales.find(({ id }) => id === refund.saleId)
   const payoutShiftId = approve && refund.method === "cash" ? (openShiftFor(state, sale?.registerId)?.id ?? null) : null
+  if (approve && refund.method === "cash" && !payoutShiftId) throw new Error("Open a counter shift first. Cash refunds are paid from the drawer.")
   const decided = { ...refund, status: approve ? "approved" : "rejected", decidedBy: userId, decidedAt: at, payoutShiftId }
   let next = { ...state, refunds: state.refunds.map((item) => (item.id === refundId ? decided : item)) }
 

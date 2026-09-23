@@ -8,6 +8,7 @@ import { Segmented } from "@/components/ui/segmented"
 import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
+import { openShiftFor } from "@/features/demo/lib/ledger"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { SaleDetailSheet } from "@/features/sales/components/sale-detail-sheet"
 import { StatusBadge } from "@/features/sales/components/sale-status-badges"
@@ -20,7 +21,8 @@ const tabs = [
   { key: "rejected", label: "Rejected" },
 ]
 
-const RefundCard = ({ refund, onOpenSale, onDecide }) => {
+const RefundCard = ({ refund, drawerOpen, onOpenSale, onDecide }) => {
+  const needsDrawer = refund.method === "cash" && !drawerOpen
   const { productById, variantById } = useCatalog()
   const nameOf = useStaffName()
   return (
@@ -61,7 +63,9 @@ const RefundCard = ({ refund, onOpenSale, onDecide }) => {
         </ul>
         <p className="text-sm text-muted-foreground">“{refund.reason}”</p>
         {refund.status === "pending" && refund.method === "cash" && (
-          <p className="text-xs text-muted-foreground">Cash is paid from whichever drawer is open when you approve.</p>
+          <p className="text-xs text-muted-foreground">
+            {needsDrawer ? "No counter shift is open. A cashier has to open one before this cash can be paid out." : "Cash is paid from whichever drawer is open when you approve."}
+          </p>
         )}
         {refund.decidedBy && (
           <p className="text-xs text-muted-foreground">
@@ -85,7 +89,7 @@ const RefundCard = ({ refund, onOpenSale, onDecide }) => {
               <XIcon />
               Reject
             </Button>
-            <Button size="sm" onClick={() => onDecide(refund, true)}>
+            <Button size="sm" disabled={needsDrawer} onClick={() => onDecide(refund, true)}>
               <CheckIcon />
               Approve
             </Button>
@@ -99,6 +103,7 @@ const RefundCard = ({ refund, onOpenSale, onDecide }) => {
 export const RefundsScreen = ({ user }) => {
   const refunds = useDemoStore(({ refunds }) => refunds)
   const decideRefund = useDemoStore(({ decideRefund }) => decideRefund)
+  const drawerOpen = useDemoStore(({ shifts }) => Boolean(openShiftFor({ shifts })))
   const [tab, setTab] = useState("pending")
   const [page, setPage] = useState(1)
   const [openSaleId, setOpenSaleId] = useState(null)
@@ -134,7 +139,7 @@ export const RefundsScreen = ({ user }) => {
         {visible.length ? (
           <ul className="divide-y">
             {pagination.rows.map((refund) => (
-              <RefundCard key={refund.id} refund={refund} onOpenSale={setOpenSaleId} onDecide={handleDecide} />
+              <RefundCard key={refund.id} refund={refund} drawerOpen={drawerOpen} onOpenSale={setOpenSaleId} onDecide={handleDecide} />
             ))}
           </ul>
         ) : (

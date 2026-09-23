@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { applyRefundDecision, expectedCash, openShiftFor, shiftSummary } from "./ledger"
+import { applyOpenShift, applyRefundDecision, expectedCash, openShiftFor, shiftSummary } from "./ledger"
 import { createSeed } from "./seed"
 
 const at = (hours, minutes = 0) => new Date(2026, 8, 16, hours, minutes).getTime() // a Wednesday
@@ -46,11 +46,12 @@ describe("demo seed", () => {
   test("every closed shift reconciles, even after all pending refunds are decided", () => {
     let state = createSeed(at(15))
     for (const shift of state.shifts) expect(shiftSummary(state, shift).expectedCash).toBe(shift.expectedCash)
+    state = applyOpenShift(state, { cashierId: "u-cashier", openingCash: 1000000, at: at(15, 30) }).state
 
     for (const refund of state.refunds.filter(({ status }) => status === "pending")) {
       state = applyRefundDecision(state, { refundId: refund.id, approve: true, userId: "u-manager", at: at(16) }).state
     }
-    for (const shift of state.shifts) {
+    for (const shift of state.shifts.filter(({ status }) => status === "closed")) {
       expect(expectedCash(state, shift)).toBe(shift.expectedCash)
       expect(shiftSummary(state, shift).cashRefunds).toBe(state.refunds.filter(({ payoutShiftId }) => payoutShiftId === shift.id).reduce((sum, { total }) => sum + total, 0))
     }

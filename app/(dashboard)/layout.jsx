@@ -11,7 +11,7 @@ const DashboardLayout = async ({ children }) => {
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false"
 
   return (
-    <DemoStoreProvider>
+    <DemoStoreProvider user={user}>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar user={user} />
         <SidebarInset className="min-w-0">

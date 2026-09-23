@@ -61,6 +61,8 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
   // The same maths the ledger books with, so the customer is quoted exactly what is recorded.
   const quote = previewRefund(state, sale.id, lines)
   const overCap = quote.total > refundCapFor(state, sale, method)
+  const openShift = openShiftFor({ shifts })
+  const approveNow = selfApprove && (method !== "cash" || Boolean(openShift))
 
   const handleSubmit = form.handleSubmit(({ lines: picked, reason: chosen, note, method }) => {
     try {
@@ -70,12 +72,12 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
         reason: chosen === "Other" ? note : note ? `${chosen}: ${note}` : chosen,
         method,
         requestedBy: user.id,
-        shiftId: openShiftFor({ shifts })?.id ?? sale.shiftId,
+        shiftId: openShift?.id ?? sale.shiftId,
         clientId,
       })
-      if (selfApprove) decideRefund({ refundId: refund.id, approve: true, userId: user.id })
-      toast.success(selfApprove ? "Refund approved" : "Refund sent for approval", {
-        description: `${formatMoney(refund.total)} · ${sale.number}`,
+      if (approveNow) decideRefund({ refundId: refund.id, approve: true, userId: user.id })
+      toast.success(approveNow ? "Refund approved" : "Refund sent for approval", {
+        description: approveNow || !selfApprove ? `${formatMoney(refund.total)} · ${sale.number}` : "No counter shift is open. Approve it in Returns once a cashier opens one.",
       })
       onClose()
     } catch (error) {
@@ -91,7 +93,7 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
             <DialogTitle>Request refund</DialogTitle>
             <DialogDescription>
               {sale.number}. The original sale stays unchanged; this creates a separate refund record
-              {selfApprove ? " approved by you." : " for a supervisor to approve."}
+              {approveNow ? " approved by you." : selfApprove ? ". No counter shift is open, so cash waits in Returns until one is." : " for a supervisor to approve."}
             </DialogDescription>
           </DialogHeader>
 
@@ -213,7 +215,7 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
               Cancel
             </Button>
             <Button type="submit" disabled={overCap}>
-              {selfApprove ? "Refund now" : "Send for approval"}
+              {approveNow ? "Refund now" : "Send for approval"}
             </Button>
           </DialogFooter>
         </form>

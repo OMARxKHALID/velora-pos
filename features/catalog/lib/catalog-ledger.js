@@ -32,12 +32,15 @@ export const applySaveProduct = (state, { productId = null, input, barcodes = {}
   const wanted = product.colors.flatMap((color) => product.sizes.map((size) => ({ color, size, id: variantKey(product.id, color, size) })))
   const wantedIds = new Set(wanted.map(({ id }) => id))
 
+  const claimed = {}
   const kept = wanted.map(({ color, size, id }) => {
     const found = current.find((variant) => variant.id === id)
     const base = found ?? makeVariant(product, color, size, (barcodeSeq += 1))
     const barcode = barcodes[id] ?? base.barcode
     const owner = variantByBarcode[barcode]
     if (owner && owner.id !== id) throw new Error(`Barcode ${barcode} already belongs to ${owner.sku}`)
+    if (claimed[barcode]) throw new Error(`Barcode ${barcode} is used twice (${claimed[barcode]} and ${base.sku})`)
+    claimed[barcode] = base.sku
     return { ...base, price: product.price, cost: product.cost, barcode, active: true }
   })
 

@@ -141,10 +141,12 @@ export const AppSidebar = ({ user }) => {
                   <DropdownMenuLabel>Signed in as {roleLabels[user.role]}</DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setResetOpen(true)}>
-                  <ArrowCounterClockwiseIcon />
-                  Reset demo data
-                </DropdownMenuItem>
+                {user.role === "admin" && (
+                  <DropdownMenuItem onClick={() => setResetOpen(true)}>
+                    <ArrowCounterClockwiseIcon />
+                    Reset demo data
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem variant="destructive" onClick={() => logout()}>
                   <SignOutIcon />
                   Switch user
@@ -155,7 +157,7 @@ export const AppSidebar = ({ user }) => {
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
-      <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />
+      {user.role === "admin" && <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />}
     </Sidebar>
   )
 }

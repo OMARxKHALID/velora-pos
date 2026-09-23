@@ -55,6 +55,14 @@ describe("ledger", () => {
     expect(applySale(state, { ...input, approvedBy: "u-manager" }).record.flags).toContain("big_discount")
   })
 
+  test("discounts must follow the price list and the discount settings", () => {
+    const { state, record: shift } = withShift()
+    const input = { payments: [{ method: "card", amount: shoe.price }], cashierId: "u-cashier", shiftId: shift.id, at }
+    const settings = { taxEnabled: false, taxRate: 0, productDiscountEnabled: true, cartDiscountEnabled: false }
+    expect(() => applySale(state, { ...input, lines: [{ variantId: shoe.id, quantity: 1, productDiscount: 10000 }] })).toThrow("Invalid product discount")
+    expect(() => applySale(state, { ...input, settings, lines: [{ variantId: shoe.id, quantity: 1, discount: 10000 }] })).toThrow("Cart discounts are turned off")
+  })
+
   test("refund cannot exceed sold quantity and restocks only on approval", () => {
     const { state: opened, record: shift } = withShift()
     const { state: sold, record: sale } = applySale(opened, {
@@ -327,14 +335,13 @@ describe("drawer accounting for cash refunds", () => {
     return { state: requested, shift, refund }
   }
 
-  test("a refund approved after the shift closed cannot change that shift's report", () => {
+  test("a cash refund cannot be approved while no drawer is open, and the closed shift's report stays put", () => {
     const { state, shift, refund } = sellForCash()
     const { state: closedState, record: closed } = applyCloseShift(state, { shiftId: shift.id, countedCash: 1000000 + shoe.price * 2, closedBy: "u-cashier", at })
-    const { state: approved, record: decided } = applyRefundDecision(closedState, { refundId: refund.id, approve: true, userId: "u-manager", at: at + 5000 })
 
-    expect(decided.payoutShiftId).toBeNull()
-    expect(shiftSummary(approved, closed).expectedCash).toBe(closed.expectedCash)
-    expect(shiftSummary(approved, closed).cashRefunds).toBe(0)
+    expect(() => applyRefundDecision(closedState, { refundId: refund.id, approve: true, userId: "u-manager", at: at + 5000 })).toThrow("Open a counter shift first")
+    expect(applyRefundDecision(closedState, { refundId: refund.id, approve: false, userId: "u-manager", at: at + 5000 }).record.status).toBe("rejected")
+    expect(shiftSummary(closedState, closed).expectedCash).toBe(closed.expectedCash)
   })
 
   test("the drawer that pays a refund out is the one that loses the cash", () => {

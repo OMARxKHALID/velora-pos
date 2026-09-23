@@ -103,7 +103,7 @@ export const SalesScreen = ({ user }) => {
   }
 
   const handleScan = (code) => {
-    const sale = sales.find(({ number }) => number === code.toUpperCase())
+    const sale = sales.find(({ number, cashierId }) => number === code.toUpperCase() && (user.role !== "cashier" || cashierId === user.id))
     if (sale) setOpenId(sale.id)
   }
 

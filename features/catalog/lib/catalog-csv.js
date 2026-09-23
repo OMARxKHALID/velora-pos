@@ -43,7 +43,7 @@ const rowSchema = z
     audience: z.string().trim().toLowerCase().pipe(z.enum(["men", "women", "kids", "unisex"], { error: "audience must be men, women, kids or unisex" })),
     color: z.string().trim().min(1, { error: "color is missing" }),
     size: z.string().trim().regex(/^\d{2}$/, { error: "size must be an EU size like 42" }),
-    price: z.coerce.number({ error: "price must be a number" }).positive({ error: "price must be above 0" }),
+    price: z.coerce.number({ error: "price must be a number" }).int({ error: "price must be whole rupees" }).positive({ error: "price must be above 0" }),
     cost: z.coerce.number({ error: "cost must be a number" }).min(0, { error: "cost cannot be negative" }),
     barcode: z.string().trim().regex(/^(\d{8,14})?$/, { error: "barcode must be 8 to 14 digits" }),
     stock: z.coerce.number({ error: "receive must be a number" }).int({ error: "receive must be whole pairs" }).min(0, { error: "receive cannot be negative" }).default(0),
@@ -71,6 +71,9 @@ export const parseCatalogImport = (text) => {
     const key = `${row.product}|${row.brand}|${row.color}|${row.size}`.toLowerCase()
     if (seen.has(key)) errors.push({ line: 0, message: `${row.product} ${row.color} ${row.size} appears twice` })
     seen.set(key, true)
+    if (!row.barcode) continue
+    if (seen.has(row.barcode)) errors.push({ line: 0, message: `barcode ${row.barcode} appears twice` })
+    seen.set(row.barcode, true)
   }
 
   return { rows, errors, total: lines.length }

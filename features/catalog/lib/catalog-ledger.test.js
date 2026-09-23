@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { emptyLedger, applyPurchase, applySale, applyOpenShift } from "@/features/demo/lib/ledger"
-import { indexCatalog, seedCatalog } from "./catalog"
+import { indexCatalog, seedCatalog, variantKey } from "./catalog"
 import { applyDeleteProduct, applyImportCatalog, applySaveProduct, applySetProductStatus } from "./catalog-ledger"
 
 const base = () => ({ ...emptyLedger(), ...seedCatalog() })
@@ -15,6 +15,15 @@ describe("catalog ledger", () => {
     expect(new Set(state.variants.map(({ barcode }) => barcode)).size).toBe(state.variants.length)
     expect(new Set(state.variants.map(({ sku }) => sku)).size).toBe(state.variants.length)
     expect(() => applySaveProduct(state, { input })).toThrow("already exists")
+  })
+
+  test("one barcode cannot go on two sizes of the same product", () => {
+    const { state, record } = applySaveProduct(base(), { input })
+    const [first, second] = indexCatalog(state).variantsByProduct[record.id]
+    expect(() => applySaveProduct(state, { productId: record.id, input, barcodes: { [second.id]: first.barcode } })).toThrow("already belongs")
+    const nextId = `p-${String(base().productSeq + 1).padStart(2, "0")}`
+    const twice = { [variantKey(nextId, "Black", "41")]: "12345678", [variantKey(nextId, "Black", "42")]: "12345678" }
+    expect(() => applySaveProduct(base(), { input: { ...input, name: "Other" }, barcodes: twice })).toThrow("used twice")
   })
 
   test("removing a sold size retires it instead of deleting it", () => {

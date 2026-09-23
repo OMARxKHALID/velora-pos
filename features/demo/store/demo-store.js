@@ -12,7 +12,7 @@ import {
   emptyLedger,
 } from "@/features/demo/lib/ledger"
 import { createSeed } from "@/features/demo/lib/seed"
-import { applyAddStaff, applyRemoveStaff, applyTransferRole, initialStaff } from "@/features/demo/lib/staff"
+import { applyAddStaff, applyRemoveStaff, applyTransferRole, canApprove, initialStaff } from "@/features/demo/lib/staff"
 import { CART_STORAGE_KEY, STORAGE_KEY } from "@/features/demo/lib/storage"
 import { applyDeleteProduct, applyImportCatalog, applySaveProduct, applySetProductStatus } from "@/features/catalog/lib/catalog-ledger"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
@@ -20,47 +20,18 @@ import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 const ledgerKeys = Object.keys(emptyLedger())
 const persistedKeys = [...ledgerKeys, "shopScope", "settings", "staff"]
 
-// The whole ledger is one JSON blob. Writing it after every keystroke-sized change is wasteful,
-// so coalesce writes and always flush when the tab is hidden or closed.
-const createDebouncedStorage = (delay = 250) => {
-  let timer = null
-  let pending = null
-
-  const flush = () => {
-    clearTimeout(timer)
-    timer = null
-    if (!pending) return
-    const { name, value } = pending
-    pending = null
+// Saved on every change so another tab can pick it up straight away (see DemoStoreProvider).
+const safeLocalStorage = {
+  getItem: (name) => window.localStorage.getItem(name),
+  setItem: (name, value) => {
     try {
       window.localStorage.setItem(name, value)
     } catch (error) {
       console.error("Could not save demo data to this browser", error)
     }
-  }
-
-  window.addEventListener("pagehide", flush)
-  document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && flush())
-
-  return {
-    getItem: (name) => {
-      flush()
-      return window.localStorage.getItem(name)
-    },
-    setItem: (name, value) => {
-      pending = { name, value }
-      clearTimeout(timer)
-      timer = setTimeout(flush, delay)
-    },
-    removeItem: (name) => {
-      pending = null
-      window.localStorage.removeItem(name)
-    },
-  }
+  },
+  removeItem: (name) => window.localStorage.removeItem(name),
 }
-
-let storage = null
-const getStorage = () => (storage ??= createDebouncedStorage())
 
 export const createDemoStore = () =>
   createStore()(
@@ -81,11 +52,13 @@ export const createDemoStore = () =>
           shopScope: "all",
           staff: initialStaff,
           settings: defaultPricingSettings(),
-          recordSale: (input) => run(applySale)({ settings: get().settings, offline: get().offline, ...input }),
+          recordSale: (input) => {
+            if (input.approvedBy && !canApprove(get().staff, input.approvedBy)) throw new Error("The discount approver is not an active supervisor.")
+            return run(applySale)({ settings: get().settings, offline: get().offline, ...input })
+          },
           requestRefund: run(applyRefundRequest),
           decideRefund: (input) => {
-            const decider = get().staff[input.userId]
-            if (!decider || decider.removed || decider.role === "cashier") throw new Error("Only a supervisor can decide a refund.")
+            if (!canApprove(get().staff, input.userId)) throw new Error("Only a supervisor can decide a refund.")
             return run(applyRefundDecision)(input)
           },
           openShift: run(applyOpenShift),
@@ -129,7 +102,7 @@ export const createDemoStore = () =>
         version: 6,
         migrate: () => ({}),
         skipHydration: true,
-        storage: createJSONStorage(getStorage),
+        storage: createJSONStorage(() => safeLocalStorage),
         partialize: (state) => Object.fromEntries(persistedKeys.map((key) => [key, state[key]])),
       }
     )
