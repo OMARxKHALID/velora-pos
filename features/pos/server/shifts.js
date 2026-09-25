@@ -3,11 +3,13 @@ import { UserError } from "@/features/auth/server/session-errors"
 import { applyCloseShift, applyOpenShift } from "@/features/demo/lib/ledger"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/lib/db/collections"
 import { isDuplicateKey, withTransaction } from "@/lib/db/transaction"
-import { registerFor } from "./register"
+import { MAX_BLOCKS } from "../lib/receipts"
+import { registerFor, reserveOfflineBlock } from "./register"
 
 const money = z.number().int({ error: "Whole amounts only" }).min(0, { error: "Cannot be negative" }).max(10_000_000_00, { error: "That looks too large" })
 
 const openSchema = z.object({ openingCash: money, clientId: z.string().min(8).max(64), registerId: z.string().max(60).optional() })
+const reserveSchema = z.object({ shiftId: z.string().min(1).max(64) })
 const closeSchema = z.object({ shiftId: z.string().min(1).max(64), countedCash: money, note: z.string().trim().max(200).default("") })
 
 const parse = (schema, value) => {
@@ -30,7 +32,8 @@ export const openShift = async ({ db, client, user, shopId, at = new Date() }, i
       } catch (error) {
         throw new UserError(error.message)
       }
-      const shift = { ...record, syncedAt: at }
+      const block = await reserveOfflineBlock(db, session, register._id)
+      const shift = { ...record, registerCode: register.code, receiptBlocks: [block], syncedAt: at }
       await db.collection(C.shifts).insertOne(toDoc(shift), { session })
       return shift
     })
@@ -58,5 +61,22 @@ export const closeShift = async ({ db, client, user, shopId, at = new Date() }, 
     const closed = { ...record, syncedAt: at }
     await db.collection(C.shifts).replaceOne({ _id: shiftId, status: "open" }, toDoc(closed), { session })
     return closed
+  })
+}
+
+export const reserveReceipts = async ({ db, client, user, shopId }, input) => {
+  const { shiftId } = parse(reserveSchema, input)
+  return withTransaction(client, async (session) => {
+    const shift = await db.collection(C.shifts).findOne({ _id: shiftId, shopId }, { session })
+    if (!shift || shift.status !== "open") throw new UserError("Shift is not open")
+    if (shift.cashierId !== user.id) throw new UserError("This shift belongs to another cashier")
+    const blocks = shift.receiptBlocks ?? []
+    if (blocks.length >= MAX_BLOCKS) throw new UserError("This shift has used all its offline receipt numbers. Close it and open a new one.")
+    const register = await registerFor(db, session, shopId, shift.registerId)
+    const block = await reserveOfflineBlock(db, session, register._id)
+    const updated = await db
+      .collection(C.shifts)
+      .findOneAndUpdate({ _id: shiftId, status: "open" }, { $push: { receiptBlocks: block }, $set: { registerCode: register.code } }, { returnDocument: "after", session })
+    return fromDoc(updated)
   })
 }

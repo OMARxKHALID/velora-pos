@@ -18,7 +18,7 @@ const DashboardLayout = async ({ children }) => {
 
   return (
     <QueryProvider>
-    <LedgerStoreProvider directory={directory}>
+    <LedgerStoreProvider user={user} directory={directory}>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar user={user} demoMode={appEnv().DEMO_MODE} />
         <SidebarInset className="min-w-0">

@@ -5,7 +5,7 @@ import { getDb, getMongoClient } from "@/lib/db/client"
 import { authEnv } from "@/lib/env"
 import { discardHeldCart, holdCart, takeHeldCart } from "./server/held-carts"
 import { recordSale } from "./server/sales"
-import { closeShift, openShift } from "./server/shifts"
+import { closeShift, openShift, reserveReceipts } from "./server/shifts"
 
 const asCashier = (work) =>
   actionResult(async () => {
@@ -17,6 +17,8 @@ const asCashier = (work) =>
 export const openShiftAction = async (input) => asCashier((deps) => openShift(deps, input))
 
 export const closeShiftAction = async (input) => asCashier((deps) => closeShift(deps, input))
+
+export const reserveReceiptsAction = async (input) => asCashier((deps) => reserveReceipts(deps, input))
 
 export const recordSaleAction = async (input) => asCashier((deps) => recordSale(deps, input))
 

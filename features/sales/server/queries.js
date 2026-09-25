@@ -19,8 +19,8 @@ export const saleFilter = ({ shopIds, viewer, range = "7d", cashierId = null, q 
     ...(viewer.role === "cashier" ? { cashierId: viewer.id } : cashierId ? { cashierId } : {}),
     ...(days ? { soldAt: { $gte: new Date(startOfDayIn(timeZone, now) - (days - 1) * DAY) } } : {}),
     ...(pattern
-      ? /^(offline|not synced)$/i.test(search)
-        ? { syncedAt: null }
+      ? /^(offline|sold offline)$/i.test(search)
+        ? { offline: true }
         : { $or: [{ number: pattern }, { customerName: pattern }, { customerPhone: pattern }, { "items.productName": pattern }] }
       : {}),
   }

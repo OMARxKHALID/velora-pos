@@ -1,8 +1,21 @@
+import { offlineNumbers } from "@/features/pos/lib/receipts"
 import { COLLECTIONS as C, fromDoc } from "@/lib/db/collections"
 
 export const HISTORY_DAYS = 120
 
 const withoutCost = ({ cost: _cost, ...rest }) => rest
+
+const withOfflineNext = async (db, shifts) => {
+  const open = shifts.filter(({ status, receiptBlocks }) => status === "open" && receiptBlocks?.length)
+  if (!open.length) return shifts
+  const sold = await db.collection(C.sales).find({ shiftId: { $in: open.map(({ _id }) => _id) }, offline: true }, { projection: { shiftId: 1, number: 1, offlineNumber: 1 } }).toArray()
+  return shifts.map((shift) => {
+    if (!open.includes(shift)) return shift
+    const numbers = offlineNumbers(shift.registerCode, shift.receiptBlocks)
+    const used = sold.filter(({ shiftId }) => shiftId === shift._id).map(({ number, offlineNumber }) => Math.max(numbers.indexOf(number), numbers.indexOf(offlineNumber)))
+    return { ...shift, offlineNext: Math.max(-1, ...used) + 1 }
+  })
+}
 
 export const ledgerSnapshot = async (db, { user, now = new Date() }) => {
   const since = new Date(now.getTime() - HISTORY_DAYS * 24 * 60 * 60 * 1000)
@@ -29,7 +42,7 @@ export const ledgerSnapshot = async (db, { user, now = new Date() }) => {
     variants: variants.map(fromDoc).map((variant) => (cashier ? withoutCost(variant) : variant)),
     stock: Object.fromEntries(stock.map(({ variantId, quantity }) => [variantId, quantity])),
     refunds: refunds.map(fromDoc),
-    shifts: shifts.map(fromDoc),
+    shifts: (await withOfflineNext(db, shifts)).map(fromDoc),
     usedVariantIds,
     heldCarts: heldCarts.map(fromDoc),
     settings: shopSettings,

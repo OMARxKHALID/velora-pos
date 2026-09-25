@@ -19,7 +19,7 @@ export const seedDocuments = (now = Date.now()) => {
 
   return {
     [C.shops]: [{ _id: SHOP_ID, code: "SH1", type: "footwear", name: SHOP_NAME, timezone: SHOP_TIME_ZONE, createdAt: new Date(now) }],
-    [C.registers]: [{ _id: REGISTER_ID, shopId: SHOP_ID, code: REGISTER_CODE, lastReceiptSeq: state.receiptSeq }],
+    [C.registers]: [{ _id: REGISTER_ID, shopId: SHOP_ID, code: REGISTER_CODE, lastReceiptSeq: state.receiptSeq, lastOfflineSeq: 0 }],
     [C.settings]: [{ _id: SHOP_ID, shopId: SHOP_ID, ...defaultPricingSettings() }],
     [C.counters]: [
       { _id: "barcode", seq: state.barcodeSeq },

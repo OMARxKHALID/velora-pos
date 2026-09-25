@@ -1,0 +1,27 @@
+import { getSession } from "@/features/auth/server/session"
+import { syncOfflineSale } from "@/features/pos/server/sales"
+import { denied, noStore } from "@/features/sales/server/request"
+import { getDb, getMongoClient } from "@/lib/db/client"
+import { authEnv } from "@/lib/env"
+
+const sameOrigin = (request) => {
+  const origin = request.headers.get("origin")
+  return !origin || new URL(origin).host === new URL(request.url).host
+}
+
+export const POST = async (request) => {
+  if (!sameOrigin(request)) return denied(403, "Not allowed")
+  if (!request.headers.get("content-type")?.startsWith("application/json")) return denied(415, "Send JSON")
+  const user = await getSession()
+  if (!user) return denied(401, "Your session has ended. Sign in again.")
+  if (user.role !== "cashier") return denied(403, "Only cashiers upload offline sales")
+  const body = await request.json().catch(() => null)
+  if (!body) return denied(400, "Send JSON")
+  try {
+    const sale = await syncOfflineSale({ db: getDb(), client: getMongoClient(), user, shopId: user.shopId, approvalSecret: authEnv().BETTER_AUTH_SECRET }, body)
+    return Response.json({ sale }, { headers: noStore })
+  } catch (error) {
+    if (error?.expose) return denied(422, error.message)
+    throw error
+  }
+}

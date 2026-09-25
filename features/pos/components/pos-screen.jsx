@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useEffectEvent, useState } from "react"
-import { CloudSlashIcon, LockKeyIcon, ShoppingBagIcon, SidebarSimpleIcon } from "@phosphor-icons/react"
+import { CloudArrowUpIcon, CloudSlashIcon, LockKeyIcon, ShoppingBagIcon, SidebarSimpleIcon, WarningIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -11,7 +11,9 @@ import { REGISTER_CODE } from "@/features/catalog/lib/catalog"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { openShiftFor } from "@/features/demo/lib/ledger"
+import { OfflineQueueDialog } from "@/features/offline/components/offline-queue-dialog"
 import { heldAt } from "../lib/held-carts"
+import { numbersLeft } from "../lib/receipts"
 import { fitToStock } from "../lib/cart-fit"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { cartTotals } from "@/features/pricing/lib/pricing"
@@ -47,6 +49,9 @@ const PosSkeleton = () => (
 const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const stock = useLedgerStore(({ stock }) => stock)
   const offline = useLedgerStore(({ offline }) => offline)
+  const canSellOffline = useLedgerStore(({ canSellOffline }) => canSellOffline)
+  const pending = useLedgerStore(({ pending }) => pending)
+  const receiptsUsed = useLedgerStore(({ receiptsUsed }) => receiptsUsed)
   const settings = useLedgerStore(({ settings }) => settings)
   const recordSale = useLedgerStore(({ recordSale }) => recordSale)
   const allHeld = useLedgerStore(({ heldCarts }) => heldCarts)
@@ -77,6 +82,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const [closing, setClosing] = useState(false)
   const [parkedOpen, setParkedOpen] = useState(false)
   const [holdOpen, setHoldOpen] = useState(false)
+  const [queueOpen, setQueueOpen] = useState(false)
   const [checkoutId, setCheckoutId] = useState(newId)
   const wide = useMediaQuery("(min-width: 1024px)")
 
@@ -115,6 +121,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
         shiftId: shift.id,
         lines: lines.map(({ variantId, quantity, entry }) => ({ variantId, quantity, entry })),
         discountPct,
+        approvedBy,
         approvalToken,
         payments,
         customerName: customerName || undefined,
@@ -170,7 +177,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
 
   const handleToggleCart = () => (wide ? setCartOpen((open) => !open) : setCartSheetOpen(true))
 
-  const overlayOpen = Boolean(picking || paying || completed || closing || parkedOpen || holdOpen)
+  const overlayOpen = Boolean(picking || paying || completed || closing || parkedOpen || holdOpen || queueOpen)
 
   const handleShortcut = useEffectEvent((event) => {
     if (event.key !== "F2") return
@@ -199,7 +206,16 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
     />
   )
 
-  const closeBlockedReason = lines.length ? "Finish or clear the current sale first" : heldCarts.length ? "Resume or discard held carts first" : undefined
+  const waiting = pending.filter(({ shiftId }) => shiftId === shift.id)
+  const failed = pending.filter(({ status }) => status === "failed").length
+  const offlineLeft = numbersLeft(shift.receiptBlocks, Math.max(receiptsUsed[shift.id] ?? 0, shift.offlineNext ?? 0))
+  const closeBlockedReason = lines.length
+    ? "Finish or clear the current sale first"
+    : heldCarts.length
+      ? "Resume or discard held carts first"
+      : waiting.length
+        ? "Wait for the sales saved on this till to upload"
+        : undefined
 
   return (
     <div className={`flex flex-col gap-3 ${screenHeight}`}>
@@ -207,8 +223,29 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
         <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
           <CloudSlashIcon className="size-4 shrink-0" />
           <span className="min-w-0 flex-1">
-            <span className="font-semibold">Offline.</span> Sales cannot be saved until the internet is back. Keep the cart; it is kept on this screen.
+            <span className="font-semibold">Offline.</span>{" "}
+            {canSellOffline && offlineLeft > 0
+              ? `Keep selling: sales are saved on this till and upload when the internet is back. ${offlineLeft} offline receipt ${offlineLeft === 1 ? "number" : "numbers"} left.`
+              : canSellOffline
+                ? "This till has no offline receipt numbers left. Sales can be saved again once the internet is back."
+                : "Sales cannot be saved until the internet is back. Keep the cart; it is kept on this screen."}
           </span>
+        </div>
+      )}
+      {pending.length > 0 && (
+        <div
+          role="status"
+          className={`flex flex-wrap items-center gap-x-3 gap-y-2 border px-3 py-2 text-xs ${failed ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-info/40 bg-info/10 text-info"}`}
+        >
+          {failed ? <WarningIcon className="size-4 shrink-0" weight="fill" /> : <CloudArrowUpIcon className="size-4 shrink-0" />}
+          <span className="min-w-0 flex-1">
+            {failed
+              ? `${failed} ${failed === 1 ? "sale" : "sales"} saved on this till could not be uploaded.`
+              : `${pending.length} ${pending.length === 1 ? "sale is" : "sales are"} saved on this till, waiting to upload.`}
+          </span>
+          <Button size="sm" variant="outline" className="h-7" onClick={() => setQueueOpen(true)}>
+            {failed ? "Review" : "View"}
+          </Button>
         </div>
       )}
       <div className="flex items-center gap-x-5 gap-y-1 border bg-card px-3 py-2 text-xs text-muted-foreground">
@@ -288,6 +325,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
       {completed && <ReceiptDialog sale={completed} onClose={() => setCompleted(null)} />}
       {closing && <CloseShiftDialog shift={shift} user={user} onCancel={() => setClosing(false)} onClosed={onShiftClosed} />}
       {parkedOpen && <ParkedSalesDialog heldCarts={heldCarts} onResume={handleResume} onClose={() => setParkedOpen(false)} />}
+      {queueOpen && <OfflineQueueDialog onClose={() => setQueueOpen(false)} />}
       {holdOpen && <HoldSaleDialog suggestion={customerName || `Order #${heldCarts.length + 1}`} onHold={handleHold} onClose={() => setHoldOpen(false)} />}
     </div>
   )

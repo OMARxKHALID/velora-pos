@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { signOut } from "@/features/auth/actions"
+import { forgetDevice } from "@/features/offline/lib/forget-device"
 import { roleLabels } from "@/features/auth/lib/roles"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS, shopName, shops } from "@/features/shops/lib/shops"
@@ -147,7 +148,7 @@ export const AppSidebar = ({ user, demoMode = false }) => {
                     Reset demo data
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem variant="destructive" onClick={() => signOut()}>
+                <DropdownMenuItem variant="destructive" onClick={() => forgetDevice().finally(() => signOut())}>
                   <SignOutIcon />
                   Sign out
                 </DropdownMenuItem>

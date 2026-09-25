@@ -1,3 +1,15 @@
+# Backend phase 6: selling offline
+
+Lint clean; 165 tests pass with a MongoDB replica set; production build succeeds. Checked in Chromium with the network switched off: the till sold with receipt `SH1-R1-X00001`, reopened from a reload with no connection, sold `X00002` from a second tab (both tabs showed the queue), and when the network came back both sales reached the server once, stock went from 6 to 4, and the owner's sales list marked them "Sold offline". A second browser on the same shift carried on at `X00003`.
+
+- **The till keeps selling offline.** Sales are priced on the till with the prices it has, saved in IndexedDB (Dexie, official docs read) and uploaded one by one when the connection returns, when the screen regains focus, and every 30 seconds. The same checkout id means a sale is never stored twice, even if two tabs upload together.
+- **Receipt numbers that stay unique offline.** Opening a shift reserves a block of 30 numbers in a separate `X` series for that counter, and the till tops it up while online. Two tabs on one till share the counter; a second device continues after the numbers the server has already seen. If two devices still clash, the server gives the later sale a normal number and keeps the printed one for reference.
+- **The server accepts what really happened** (`POST /api/sync/sales`, cashiers only, same-origin JSON): it keeps the price paid and the time of sale, lets stock go below zero rather than lose a sale, checks a big discount's approval at the time of sale, and marks sales for a look: *Price differs*, *Oversold*, *Renumbered*, *Till clock off*, *After close*. Sales it refuses (an item that no longer exists) stay on the till with the reason, to try again or remove.
+- **The app opens without internet.** A Serwist service worker (official docs and source read; stable 9.5 with Next 16 and Turbopack) keeps the pages and app code; the till loads the last ledger it saved for that person. Next's `experimental.useOffline` is not turned on, because it would hold the till's server actions until reconnect instead of letting the sale finish offline.
+- **On the screen**: an offline banner with the numbers left, a "waiting to upload" bar and a list of saved sales (view the receipt, upload now, retry or remove the refused ones), and the header's count of sales to upload. A shift cannot be closed while its sales are still on the till.
+- Returns, stock, products, settings and supervisor approvals still need the connection.
+- Signing out clears the saved pages and ledger from the device, but never sales that have not been uploaded.
+
 # Backend phase 5: dashboard, sales and history on the server
 
 Lint clean; 147 tests pass with a MongoDB replica set; production build succeeds. Checked in Chromium and over HTTP against freshly seeded data.

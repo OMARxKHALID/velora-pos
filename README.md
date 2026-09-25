@@ -36,12 +36,12 @@ Only the owner can add staff, change roles, set passwords and PINs, or turn acce
 - **Stock**: per size and colour, receive deliveries, adjustments with reasons, append-only movement history
 - **Settings** (owner): sales tax, discounts, a PIN per supervisor, low-stock threshold, customer details at checkout
 - **Dashboard**: sales, profit, busiest hours, top and slow sellers, low stock, cashier watch. Charts add up to the headline numbers
-- **Connection**: the header shows Online or Offline. While offline nothing can be saved; the cart stays on the screen. Selling offline with a queue that syncs later comes in phase 6
+- **Offline selling**: when the internet drops, the till keeps selling. Sales are saved on the device with receipt numbers set aside for that shift (`SH1-R1-X00001`), and upload once each when the connection is back. The sell screen opens even with no connection, from what the till last loaded. Everything else (returns, stock, settings, supervisor approvals) waits for the connection
 - Dark and light mode, responsive down to phone width
 
 ## Stack
 
-Next.js 16 (App Router) · React 19 · Tailwind CSS 4 · shadcn/ui (Base UI) · Zustand · React Hook Form + Zod · Recharts · Bun
+Next.js 16 (App Router) · React 19 · Tailwind CSS 4 · shadcn/ui (Base UI) · Zustand · TanStack Query · React Hook Form + Zod · Recharts · MongoDB · Better Auth · Dexie (IndexedDB) · Serwist (service worker) · Bun
 
 ## Develop
 
@@ -62,7 +62,7 @@ bun run build     # downloads Google Fonts, so it needs internet
 MONGODB_TEST_URI="mongodb://127.0.0.1:27017/?replicaSet=rs0" bun test   # also runs the database tests
 ```
 
-Database tests each use their own throwaway database and are skipped when `MONGODB_TEST_URI` is not set. `GET /api/health` reports whether the app can reach the database.
+Database tests each use their own throwaway database and are skipped when `MONGODB_TEST_URI` is not set. `GET /api/health` reports whether the app can reach the database. To try offline selling, run `bun run build && bun start` (the service worker is off in development), open the sell screen once, then switch the browser to offline in its developer tools.
 
 | Variable | Needed for | Notes |
 | --- | --- | --- |
@@ -86,7 +86,9 @@ lib/db/              MongoDB client, collections, indexes, transactions
 scripts/             db:indexes and db:seed
 ```
 
-Screens read the shop from the server: `GET /api/ledger` (catalog, stock, recent shifts and refunds, held carts, settings, trimmed to the role), `GET /api/dashboard` (finished figures only), and paged, searchable `GET /api/sales` and `GET /api/movements`. Every change goes through a server action that checks the role and saves in a MongoDB transaction. Days and hours follow the shop's time zone (`Asia/Karachi`), not the server's. The screens keep using the tested rules in `features/demo/lib/ledger.js` to show previews (cart totals, refund quotes, shift summaries); the server runs the same rules again before saving. Next: offline selling (phase 6), clean-up and deploy (phase 7).
+Screens read the shop from the server: `GET /api/ledger` (catalog, stock, recent shifts and refunds, held carts, settings, trimmed to the role), `GET /api/dashboard` (finished figures only), and paged, searchable `GET /api/sales` and `GET /api/movements`. Every change goes through a server action that checks the role and saves in a MongoDB transaction. Days and hours follow the shop's time zone (`Asia/Karachi`), not the server's. The screens keep using the tested rules in `features/demo/lib/ledger.js` to show previews (cart totals, refund quotes, shift summaries); the server runs the same rules again before saving. Next: clean-up and deploy (phase 7).
+
+Offline selling lives in `features/offline/`. Opening a shift sets aside a block of 30 offline receipt numbers for it (a separate `X` series per counter, so the normal numbers have no gaps); the till asks for more while online when fewer than 10 are left. A sale made offline is priced on the till, stored in IndexedDB with the next number, and later sent to `POST /api/sync/sales`. The server stores it once (same checkout id), keeps the price the customer paid and the time it was sold, and never refuses it for stock: instead it marks what needs a look (price changed since, oversold, number clash, till clock off, sold after the shift was closed). The service worker (`app/sw.js`, built by `app/serwist/[path]/route.js`) keeps the pages and the app code so the till opens with no connection; it is off in `bun dev`. Signing out clears the saved pages and data, but never unsent sales.
 
 Each shop type is a module in `features/catalog/types/` (only `footwear` today) that defines its product fields, how its items are built (colour × EU size), SKUs and labels. The selling, stock and refund code only uses the shared item fields, so a clothes or cosmetics shop is a new module rather than a rewrite.
 
@@ -108,4 +110,4 @@ The owner then adds everyone else in **Staff**.
 
 ## Production roadmap
 
-A real database (the ledger, stock movements and unique receipt numbers suit a relational store with transactions), real authentication, server-side validation of every sale and approval, server-issued receipt numbers, price change audit log, FBR invoicing, receipt printer and cash drawer integration, per-shop stock and transfers, and shop-type specific product attributes for the clothing and cosmetics shops.
+Done: MongoDB with transactions, real sign-in and roles, every sale and approval checked on the server, server-issued receipt numbers, an audit log, and offline selling. Still to do: FBR invoicing, receipt printer and cash drawer integration, stock transfers between shops, and product types for the clothing and cosmetics shops.
