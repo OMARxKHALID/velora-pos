@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header"
 import { DashboardScreen } from "@/features/analytics/components/dashboard-screen"
-import { requireRole } from "@/features/auth/lib/session"
+import { requireRole } from "@/features/auth/server/session"
 import { DemoReady } from "@/features/demo/components/demo-ready"
 
 const DashboardPage = async () => {

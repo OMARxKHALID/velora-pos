@@ -3,22 +3,17 @@
 import { createContext, useContext, useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useStore } from "zustand"
-import { logout } from "@/features/auth/actions"
 import { SAVE_FAILED_EVENT, STORAGE_KEY } from "../lib/storage"
 import { createDemoStore } from "./demo-store"
 
 export const DemoStoreContext = createContext(null)
 
-const useSignOutIfGone = (store, user) => {
-  const onTeam = useStore(store, ({ hydrated, staff }) => !hydrated || (staff[user.id]?.role === user.role && !staff[user.id].removed))
-  useEffect(() => {
-    if (!onTeam) logout()
-  }, [onTeam])
-}
+export const DemoStoreProvider = ({ directory, children }) => {
+  const [store] = useState(() => createDemoStore(directory))
 
-export const DemoStoreProvider = ({ user, children }) => {
-  const [store] = useState(createDemoStore)
-  useSignOutIfGone(store, user)
+  useEffect(() => {
+    store.getState().setDirectory(directory)
+  }, [store, directory])
 
   useEffect(() => {
     const hydrate = async () => {

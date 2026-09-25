@@ -1,7 +1,5 @@
 import { SHOP_ID } from "@/features/catalog/lib/catalog"
-
-export const SHOP_NAME = "Shoe Shop"
-export const GROUP_NAME = "Velora Group"
+import { GROUP_NAME, SHOP_NAME } from "@/features/shops/lib/constants"
 
 export const ROLES = ["admin", "manager", "cashier"]
 export const STAFF_ROLES = ["manager", "cashier"]
@@ -20,10 +18,10 @@ export const homeFor = (role) => (role === "admin" ? "/dashboard" : role === "ma
 
 export const titleFor = (role) => `${roleLabels[role]} · ${role === "admin" ? GROUP_NAME : SHOP_NAME}`
 
-export const toSessionUser = ({ id, name, role }) => ({
+export const toSessionUser = ({ id, name, role, shopIds }) => ({
   id,
   name,
   role,
   title: titleFor(role),
-  shopId: role === "admin" ? null : SHOP_ID,
+  shopId: role === "admin" ? null : (shopIds?.[0] ?? SHOP_ID),
 })

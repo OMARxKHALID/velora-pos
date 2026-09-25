@@ -16,13 +16,15 @@
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "db:indexes": "bun scripts/db-indexes.js",
-    "db:seed": "bun scripts/db-seed.js"
+    "db:seed": "bun scripts/db-seed.js",
+    "db:create-owner": "bun scripts/create-owner.js"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@hookform/resolvers": "^5.9.1",
     "@phosphor-icons/react": "^2.1.10",
     "@vercel/functions": "^3.9.9",
+    "better-auth": "1.7.6",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
     "jsbarcode": "^3.12.3",

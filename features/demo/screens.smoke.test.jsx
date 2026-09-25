@@ -9,7 +9,8 @@ import { RefundsScreen } from "@/features/refunds/components/refunds-screen"
 import { SalesScreen } from "@/features/sales/components/sales-screen"
 import { SettingsScreen } from "@/features/settings/components/settings-screen"
 import { StaffScreen } from "@/features/staff/components/staff-screen"
-import { toSessionUser } from "@/features/auth/lib/demo-users"
+import { toSessionUser } from "@/features/auth/lib/roles"
+import { initialStaff } from "@/features/demo/lib/staff"
 import { shiftSummary } from "@/features/demo/lib/ledger"
 import { CartPanel } from "@/features/pos/components/cart-panel"
 import { Receipt } from "@/features/pos/components/receipt"
@@ -25,7 +26,7 @@ const users = {
 }
 
 const seededStore = ({ openShift = false } = {}) => {
-  const store = createDemoStore()
+  const store = createDemoStore({ ...initialStaff })
   store.getState().resetDemo()
   store.setState({ hydrated: true })
   store.getInitialState = store.getState
@@ -42,7 +43,7 @@ describe("screens render against seeded data", () => {
     expect(render(store, <SalesScreen user={users.admin} />)).toContain("Z-reports")
     expect(render(store, <StockScreen user={users.admin} />)).toContain("Stock by size")
     expect(render(store, <MovementsScreen user={users.admin} />)).toContain("History cannot be edited")
-    expect(render(store, <StaffScreen disabled={[]} />)).toContain("Hamza Ali")
+    expect(render(store, <StaffScreen />)).toContain("Hamza Ali")
     expect(render(store, <SettingsScreen />)).toContain("Supervisor approval PIN")
   })
 
@@ -79,9 +80,11 @@ describe("screens render against seeded data", () => {
       cashierId: "u-cashier",
       shiftId: shift.id,
     })
-    const member = state.addStaff({ name: "Zain Malik", role: "cashier" })
+    store.getState().setDirectory({ ...initialStaff, "u-zain": { id: "u-zain", name: "Zain Malik", role: "cashier", username: "zain", shop: "Shoe Shop", disabled: true } })
     expect(render(store, <SalesScreen user={users.admin} />)).toContain(sale.number)
-    expect(render(store, <StaffScreen disabled={[member.id]} />)).toContain("Zain Malik")
+    const staffPage = render(store, <StaffScreen />)
+    expect(staffPage).toContain("Zain Malik")
+    expect(staffPage).toContain("Disabled")
     expect(render(store, <DashboardScreen user={users.admin} />)).toContain("Zain Malik")
   })
 

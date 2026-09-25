@@ -50,6 +50,19 @@ describe("demo store in a browser", () => {
     expect(first.getState().heldCarts).toEqual([])
   })
 
+  test("changes made before the saved data is loaded never overwrite it", () => {
+    const first = openStore()
+    first.getState().openShift({ cashierId: "u-cashier", openingCash: 0 })
+    const saved = window.localStorage.getItem("velora-demo")
+
+    const reopened = createDemoStore({ "u-cashier": { id: "u-cashier", name: "Hamza Ali", role: "cashier" } })
+    reopened.getState().setDirectory({ "u-cashier": { id: "u-cashier", name: "Hamza Ali", role: "cashier" } })
+    reopened.getState().setOffline(true)
+    expect(window.localStorage.getItem("velora-demo")).toBe(saved)
+    reopened.persist.rehydrate()
+    expect(reopened.getState().shifts.filter(({ status }) => status === "open")).toHaveLength(1)
+  })
+
   test("a failed save is reported instead of silently lost", () => {
     const store = openStore()
     let failures = 0

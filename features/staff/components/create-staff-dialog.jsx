@@ -8,23 +8,35 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Segmented } from "@/components/ui/segmented"
-import { SHOP_NAME } from "@/features/auth/lib/demo-users"
+import { SHOP_NAME } from "@/features/shops/lib/constants"
+import { createStaffSchema } from "../schemas"
 
 const roleOptions = [
   { key: "cashier", label: "Cashier" },
   { key: "manager", label: "Supervisor" },
 ]
 
-export const CreateStaffDialog = ({ onClose, onCreate }) => {
+const suggestUsername = (name) =>
+  name
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)[0]
+    ?.replace(/[^a-z0-9._-]/g, "") ?? ""
+
+export const CreateStaffDialog = ({ pending, onClose, onCreate }) => {
   const [name, setName] = useState("")
   const [role, setRole] = useState("cashier")
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    if (!name.trim()) return toast.error("Enter the staff member's full name")
-    onCreate({ name, role, email, phone })
+    const input = { name, role, username: username || suggestUsername(name), password, email, phone }
+    const result = createStaffSchema.safeParse(input)
+    if (!result.success) return toast.error(result.error.issues[0].message)
+    onCreate(input)
   }
 
   return (
@@ -32,7 +44,7 @@ export const CreateStaffDialog = ({ onClose, onCreate }) => {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add staff member</DialogTitle>
-          <DialogDescription>They join the {SHOP_NAME} team and can sign in from the start page with their role.</DialogDescription>
+          <DialogDescription>They join the {SHOP_NAME} team and sign in with the username and password you set here.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">
@@ -45,9 +57,29 @@ export const CreateStaffDialog = ({ onClose, onCreate }) => {
             <FieldLabel>Role</FieldLabel>
             <Segmented options={roleOptions} value={role} onChange={setRole} />
             <FieldDescription>
-              {role === "cashier" ? "Cashiers process counter sales, scans and payments." : "Supervisors approve returns, manage stock and look after the shop."}
+              {role === "cashier" ? "Cashiers process counter sales, scans and payments." : "Supervisors approve returns, manage stock and look after the shop. Set their approval PIN in Settings."}
             </FieldDescription>
           </Field>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="staff-username">Username</FieldLabel>
+              <Input
+                id="staff-username"
+                value={username}
+                onChange={(event) => setUsername(event.target.value.toLowerCase())}
+                placeholder={suggestUsername(name) || "zain"}
+                autoCapitalize="none"
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="staff-password">Password</FieldLabel>
+              <Input id="staff-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required />
+            </Field>
+          </div>
+          <FieldDescription>At least 8 characters. Share it with them in person; they cannot see it again here.</FieldDescription>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field>
@@ -64,9 +96,9 @@ export const CreateStaffDialog = ({ onClose, onCreate }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" disabled={pending}>
               <PlusIcon />
-              Add staff member
+              {pending ? "Adding…" : "Add staff member"}
             </Button>
           </DialogFooter>
         </form>

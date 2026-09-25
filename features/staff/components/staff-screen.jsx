@@ -19,11 +19,11 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TablePagination, paginate, resetsPage } from "@/components/ui/table-pagination"
-import { setStaffAccess } from "@/features/auth/actions"
-import { roleLabels } from "@/features/auth/lib/demo-users"
+import { roleLabels } from "@/features/auth/lib/roles"
 import { activeStaff } from "@/features/demo/lib/staff"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { timeAgo } from "@/lib/dates"
+import { changeRoleAction, createStaffAction, removeStaffAction, setAccessAction, setPasswordAction } from "../actions"
 import { CreateStaffDialog } from "./create-staff-dialog"
 import { RemoveStaffDialog } from "./remove-staff-dialog"
 import { RoleBadge } from "./role-badge"
@@ -35,25 +35,15 @@ const roleFilters = [
   { key: "cashier", label: "Cashiers" },
 ]
 
-const NOBODY = []
-
 const latest = (list) => list.reduce((max, at) => Math.max(max, new Date(at).getTime()), 0)
 
-export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
+const unreachable = { error: "Could not reach the server. Check the connection." }
+
+export const StaffScreen = () => {
   const staff = useDemoStore(({ staff }) => staff)
   const sales = useDemoStore(({ sales }) => sales)
   const shifts = useDemoStore(({ shifts }) => shifts)
   const movements = useDemoStore(({ movements }) => movements)
-  const transferStaffRole = useDemoStore(({ transferStaffRole }) => transferStaffRole)
-  const removeStaff = useDemoStore(({ removeStaff }) => removeStaff)
-  const addStaff = useDemoStore(({ addStaff }) => addStaff)
-
-  const [seen, setSeen] = useState(serverDisabled)
-  const [disabled, setDisabled] = useState(serverDisabled)
-  if (serverDisabled !== seen) {
-    setSeen(serverDisabled)
-    setDisabled(serverDisabled)
-  }
 
   const [roleFilter, setRoleFilter] = useState("all")
   const [query, setQuery] = useState("")
@@ -70,7 +60,7 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
   const visible = people.filter(
     (person) =>
       (roleFilter === "all" || person.role === roleFilter) &&
-      (!search || [person.name, person.email, person.phone, person.shop, roleLabels[person.role]].some((value) => value?.toLowerCase().includes(search)))
+      (!search || [person.name, person.username, person.email, person.phone, person.shop, roleLabels[person.role]].some((value) => value?.toLowerCase().includes(search)))
   )
 
   const pagination = paginate(visible, page)
@@ -91,47 +81,57 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
     }
   }
 
-  const handleToggleAccess = (person) => {
-    const enable = disabled.includes(person.id)
-    startTransition(async () => {
-      const result = await setStaffAccess(person.id, enable)
-      if (result.error) return toast.error(result.error)
-      setDisabled(result.disabled)
-      toast.success(enable ? "Access restored" : "Access turned off", {
-        description: enable ? `${person.name} can sign in again.` : `${person.name} cannot sign in until you turn access back on.`,
+  const run = (action, onDone) =>
+    new Promise((resolve) =>
+      startTransition(async () => {
+        const result = await action().catch(() => unreachable)
+        if (result.error) toast.error(result.error)
+        else onDone()
+        resolve(result)
       })
-    })
+    )
+
+  const handleToggleAccess = (person) => {
+    const enable = person.disabled
+    run(
+      () => setAccessAction(person.id, enable),
+      () =>
+        toast.success(enable ? "Access restored" : "Access turned off", {
+          description: enable ? `${person.name} can sign in again.` : `${person.name} is signed out everywhere and cannot sign in until you turn access back on.`,
+        })
+    )
   }
 
-  const handleTransfer = (person, role) => {
-    try {
-      transferStaffRole(person.id, role)
-      toast.success("Role changed", { description: `${person.name} is now ${roleLabels[role]}. It applies the next time they sign in.` })
-    } catch (error) {
-      toast.error(error.message)
-    }
-  }
+  const handleTransfer = (person, role) =>
+    run(
+      () => changeRoleAction(person.id, role),
+      () => toast.success("Role changed", { description: `${person.name} is now ${roleLabels[role]}. It applies straight away.` })
+    )
 
-  const handleConfirmRemove = () => {
-    try {
-      removeStaff(removing.id)
-      toast.success("Staff member removed", { description: `${removing.name} has left the team.` })
-      if (selectedId === removing.id) setSelectedId(null)
-      setRemoving(null)
-    } catch (error) {
-      toast.error(error.message)
-    }
-  }
+  const handleConfirmRemove = () =>
+    run(
+      () => removeStaffAction(removing.id),
+      () => {
+        toast.success("Staff member removed", { description: `${removing.name} has left the team and cannot sign in.` })
+        if (selectedId === removing.id) setSelectedId(null)
+        setRemoving(null)
+      }
+    )
 
-  const handleCreate = (input) => {
-    try {
-      const created = addStaff(input)
-      toast.success("Staff member added", { description: `${created.name} joined as ${roleLabels[created.role]} and can sign in from the start page.` })
-      setCreating(false)
-    } catch (error) {
-      toast.error(error.message)
-    }
-  }
+  const handleCreate = (input) =>
+    run(
+      () => createStaffAction(input),
+      () => {
+        toast.success("Staff member added", { description: `${input.name} joined as ${roleLabels[input.role]} and can sign in as ${input.username.trim().toLowerCase()}.` })
+        setCreating(false)
+      }
+    )
+
+  const handleSetPassword = (person, password) =>
+    run(
+      () => setPasswordAction(person.id, password),
+      () => toast.success("Password changed", { description: `${person.name} was signed out and can sign in with the new password.` })
+    )
 
   return (
     <div className="space-y-4">
@@ -140,7 +140,7 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Staff name, email or phone" />
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Name, username, email or phone" />
         </InputGroup>
         <Segmented label="Role" options={roleFilters} value={roleFilter} onChange={withReset(setRoleFilter)} />
         <Button size="sm" className="w-full @2xl:ml-auto @2xl:w-auto" onClick={() => setCreating(true)}>
@@ -163,7 +163,7 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
           </TableHeader>
           <TableBody>
             {pagination.rows.map((person) => {
-              const off = disabled.includes(person.id)
+              const off = person.disabled
               const lastActive = activityOf(person.id).lastActive
               const isOwner = person.role === "admin"
 
@@ -180,7 +180,7 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
                           <RoleBadge role={person.role} className="@lg:hidden" />
                         </div>
                         <p className="truncate text-xs text-muted-foreground">
-                          {person.shop} · {person.email || person.phone}
+                          <span className="font-mono">{person.username}</span> · {person.shop}
                         </p>
                       </div>
                     </div>
@@ -189,8 +189,8 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
                     <RoleBadge role={person.role} />
                   </TableCell>
                   <TableCell className="hidden text-xs text-muted-foreground @2xl:table-cell">
-                    <p className="truncate">{person.email}</p>
-                    <p className="mt-0.5">{person.phone}</p>
+                    <p className="truncate">{person.email || "—"}</p>
+                    <p className="mt-0.5">{person.phone || "—"}</p>
                   </TableCell>
                   <TableCell className="hidden text-xs text-muted-foreground @4xl:table-cell">{person.shop}</TableCell>
                   <TableCell className="hidden text-xs text-muted-foreground @@4xl:table-cell">{lastActive ? timeAgo(lastActive) : "Never"}</TableCell>
@@ -249,14 +249,16 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
         <TablePagination {...pagination} onPageChange={setPage} />
       </div>
 
-      <p className="text-xs text-muted-foreground">Tap a staff member to see their profile and activity. Everyone on this list can sign in from the start page.</p>
+      <p className="text-xs text-muted-foreground">Tap a staff member to see their profile and activity, or to set a new password. Everyone on this list signs in with their own username.</p>
 
-      {creating && <CreateStaffDialog onClose={() => setCreating(false)} onCreate={handleCreate} />}
+      {creating && <CreateStaffDialog pending={pending} onClose={() => setCreating(false)} onCreate={handleCreate} />}
       {selected && (
         <StaffDetailsDialog
           person={selected}
           activity={activityOf(selected.id)}
+          pending={pending}
           onTransfer={handleTransfer}
+          onSetPassword={handleSetPassword}
           onRemove={(person) => {
             setSelectedId(null)
             setRemoving(person)
@@ -264,7 +266,7 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
           onClose={() => setSelectedId(null)}
         />
       )}
-      {removing && <RemoveStaffDialog person={removing} onCancel={() => setRemoving(null)} onConfirm={handleConfirmRemove} />}
+      {removing && <RemoveStaffDialog person={removing} pending={pending} onCancel={() => setRemoving(null)} onConfirm={handleConfirmRemove} />}
     </div>
   )
 }

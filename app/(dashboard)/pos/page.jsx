@@ -1,4 +1,4 @@
-import { requireRole } from "@/features/auth/lib/session"
+import { requireRole } from "@/features/auth/server/session"
 import { PosScreen } from "@/features/pos/components/pos-screen"
 
 const PosPage = async () => {

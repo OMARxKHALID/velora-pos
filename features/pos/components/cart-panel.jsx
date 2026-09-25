@@ -213,9 +213,10 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onH
       {pendingDiscount && (
         <ManagerApprovalDialog
           reason={`${pendingDiscount}% discount is above the ${cashierLimitPct}% cashier limit.`}
+          discountPct={pendingDiscount}
           onClose={() => setPendingDiscount(null)}
-          onApprove={(approverId) => {
-            setDiscount(pendingDiscount, approverId)
+          onApprove={(approverId, token) => {
+            setDiscount(pendingDiscount, approverId, token)
             setPendingDiscount(null)
           }}
         />

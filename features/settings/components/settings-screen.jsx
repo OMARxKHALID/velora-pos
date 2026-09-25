@@ -9,8 +9,8 @@ import { ResetDemoDialog } from "@/components/layout/reset-demo-dialog"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { MAX_CASHIER_DISCOUNT } from "@/features/demo/lib/ledger"
-import { setSupervisorPin } from "@/features/auth/actions"
-import { activeStaff } from "@/features/demo/lib/staff"
+import { supervisorsOf } from "@/features/demo/lib/staff"
+import { setSupervisorPinAction } from "@/features/staff/actions"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { Panel } from "@/features/analytics/components/panel"
 
@@ -43,7 +43,7 @@ const useSyncedDraft = (saved) => {
 
 const digitsOnly = (value, length) => value.replace(/\D/g, "").slice(0, length)
 
-const PinRow = ({ person, hasPin, onSaved }) => {
+const PinRow = ({ person, hasPin }) => {
   const [next, setNext] = useState("")
   const [confirm, setConfirm] = useState("")
   const [saving, setSaving] = useState(false)
@@ -54,12 +54,11 @@ const PinRow = ({ person, hasPin, onSaved }) => {
     event.preventDefault()
     if (!ready) return
     setSaving(true)
-    const result = await setSupervisorPin(person.id, next).catch(() => ({ error: "Could not reach the server. Check the connection." }))
+    const result = await setSupervisorPinAction(person.id, next).catch(() => ({ error: "Could not reach the server. Check the connection." }))
     setSaving(false)
     if (result.error) return toast.error(result.error)
     setNext("")
     setConfirm("")
-    onSaved(result.pinHolders)
     toast.success(`PIN ${hasPin ? "changed" : "set"} for ${person.name}`)
   }
 
@@ -100,10 +99,9 @@ const PinRow = ({ person, hasPin, onSaved }) => {
   )
 }
 
-const SupervisorPins = ({ initialHolders }) => {
+const SupervisorPins = () => {
   const staff = useDemoStore(({ staff }) => staff)
-  const [holders, setHolders] = useState(initialHolders)
-  const supervisors = activeStaff(staff).filter(({ role }) => role === "manager")
+  const supervisors = supervisorsOf(staff)
 
   return (
     <div className="space-y-3">
@@ -112,7 +110,7 @@ const SupervisorPins = ({ initialHolders }) => {
         <p className="text-sm font-medium">Supervisor approval PINs</p>
       </div>
       {supervisors.length ? (
-        supervisors.map((person) => <PinRow key={person.id} person={person} hasPin={holders.includes(person.id)} onSaved={setHolders} />)
+        supervisors.map((person) => <PinRow key={person.id} person={person} hasPin={Boolean(person.hasPin)} />)
       ) : (
         <p className="text-xs text-muted-foreground">There is no supervisor yet. Add one in Staff.</p>
       )}
@@ -124,7 +122,7 @@ const SupervisorPins = ({ initialHolders }) => {
   )
 }
 
-export const SettingsScreen = ({ pinHolders = [] }) => {
+export const SettingsScreen = ({ demoMode = false }) => {
   const settings = useDemoStore(({ settings }) => settings)
   const setSettings = useDemoStore(({ setSettings }) => setSettings)
   const [resetOpen, setResetOpen] = useState(false)
@@ -217,7 +215,7 @@ export const SettingsScreen = ({ pinHolders = [] }) => {
             description="The % off chips on the cart screen. Discounts above the cashier limit still need a supervisor."
           />
           <div className="border-t" />
-          <SupervisorPins initialHolders={pinHolders} />
+          <SupervisorPins />
           <FieldDescription>
             Every discount is saved with the sale and appears on the receipt, in sales history and in the owner&apos;s reports.
           </FieldDescription>
@@ -261,19 +259,19 @@ export const SettingsScreen = ({ pinHolders = [] }) => {
               </FieldDescription>
             </Field>
           </div>
-          <div className="border-t" />
-          <div className="flex flex-col gap-3 @lg:flex-row @lg:items-start @lg:justify-between">
+          {demoMode && <div className="border-t" />}
+          {demoMode && <div className="flex flex-col gap-3 @lg:flex-row @lg:items-start @lg:justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">Reset demo data</p>
               <p className="text-xs text-muted-foreground">
-                Restore 30 days of sample sales, stock, shifts, staff and these settings.
+                Restore 30 days of sample sales, stock, shifts, the demo team and these settings.
               </p>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={() => setResetOpen(true)}>
               <ArrowCounterClockwiseIcon />
               Reset data
             </Button>
-          </div>
+          </div>}
           <FieldDescription>
             Changes take effect immediately at the sales counter and on printed receipts.
           </FieldDescription>
@@ -281,7 +279,7 @@ export const SettingsScreen = ({ pinHolders = [] }) => {
       </Panel>
 
       <p className="text-xs text-muted-foreground @4xl:col-span-2">Pricing changes apply from the next sale. Past sales remain locked in the ledger.</p>
-      <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />
+      {demoMode && <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />}
     </div>
   )
 }

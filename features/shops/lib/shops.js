@@ -1,4 +1,4 @@
-import { SHOP_NAME } from "@/features/auth/lib/demo-users"
+import { SHOP_NAME } from "@/features/shops/lib/constants"
 import { SHOP_ID } from "@/features/catalog/lib/catalog"
 
 export const ALL_SHOPS = "all"

@@ -1,79 +1,54 @@
 "use server"
 
-import { cookies, headers } from "next/headers"
+import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { homeFor } from "./lib/demo-users"
-import { USER_ID_PATTERN, cleanIdentity, encodeSession, serializeDisabled } from "./lib/session-cookie"
-import { DISABLED_COOKIE, PINS_COOKIE, SESSION_COOKIE, getDisabledStaff, getSupervisorPins, requireRole } from "./lib/session"
-import { createAttemptLimiter } from "./lib/pin-attempts"
-import { PIN_PATTERN, checkPin, hashPin, hasPin, pinHolders, serializePins } from "./lib/supervisor-pins"
+import { z } from "zod"
+import { getDb } from "@/lib/db/client"
+import { authEnv } from "@/lib/env"
+import { homeFor } from "./lib/roles"
+import { getAuth } from "./server/auth"
+import { approveDiscount } from "./server/approvals"
+import { actionResult, authorize, pinSecret } from "./server/session"
 
-const pinAttempts = createAttemptLimiter()
-
-const cookieOptions = async () => ({
-  httpOnly: true,
-  sameSite: "lax",
-  secure: (await headers()).get("x-forwarded-proto") === "https",
-  path: "/",
+const signInSchema = z.object({
+  username: z.string().trim().toLowerCase().min(1, { error: "Enter your username" }).max(30),
+  password: z.string().min(1, { error: "Enter your password" }).max(128),
 })
 
-export const signIn = async (formData) => {
-  const identity = cleanIdentity({ id: formData.get("id"), name: formData.get("name"), role: formData.get("role") })
-  if (!identity) redirect("/")
-  if ((await getDisabledStaff()).includes(identity.id)) redirect("/?blocked=1")
-  const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE, encodeSession(identity), await cookieOptions())
-  redirect(homeFor(identity.role))
+const signInError = (error) => {
+  const code = error?.body?.code
+  if (code === "BANNED_USER") return error.body.message
+  if (error?.status === "TOO_MANY_REQUESTS" || error?.statusCode === 429) return "Too many attempts. Wait a minute and try again."
+  if (code === "INVALID_USERNAME_OR_PASSWORD" || error?.statusCode === 401) return "Wrong username or password"
+  console.error(error)
+  return "Could not sign in. Try again."
 }
 
-export const logout = async () => {
-  const cookieStore = await cookies()
-  cookieStore.delete(SESSION_COOKIE)
+export const signIn = async (_previous, formData) => {
+  const parsed = signInSchema.safeParse({ username: formData.get("username"), password: formData.get("password") })
+  if (!parsed.success) return { error: parsed.error.issues[0].message, username: String(formData.get("username") ?? "") }
+
+  let role
+  try {
+    const requestHeaders = await headers()
+    const result = await getAuth().api.signInUsername({ body: parsed.data, headers: requestHeaders })
+    role = result.user.role
+  } catch (error) {
+    return { error: signInError(error), username: parsed.data.username }
+  }
+  redirect(homeFor(role))
+}
+
+export const signOut = async () => {
+  const requestHeaders = await headers()
+  await getAuth()
+    .api.signOut({ headers: requestHeaders })
+    .catch(() => null)
   redirect("/")
 }
 
-export const setStaffAccess = async (userId, enabled) => {
-  const owner = await requireRole("admin")
-  if (typeof userId !== "string" || !USER_ID_PATTERN.test(userId) || userId === owner.id) {
-    return { error: "This person's access cannot be changed" }
-  }
-  const disabled = new Set(await getDisabledStaff())
-  if (enabled) disabled.delete(userId)
-  else disabled.add(userId)
-  const cookieStore = await cookies()
-  cookieStore.set(DISABLED_COOKIE, serializeDisabled([...disabled]), await cookieOptions())
-  return { disabled: [...disabled] }
-}
-
-export const resetStaffAccess = async () => {
-  await requireRole("admin")
-  const cookieStore = await cookies()
-  cookieStore.delete(DISABLED_COOKIE)
-  cookieStore.delete(PINS_COOKIE)
-}
-
-export const verifySupervisorPin = async (supervisorId, pin) => {
-  await requireRole()
-  if (typeof supervisorId !== "string" || !USER_ID_PATTERN.test(supervisorId)) return { error: "Choose a supervisor" }
-  if (typeof pin !== "string" || !PIN_PATTERN.test(pin)) return { error: "Enter the 4-digit supervisor PIN" }
-  if (pinAttempts.blocked(supervisorId)) return { error: "Too many wrong PINs. Try again in a few minutes." }
-  const pins = await getSupervisorPins()
-  if (!hasPin(pins, supervisorId)) return { error: "This supervisor has no PIN yet. The owner can set one in Settings." }
-  if (!checkPin(pins, supervisorId, pin)) {
-    pinAttempts.fail(supervisorId)
-    return { error: "Wrong PIN" }
-  }
-  pinAttempts.clear(supervisorId)
-  return { ok: true }
-}
-
-export const setSupervisorPin = async (supervisorId, pin) => {
-  await requireRole("admin")
-  if (typeof supervisorId !== "string" || !USER_ID_PATTERN.test(supervisorId)) return { error: "Choose a supervisor" }
-  if (typeof pin !== "string" || !PIN_PATTERN.test(pin)) return { error: "The PIN must be 4 digits" }
-  const pins = { ...(await getSupervisorPins()), [supervisorId]: hashPin(supervisorId, pin) }
-  const cookieStore = await cookies()
-  cookieStore.set(PINS_COOKIE, serializePins(pins), { ...(await cookieOptions()), maxAge: 60 * 60 * 24 * 365 })
-  pinAttempts.clear(supervisorId)
-  return { ok: true, pinHolders: pinHolders(pins) }
-}
+export const approveDiscountAction = async (supervisorId, pin, discountPct) =>
+  actionResult(async () => {
+    const cashier = await authorize("cashier")
+    return approveDiscount({ db: getDb(), pinSecret: pinSecret(), approvalSecret: authEnv().BETTER_AUTH_SECRET }, { cashierId: cashier.id, supervisorId, pin, discountPct })
+  })

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import JsBarcode from "jsbarcode"
-import { SHOP_NAME } from "@/features/auth/lib/demo-users"
+import { SHOP_NAME } from "@/features/shops/lib/constants"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { formatMoney } from "@/lib/money"
 

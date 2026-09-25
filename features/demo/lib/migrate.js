@@ -50,9 +50,12 @@ const fromV7 = (state) => {
   }
 }
 
+const fromV8 = ({ staff: _staff, ...state }) => state
+
 export const migrateDemoState = (state, version) => {
   if (!state) return {}
-  if (version === 6) return fromV7(fromV6(state))
-  if (version === 7) return fromV7(state)
+  if (version === 6) return fromV8(fromV7(fromV6(state)))
+  if (version === 7) return fromV8(fromV7(state))
+  if (version === 8) return fromV8(state)
   return {}
 }

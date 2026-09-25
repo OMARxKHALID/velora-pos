@@ -13,19 +13,20 @@ import {
 } from "@/features/demo/lib/ledger"
 import { createSeed } from "@/features/demo/lib/seed"
 import { migrateDemoState } from "@/features/demo/lib/migrate"
-import { applyAddStaff, applyRemoveStaff, applyTransferRole, canApprove, canSell, initialStaff } from "@/features/demo/lib/staff"
+import { canApprove, canSell } from "@/features/demo/lib/staff"
 import { CART_STORAGE_KEY, SAVE_FAILED_EVENT, STORAGE_KEY } from "@/features/demo/lib/storage"
 import { applyDeleteProduct, applyImportCatalog, applySaveProduct, applySetProductStatus } from "@/features/catalog/lib/catalog-ledger"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 import { adoptHeldCarts, applyHoldCart, applyTakeHeldCart } from "@/features/pos/lib/held-carts"
 
 const ledgerKeys = Object.keys(emptyLedger())
-const persistedKeys = [...ledgerKeys, "shopScope", "settings", "staff", "heldCarts"]
+const persistedKeys = [...ledgerKeys, "shopScope", "settings", "heldCarts"]
 
 const hasWindow = () => typeof window !== "undefined"
 
 const browserStorage = () => {
   let lastSeen = null
+  let loaded = false
 
   const read = (name) => {
     if (!hasWindow()) return null
@@ -39,10 +40,11 @@ const browserStorage = () => {
   return {
     getItem: (name) => {
       lastSeen = read(name)
+      loaded = true
       return lastSeen
     },
     setItem: (name, value) => {
-      if (!hasWindow()) return
+      if (!hasWindow() || !loaded) return
       try {
         window.localStorage.setItem(name, value)
         lastSeen = value
@@ -59,7 +61,7 @@ const browserStorage = () => {
   }
 }
 
-export const createDemoStore = () => {
+export const createDemoStore = (directory = {}) => {
   const storage = browserStorage()
 
   return createStore()(
@@ -83,9 +85,10 @@ export const createDemoStore = () => {
           offline: false,
           epoch: 0,
           shopScope: "all",
-          staff: initialStaff,
+          staff: directory,
           settings: defaultPricingSettings(),
           heldCarts: [],
+          setDirectory: (staff) => set({ staff }),
           holdCart: (input) => {
             const { heldCarts, record } = applyHoldCart(latest().heldCarts, { at: Date.now(), ...input })
             set({ heldCarts })
@@ -121,13 +124,6 @@ export const createDemoStore = () => {
           setOffline: (offline) => set({ offline }),
           setShopScope: (shopScope) => set({ shopScope }),
           setSettings: (patch) => set({ settings: { ...latest().settings, ...patch } }),
-          addStaff: (input) => {
-            const { staff, member } = applyAddStaff(latest().staff, input)
-            set({ staff })
-            return member
-          },
-          transferStaffRole: (id, role) => set({ staff: applyTransferRole(latest().staff, id, role) }),
-          removeStaff: (id) => set({ staff: applyRemoveStaff(latest().staff, id) }),
           resetDemo: () => {
             try {
               window.sessionStorage.removeItem(CART_STORAGE_KEY)
@@ -137,7 +133,6 @@ export const createDemoStore = () => {
               offline: false,
               shopScope: "all",
               settings: defaultPricingSettings(),
-              staff: initialStaff,
               heldCarts: [],
               epoch: get().epoch + 1,
             })
@@ -146,7 +141,7 @@ export const createDemoStore = () => {
       },
       {
         name: STORAGE_KEY,
-        version: 8,
+        version: 9,
         migrate: migrateDemoState,
         skipHydration: true,
         storage: createJSONStorage(() => storage),

@@ -63,6 +63,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const lines = useCartStore(({ lines }) => lines)
   const discountPct = useCartStore(({ discountPct }) => discountPct)
   const approvedBy = useCartStore(({ approvedBy }) => approvedBy)
+  const approvalToken = useCartStore(({ approvalToken }) => approvalToken)
   const customerName = useCartStore(({ customerName }) => customerName)
   const customerPhone = useCartStore(({ customerPhone }) => customerPhone)
   const add = useCartStore(({ add }) => add)
@@ -147,7 +148,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
     setPaying(true)
   }
 
-  const cart = { lines, discountPct, approvedBy, customerName, customerPhone }
+  const cart = { lines, discountPct, approvedBy, approvalToken, customerName, customerPhone }
 
   const handleHold = (label) => {
     setHoldOpen(false)

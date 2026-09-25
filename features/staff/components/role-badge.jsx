@@ -1,5 +1,5 @@
 import { cn } from "cn"
-import { roleLabels } from "@/features/auth/lib/demo-users"
+import { roleLabels } from "@/features/auth/lib/roles"
 
 const colors = {
   admin: "border-gold/40 bg-gold/10 text-gold",

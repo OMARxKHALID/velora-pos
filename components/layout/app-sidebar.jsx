@@ -28,8 +28,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { logout } from "@/features/auth/actions"
-import { roleLabels } from "@/features/auth/lib/demo-users"
+import { signOut } from "@/features/auth/actions"
+import { roleLabels } from "@/features/auth/lib/roles"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS, shopName, shops } from "@/features/shops/lib/shops"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
@@ -72,7 +72,7 @@ const ShopSwitcher = ({ user }) => {
   )
 }
 
-export const AppSidebar = ({ user }) => {
+export const AppSidebar = ({ user, demoMode = false }) => {
   const pathname = usePathname()
   const items = navItems.filter(({ roles }) => roles.includes(user.role))
   const pendingRefunds = useDemoStore(({ refunds }) => refunds.filter(({ status }) => status === "pending").length)
@@ -141,15 +141,15 @@ export const AppSidebar = ({ user }) => {
                   <DropdownMenuLabel>Signed in as {roleLabels[user.role]}</DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                {user.role === "admin" && (
+                {user.role === "admin" && demoMode && (
                   <DropdownMenuItem onClick={() => setResetOpen(true)}>
                     <ArrowCounterClockwiseIcon />
                     Reset demo data
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem variant="destructive" onClick={() => logout()}>
+                <DropdownMenuItem variant="destructive" onClick={() => signOut()}>
                   <SignOutIcon />
-                  Switch user
+                  Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -157,7 +157,7 @@ export const AppSidebar = ({ user }) => {
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
-      {user.role === "admin" && <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />}
+      {user.role === "admin" && demoMode && <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />}
     </Sidebar>
   )
 }

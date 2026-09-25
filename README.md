@@ -6,14 +6,14 @@ Point of sale demo for **Velora Group** (Fashion · Footwear · Lifestyle), buil
 
 ## Before a presentation
 
-1. Sign in as the owner, then **Reset demo data** (user menu or Settings). Do this the same day: the sample history is generated relative to now, so "Today" has sales from mid-morning onwards. A reset also restores staff, settings, and turns everyone's access back on.
-2. Present from **one browser**. Data and sign-in live in that browser, so an owner on a laptop and a cashier on a phone will not see each other's sales. Use **Switch user** to move between roles.
+1. Sign in as the owner, then **Reset demo data** (user menu or Settings; only shown when `DEMO_MODE=true`). Do this the same day: the sample history is generated relative to now, so "Today" has sales from mid-morning onwards. A reset also deletes staff you added, restores the demo team's passwords, roles and PIN, and turns everyone's access back on.
+2. Present from **one browser**. Accounts live in the database, but sales, stock and shifts still live in the browser until the next phases move them, so an owner on a laptop and a cashier on a phone will not see each other's sales yet. Use **Sign out** to move between roles.
 3. Use the https link when showing it on a phone or tablet.
 4. Print once on the demo machine (**Print receipt**) to make sure the browser's print preview looks right. Receipts are sized for 80mm thermal paper; choose that paper size (or a PDF) in the print dialog.
 
 ## Try it
 
-Pick someone on the start page. The list is the team, so people you add in **Staff** appear there too.
+Sign in with a username and password. In demo mode the start page lists the demo team (`asif` owner, `bilal` supervisor, `hamza` cashier) with the `DEMO_PASSWORD`; tap one to sign in. People you add in **Staff** sign in with the username and password you give them.
 
 | Role | Sees |
 | --- | --- |
@@ -21,7 +21,9 @@ Pick someone on the start page. The list is the team, so people you add in **Sta
 | Supervisor | Sales, Returns, Products, Stock, Stock history (their own shop only). Approves returns and discounts. Does not sell |
 | Cashier | Sell, and their own sales |
 
-Discounts above 5% need a supervisor PIN. Each supervisor has their own, and the approval is recorded against whoever typed it. Bilal Ahmed starts with `1234`; the owner sets or changes PINs in Settings. PINs are hashed and checked on the server (in an httpOnly cookie), so they are never readable in the browser, and five wrong tries lock that supervisor for five minutes.
+Discounts above 5% need a supervisor PIN. Each supervisor has their own, and the approval is recorded against whoever typed it. Bilal Ahmed starts with `1234`; the owner sets or changes PINs in Settings. PINs are stored hashed in the database and checked on the server, and five wrong tries lock that supervisor for five minutes. A correct PIN returns a signed approval that is only valid for that cashier and that discount, for five minutes.
+
+Only the owner can add staff, change roles, set passwords and PINs, or turn access off. Turning access off or removing someone signs them out everywhere at once, and a role change applies on their next click. Nobody can sign themselves up.
 
 ## What is in the demo
 
@@ -49,7 +51,7 @@ Needs Bun 1.4 or newer (older versions cannot read `bun.lock` or load the MongoD
 bun install
 cp .env.example .env.local
 bun run db:up       # MongoDB 8 as a one-node replica set, so transactions work
-bun run db:seed     # 30 days of demo data (needs DEMO_MODE=true; --reset replaces it)
+bun run db:seed     # 30 days of demo data and the demo team (needs DEMO_MODE=true; --reset replaces it)
 bun dev
 ```
 
@@ -66,8 +68,11 @@ Database tests each use their own throwaway database and are skipped when `MONGO
 | --- | --- | --- |
 | `MONGODB_URI` | database | `mongodb://` or `mongodb+srv://`; must be a replica set (Atlas always is) |
 | `MONGODB_DB` | database | defaults to `velora` |
-| `DEMO_MODE` | seeding | `true` allows `db:seed` |
-| `PIN_SECRET` | supervisor PINs | at least 32 characters in production |
+| `BETTER_AUTH_SECRET` | sign-in | at least 32 random characters; also signs discount approvals |
+| `BETTER_AUTH_URL` | sign-in | the site's own URL, e.g. `https://pos.example.com` |
+| `DEMO_MODE` | demo | `true` allows `db:seed`, the demo accounts list and Reset demo data |
+| `DEMO_PASSWORD` | demo | password of the demo accounts; defaults to `velora-demo` |
+| `PIN_SECRET` | supervisor PINs | optional, at least 32 characters; defaults to `BETTER_AUTH_SECRET` |
 
 ## Structure
 
@@ -90,6 +95,14 @@ Business rules (sales, refunds, shifts, stock movements, catalog, analytics) are
 Import the repository in Vercel. It detects Next.js and Bun automatically; no environment variables are needed for the demo. Commit your lockfile so installs are repeatable.
 
 Set `PIN_SECRET` to a long random string. Without it the supervisor PIN hashes use a built-in demo key, which is fine for a demo but lets someone holding the cookie guess a PIN offline.
+
+For a real shop, set `DEMO_MODE=false` and create the first owner once:
+
+```bash
+OWNER_PASSWORD='a long password' bun run db:create-owner -- --username asif --name "ASIF" --email asif@example.com
+```
+
+The owner then adds everyone else in **Staff**.
 
 ## Production roadmap
 

@@ -46,6 +46,12 @@ describe("stored demo data from the previous version", () => {
     expect(migrateDemoState(asVersion6(saved), 6).settings).toEqual({ taxRate: 0 })
   })
 
+  test("the staff list no longer lives in the browser", () => {
+    const upgraded = migrateDemoState({ ...seeded, outbox: [], staff: { "u-x": { id: "u-x" } } }, 8)
+    expect("staff" in upgraded).toBe(false)
+    expect(upgraded.sales).toHaveLength(seeded.sales.length)
+  })
+
   test("anything older starts again from fresh demo data", () => {
     expect(migrateDemoState({ sales: [] }, 5)).toEqual({})
   })

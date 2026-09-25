@@ -1,10 +1,12 @@
 "use client"
 
-import { TrashIcon } from "@phosphor-icons/react"
+import { useState } from "react"
+import { KeyIcon, TrashIcon } from "@phosphor-icons/react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { timeAgo } from "@/lib/dates"
+import { Input } from "@/components/ui/input"
+import { formatFullDateTime, timeAgo } from "@/lib/dates"
 import { RoleBadge } from "./role-badge"
 
 const Fact = ({ label, children }) => (
@@ -14,7 +16,31 @@ const Fact = ({ label, children }) => (
   </div>
 )
 
-export const StaffDetailsDialog = ({ person, activity, onTransfer, onRemove, onClose }) => (
+const PasswordForm = ({ person, pending, onSetPassword }) => {
+  const [password, setPassword] = useState("")
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    const result = await onSetPassword(person, password)
+    if (!result?.error) setPassword("")
+  }
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2 border-t pt-3">
+      <label htmlFor="new-password" className="block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+        New password
+      </label>
+      <div className="flex gap-2">
+        <Input id="new-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} />
+        <Button type="submit" size="sm" variant="outline" disabled={pending || password.length < 8}>
+          <KeyIcon />
+          Set
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">At least 8 characters. They are signed out everywhere and use the new one next time.</p>
+    </form>
+  )
+}
+
+export const StaffDetailsDialog = ({ person, activity, pending, onTransfer, onSetPassword, onRemove, onClose }) => (
   <Dialog open onOpenChange={(open) => !open && onClose()}>
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
@@ -38,7 +64,11 @@ export const StaffDetailsDialog = ({ person, activity, onTransfer, onRemove, onC
             <span className="block truncate">{person.email || "—"}</span>
           </Fact>
           <Fact label="Phone">{person.phone || "—"}</Fact>
-          <Fact label="Joined">{person.joinedAt}</Fact>
+          <Fact label="Username">
+            <span className="font-mono">{person.username}</span>
+          </Fact>
+          <Fact label="Access">{person.disabled ? "Turned off" : "Active"}</Fact>
+          <Fact label="Joined">{person.joinedAt ? formatFullDateTime(person.joinedAt) : "—"}</Fact>
           <Fact label="Last active">{activity.lastActive ? timeAgo(activity.lastActive) : "Never"}</Fact>
         </div>
 
@@ -59,16 +89,17 @@ export const StaffDetailsDialog = ({ person, activity, onTransfer, onRemove, onC
                 ["manager", "Supervisor"],
                 ["cashier", "Cashier"],
               ].map(([role, label]) => (
-                <Button key={role} size="sm" variant={person.role === role ? "default" : "outline"} className="flex-1" disabled={person.role === role} onClick={() => onTransfer(person, role)}>
+                <Button key={role} size="sm" variant={person.role === role ? "default" : "outline"} className="flex-1" disabled={pending || person.role === role} onClick={() => onTransfer(person, role)}>
                   {label}
                 </Button>
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Cashiers process checkout. Supervisors manage stock, returns and the catalog. A new role applies the next time they sign in.
+              Cashiers process checkout. Supervisors manage stock, returns and the catalog. A new role applies straight away.
             </p>
           </div>
         )}
+        {person.role !== "admin" && <PasswordForm person={person} pending={pending} onSetPassword={onSetPassword} />}
       </div>
 
       <DialogFooter className="gap-2 sm:justify-between">

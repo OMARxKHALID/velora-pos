@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header"
-import { SHOP_NAME } from "@/features/auth/lib/demo-users"
-import { requireRole } from "@/features/auth/lib/session"
+import { SHOP_NAME } from "@/features/shops/lib/constants"
+import { requireRole } from "@/features/auth/server/session"
 import { DemoReady } from "@/features/demo/components/demo-ready"
 import { SalesScreen } from "@/features/sales/components/sales-screen"
 

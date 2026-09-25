@@ -1,4 +1,4 @@
-import { SHOP_NAME } from "@/features/auth/lib/demo-users"
+import { SHOP_NAME } from "@/features/shops/lib/constants"
 import { REGISTER_CODE, REGISTER_ID, SHOP_ID } from "@/features/catalog/lib/catalog"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 import { COLLECTIONS as C, toDoc } from "@/lib/db/collections"

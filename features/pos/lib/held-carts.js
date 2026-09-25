@@ -12,6 +12,7 @@ export const applyHoldCart = (heldCarts, { cart, label = "", at, registerId = RE
     lines: cart.lines,
     discountPct: cart.discountPct ?? 0,
     approvedBy: cart.approvedBy ?? null,
+    approvalToken: cart.approvalToken ?? null,
     customerName: cart.customerName ?? "",
     customerPhone: cart.customerPhone ?? "",
     parkedAt: at,

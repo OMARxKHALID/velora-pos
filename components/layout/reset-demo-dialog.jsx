@@ -22,7 +22,7 @@ export const ResetDemoDialog = ({ open, onOpenChange }) => {
         <DialogHeader>
           <DialogTitle>Reset demo data?</DialogTitle>
           <DialogDescription>
-            Sales, stock, shifts, refunds, staff and settings go back to a fresh 30-day sample. Anything entered in this browser is replaced.
+            Sales, stock, shifts, refunds and settings go back to a fresh 30-day sample. Staff you added are deleted, and everyone else goes back to the demo password and PIN. You stay signed in.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

@@ -2,9 +2,9 @@ import { createStore } from "zustand/vanilla"
 import { createJSONStorage, persist } from "zustand/middleware"
 import { CART_STORAGE_KEY } from "@/features/demo/lib/storage"
 
-const blank = { lines: [], discountPct: 0, approvedBy: null, customerName: "", customerPhone: "" }
+const blank = { lines: [], discountPct: 0, approvedBy: null, approvalToken: null, customerName: "", customerPhone: "" }
 
-export const currentCart = ({ lines, discountPct, approvedBy, customerName, customerPhone }) => ({ lines, discountPct, approvedBy, customerName, customerPhone })
+export const currentCart = ({ lines, discountPct, approvedBy, approvalToken, customerName, customerPhone }) => ({ lines, discountPct, approvedBy, approvalToken, customerName, customerPhone })
 
 export const createCartStore = () =>
   createStore()(
@@ -25,7 +25,7 @@ export const createCartStore = () =>
                 ? lines.filter((line) => line.variantId !== variantId)
                 : lines.map((line) => (line.variantId === variantId ? { ...line, quantity } : line)),
           })),
-        setDiscount: (discountPct, approvedBy = null) => set({ discountPct, approvedBy }),
+        setDiscount: (discountPct, approvedBy = null, approvalToken = null) => set({ discountPct, approvedBy, approvalToken }),
         setCustomer: ({ name, phone }) =>
           set((state) => ({
             customerName: name !== undefined ? name : state.customerName,

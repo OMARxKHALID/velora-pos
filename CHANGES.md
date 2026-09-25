@@ -1,3 +1,16 @@
+# Backend phase 1: sign-in and staff on the server
+
+Lint clean; 114 tests pass with a MongoDB replica set; production build succeeds. Checked in Chromium against a seeded database: wrong password rejected, demo sign-in, a cashier kept out of owner pages, the owner adding a cashier and a supervisor, setting a PIN, turning access off (the person is signed out at once and cannot sign back in), a discount credited to the supervisor whose PIN was used, demo reset, and sign-out.
+
+- **Real accounts with Better Auth** (username + password, sessions in MongoDB, 12-hour sessions). Public sign-up is off; only the owner creates accounts. The demo team keeps the ids old records use (`u-admin`, `u-manager`, `u-cashier`).
+- **Every page and action checks the session on the server.** `proxy.js` sends signed-out visitors to the sign-in page; each page and server action then checks the role itself.
+- **Staff management on the server**: add (with username and password), change role, set a new password, turn access off or on, remove. The owner and the last supervisor are protected. Turning access off, removing someone or changing their password signs them out everywhere.
+- **Supervisor PINs live in the database** as salted scrypt hashes, never sent to the browser. Wrong tries are counted in the database, so the five-try lock holds across servers. A correct PIN returns a signed five-minute approval tied to the cashier and the discount; the sale checks it once sales move to the server (phase 3).
+- **Demo mode**: the demo accounts list, `db:seed` and Reset demo data only work with `DEMO_MODE=true`. `db:create-owner` creates the first owner for a real shop.
+- Unique indexes on usernames, emails, session tokens and accounts (the auth adapter creates none), and expiry indexes that clear old sessions and PIN failures.
+- **Fixed**: changes made while the page was still loading (such as the staff list arriving) overwrote this browser's saved sales and shifts with an empty store, which then looked like a fresh install and reset the demo. Nothing is written to browser storage until it has been read.
+- Removed the unsigned session cookie, the access-off cookie, the PIN cookie and the pick-a-person sign-in list.
+
 # Backend phase 0: MongoDB foundations
 
 Lint clean; 109 tests pass with a MongoDB 8 replica set (101 without one, the database tests skip); production build succeeds. The screens still use browser demo data.

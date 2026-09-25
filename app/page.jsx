@@ -1,10 +1,19 @@
+import { redirect } from "next/navigation"
 import { VeloraLogo } from "@/components/layout/velora-logo"
-import { SignInList } from "@/features/auth/components/sign-in-list"
-import { getDisabledStaff } from "@/features/auth/lib/session"
+import { SignInForm } from "@/features/auth/components/sign-in-form"
+import { homeFor } from "@/features/auth/lib/roles"
+import { getSession } from "@/features/auth/server/session"
+import { initialStaff } from "@/features/demo/lib/staff"
+import { appEnv, authEnv } from "@/lib/env"
 
-const LoginPage = async ({ searchParams }) => {
-  const { blocked } = await searchParams
-  const disabled = await getDisabledStaff()
+const demoAccounts = () =>
+  appEnv().DEMO_MODE
+    ? { password: authEnv().DEMO_PASSWORD, accounts: Object.values(initialStaff).map(({ username, name, role }) => ({ username, name, role })) }
+    : null
+
+const LoginPage = async () => {
+  const user = await getSession()
+  if (user) redirect(homeFor(user.role))
 
   return (
     <main className="grid min-h-svh w-full overflow-x-hidden lg:grid-cols-2">
@@ -38,15 +47,10 @@ const LoginPage = async ({ searchParams }) => {
           </div>
           <div className="space-y-2">
             <h1 className="font-heading text-2xl sm:text-3xl font-semibold tracking-wider uppercase">Sign in</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">Demo: choose who you are.</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Use the username and password the owner gave you.</p>
           </div>
-          {blocked && (
-            <p role="alert" className="border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-              This person&apos;s access has been turned off by the owner.
-            </p>
-          )}
-          <SignInList disabled={disabled} />
-          <p className="text-xs text-muted-foreground">Velora POS Demo · Select any role to begin.</p>
+          <SignInForm demo={demoAccounts()} />
+          <p className="text-xs text-muted-foreground">Forgot your password? Ask the owner to set a new one in Staff.</p>
         </div>
       </section>
     </main>
