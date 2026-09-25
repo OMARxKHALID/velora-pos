@@ -9,7 +9,7 @@ const RANGE_DAYS = { today: 1, "7d": 7, all: null }
 
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).max(100000).default(1),
-  type: z.enum(["purchase", "sale", "return", "adjustment"]).optional(),
+  type: z.enum(["purchase", "sale", "return", "exchange", "adjustment"]).optional(),
   range: z.enum(Object.keys(RANGE_DAYS)).default("7d"),
   q: z.string().max(80).default(""),
   shop: z.string().max(60).optional(),
