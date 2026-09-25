@@ -15,11 +15,12 @@ export const fetchLedger = async () => {
   return parseLedger(await response.text())
 }
 
-export const createLedgerStore = ({ directory = {}, actions = {}, loadLedger = fetchLedger } = {}) =>
+export const createLedgerStore = ({ directory = {}, actions = {}, loadLedger = fetchLedger, onChanged = () => {} } = {}) =>
   createStore()((set, get) => {
     const call = async (name, ...args) => {
       const result = await actions[name](...args).catch(() => ({ error: UNREACHABLE }))
       if (result?.error) throw new Error(result.error)
+      onChanged(name)
       return result?.record
     }
 

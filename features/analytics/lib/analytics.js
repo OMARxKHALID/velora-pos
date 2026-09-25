@@ -5,8 +5,11 @@ import { sumBy } from "@/lib/money"
 const DAY = 24 * 60 * 60 * 1000
 const time = (at) => new Date(at).getTime()
 
-export const periodFor = (range, now = Date.now()) => {
-  const today = new Date(now).setHours(0, 0, 0, 0)
+const localMidnight = (now) => new Date(now).setHours(0, 0, 0, 0)
+const localHour = (at) => new Date(at).getHours()
+
+export const periodFor = (range, now = Date.now(), startOfDay = localMidnight) => {
+  const today = startOfDay(now)
   const days = { today: 1, "7d": 7, "30d": 30 }[range]
   const from = today - (days - 1) * DAY
   return { from, to: now, prevFrom: from - days * DAY, prevTo: from - days * DAY + (now - from), days }
@@ -70,13 +73,13 @@ export const dailySeries = (summary, from, days) =>
     return { day: start, revenue, profit }
   })
 
-export const hourlySeries = (summary, { fromHour = 10, toHour = 22 } = {}) => {
-  const hours = [...summary.sales.map(({ soldAt }) => new Date(soldAt).getHours()), ...summary.impacts.map(({ at }) => new Date(at).getHours())]
+export const hourlySeries = (summary, { fromHour = 10, toHour = 22, hourOf = localHour } = {}) => {
+  const hours = [...summary.sales.map(({ soldAt }) => hourOf(soldAt)), ...summary.impacts.map(({ at }) => hourOf(at))]
   const first = Math.min(fromHour, ...hours)
   const last = Math.max(toHour, ...hours.map((hour) => hour + 1))
   return Array.from({ length: last - first }, (_, index) => {
     const hour = first + index
-    const { sales, revenue, profit } = bucket(summary, -Infinity, Infinity, (at) => new Date(at).getHours() === hour)
+    const { sales, revenue, profit } = bucket(summary, -Infinity, Infinity, (at) => hourOf(at) === hour)
     return { hour, sales, revenue, profit }
   })
 }

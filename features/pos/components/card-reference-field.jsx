@@ -2,13 +2,20 @@
 
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
-import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
-import { MAX_REFERENCE, findSaleByReference, referenceError } from "../lib/card-reference"
+import { useDeferredValue } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { getJson, queryString } from "@/lib/get-json"
+import { MAX_REFERENCE, referenceError } from "../lib/card-reference"
 
 export const CardReferenceField = ({ id, value, onChange, onHide }) => {
-  const sales = useLedgerStore(({ sales }) => sales)
   const error = referenceError(value)
-  const repeat = error ? null : findSaleByReference(sales, value)
+  const reference = useDeferredValue(value.trim())
+  const { data } = useQuery({
+    queryKey: ["card-reference", reference],
+    queryFn: ({ signal }) => getJson(`/api/sales/lookup?${queryString({ reference })}`, { signal }),
+    enabled: !error && reference.length >= 3,
+  })
+  const repeat = !error && reference.length >= 3 ? data?.sale : null
 
   return (
     <Field data-invalid={Boolean(error)}>

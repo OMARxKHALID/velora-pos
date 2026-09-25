@@ -1,3 +1,16 @@
+# Backend phase 5: dashboard, sales and history on the server
+
+Lint clean; 147 tests pass with a MongoDB replica set; production build succeeds. Checked in Chromium and over HTTP against freshly seeded data.
+
+- **Fixed: seeded history was invisible.** The seed stored its times as numbers while the server stores dates, and MongoDB never matches one against the other, so every date-filtered read (the whole of phase 4's screens) only saw sales made through the server: 2 of 577. Seeded times are now real dates, with a test that loads the seed and filters by date.
+- **Dashboard on the server.** `GET /api/dashboard` loads only the chosen period (plus the previous one to compare) and computes the figures with the same tested functions; the browser receives about 4 KB of figures instead of every sale. The 30-day chart adds up exactly to the headline (Rs 9,161,082 checked).
+- **The shop's time zone.** "Today", the busiest hours, the sales date filters and the Z-report use `Asia/Karachi` (stored on the shop), so a server running in UTC gives the same answers as a till in Lahore, and chart labels no longer shift a day in other time zones.
+- **Sales history** is paged, filtered and searched on the server (`GET /api/sales`: range, cashier, receipt, customer, phone, shoe name, "offline"), with CSV export built on the server and receipt scans looked up by number. The sale detail loads the sale and its refunds on open; the refund dialog quotes from those.
+- **Stock history** is paged and searched on the server (product, SKU, barcode, receipt or person).
+- **Z-report CSV** is built on the server from the frozen shift. **Card slip repeats** are checked with a server lookup. **Staff activity** (sales, shifts, last active) is counted by a database aggregation.
+- `GET /api/ledger` no longer carries sales, stock history or deliveries: 136 KB for the owner, 125 KB for a cashier.
+- TanStack Query (official docs read) for these reads; any saved change refreshes them.
+
 # Backend phase 4: returns on the server, and every screen on the server
 
 Lint clean; 135 tests pass with a MongoDB replica set; production build succeeds. Checked in Chromium with the cashier, the supervisor and the owner each in their own browser: a sale at the till lowered the stock the supervisor sees (6 to 5) with a receipt number from the server; the cashier's refund request reached the supervisor, whose approval put the pair back (5 to 6); a newly opened browser saw both; a product added with opening stock appeared at the till without its cost price; the owner turned tax on at 15% and the till's next sale charged exactly Rs 1,875 on Rs 12,500.

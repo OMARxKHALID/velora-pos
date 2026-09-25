@@ -33,13 +33,11 @@ const Choice = ({ active, children, onClick }) => (
   </button>
 )
 
-export const RefundRequestDialog = ({ sale, user, onClose }) => {
-  const sales = useLedgerStore(({ sales }) => sales)
-  const refunds = useLedgerStore(({ refunds }) => refunds)
+export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
   const shifts = useLedgerStore(({ shifts }) => shifts)
   const requestRefund = useLedgerStore(({ requestRefund }) => requestRefund)
   const decideRefund = useLedgerStore(({ decideRefund }) => decideRefund)
-  const state = { sales, refunds }
+  const state = { sales: [sale], refunds }
   const refundable = Object.fromEntries(sale.items.map(({ variantId }) => [variantId, refundableQuantity(state, sale.id, variantId)]))
   const selfApprove = user.role !== "cashier"
   const methods = refundMethodsFor(sale)

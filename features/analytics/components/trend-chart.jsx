@@ -8,12 +8,12 @@ const config = {
   profit: { label: "Profit", color: "var(--chart-2)" },
 }
 
-const dayLabel = new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short" })
 const rupees = new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 })
 const compact = new Intl.NumberFormat("en-PK", { notation: "compact", maximumFractionDigits: 1 })
 const hourLabel = (hour) => `${hour % 12 || 12}${hour < 12 ? "am" : "pm"}`
 
-export const TrendChart = ({ data, byHour }) => {
+export const TrendChart = ({ data, byHour, timeZone }) => {
+  const dayLabel = new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", timeZone })
   const labelFor = (value) => (byHour ? hourLabel(value) : dayLabel.format(value))
 
   return (

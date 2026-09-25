@@ -16,10 +16,10 @@ export const scopeState = (state, scope) => {
     ...state,
     products,
     variants: state.variants.filter(({ productId }) => productIds.has(productId)),
-    sales: state.sales.filter(inShop),
-    refunds: state.refunds.filter(inShop),
-    shifts: state.shifts.filter(inShop),
-    movements: state.movements.filter(inShop),
-    purchases: state.purchases.filter(inShop),
+    sales: (state.sales ?? []).filter(inShop),
+    refunds: (state.refunds ?? []).filter(inShop),
+    shifts: (state.shifts ?? []).filter(inShop),
+    movements: (state.movements ?? []).filter(inShop),
+    purchases: (state.purchases ?? []).filter(inShop),
   }
 }

@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { renderToString } from "react-dom/server"
+import { periodFor } from "@/features/analytics/lib/analytics"
+import { dashboardView } from "@/features/analytics/lib/dashboard-view"
 import { DashboardScreen } from "@/features/analytics/components/dashboard-screen"
 import { ProductsScreen } from "@/features/catalog/components/products-screen"
 import { MovementsScreen } from "@/features/inventory/components/movements-screen"
@@ -42,13 +45,33 @@ const run = (store, reducer, input) => {
   return record
 }
 
-const render = (store, element) => renderToString(<LedgerStoreContext.Provider value={store}>{element}</LedgerStoreContext.Provider>)
+const render = (store, element, prefill = []) => {
+  const client = new QueryClient()
+  for (const [key, data] of prefill) client.setQueryData(key, data)
+  return renderToString(
+    <QueryClientProvider client={client}>
+      <LedgerStoreContext.Provider value={store}>{element}</LedgerStoreContext.Provider>
+    </QueryClientProvider>
+  )
+}
+
+const dashboardFor = (store) => {
+  const state = store.getState()
+  const view = dashboardView(state, { scope: "all", period: periodFor("7d"), range: "7d", staff: state.staff, shops: [{ id: "shop-shoes", name: "Shoe Shop" }], firstSaleAt: state.sales[0]?.soldAt })
+  return [["dashboard", "all", "7d"], view]
+}
+
+const salesFor = (store, user) => {
+  const sales = store.getState().sales.filter(({ cashierId }) => user.role !== "cashier" || cashierId === user.id)
+  const filters = { range: "7d", cashier: user.role === "cashier" ? undefined : "all", q: "", shop: user.role === "admin" ? "all" : "shop-shoes" }
+  return [["sales", filters, 1], { page: 1, pageSize: 25, total: sales.length, rows: sales.toReversed().slice(0, 25), refunds: [] }]
+}
 
 describe("screens render against seeded data", () => {
   test("owner: dashboard, sales, stock, history, staff, settings", () => {
     const store = seededStore()
-    expect(render(store, <DashboardScreen user={users.admin} />)).toContain("Best sellers")
-    expect(render(store, <SalesScreen user={users.admin} />)).toContain("Z-reports")
+    expect(render(store, <DashboardScreen user={users.admin} />, [dashboardFor(store)])).toContain("Best sellers")
+    expect(render(store, <SalesScreen user={users.admin} />, [salesFor(store, users.admin)])).toContain("Z-reports")
     expect(render(store, <StockScreen user={users.admin} />)).toContain("Stock by size")
     expect(render(store, <MovementsScreen user={users.admin} />)).toContain("History cannot be edited")
     expect(render(store, <StaffScreen />)).toContain("Hamza Ali")
@@ -65,7 +88,7 @@ describe("screens render against seeded data", () => {
 
   test("cashier: sales list and the sell screen in each state", () => {
     const closed = seededStore()
-    expect(render(closed, <SalesScreen user={users.cashier} />)).toContain("SH1-R1-")
+    expect(render(closed, <SalesScreen user={users.cashier} />, [salesFor(closed, users.cashier)])).toContain("SH1-R1-")
     expect(render(closed, <PosScreen user={users.cashier} />)).toContain("Open shift")
 
     const open = seededStore({ openShift: true })
@@ -89,11 +112,11 @@ describe("screens render against seeded data", () => {
       shiftId: shift.id,
     })
     store.getState().setDirectory({ ...initialStaff, "u-zain": { id: "u-zain", name: "Zain Malik", role: "cashier", username: "zain", shop: "Shoe Shop", disabled: true } })
-    expect(render(store, <SalesScreen user={users.admin} />)).toContain(sale.number)
+    expect(render(store, <SalesScreen user={users.admin} />, [salesFor(store, users.admin)])).toContain(sale.number)
     const staffPage = render(store, <StaffScreen />)
     expect(staffPage).toContain("Zain Malik")
     expect(staffPage).toContain("Disabled")
-    expect(render(store, <DashboardScreen user={users.admin} />)).toContain("Zain Malik")
+    expect(render(store, <DashboardScreen user={users.admin} />, [dashboardFor(store)])).toContain("Zain Malik")
   })
 
   test("the cart, the receipt and the Z-report print carry no compliance claims and show tax", () => {

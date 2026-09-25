@@ -35,15 +35,10 @@ const roleFilters = [
   { key: "cashier", label: "Cashiers" },
 ]
 
-const latest = (list) => list.reduce((max, at) => Math.max(max, new Date(at).getTime()), 0)
-
 const unreachable = { error: "Could not reach the server. Check the connection." }
 
 export const StaffScreen = () => {
   const staff = useLedgerStore(({ staff }) => staff)
-  const sales = useLedgerStore(({ sales }) => sales)
-  const shifts = useLedgerStore(({ shifts }) => shifts)
-  const movements = useLedgerStore(({ movements }) => movements)
 
   const [roleFilter, setRoleFilter] = useState("all")
   const [query, setQuery] = useState("")
@@ -67,19 +62,7 @@ export const StaffScreen = () => {
 
   const withReset = resetsPage(setPage)
 
-  const activityOf = (id) => {
-    const mine = sales.filter(({ cashierId }) => cashierId === id)
-    const myShifts = shifts.filter(({ cashierId }) => cashierId === id)
-    return {
-      sales: mine.length,
-      shifts: myShifts.length,
-      lastActive: latest([
-        ...mine.map(({ soldAt }) => soldAt),
-        ...myShifts.map(({ closedAt, openedAt }) => closedAt ?? openedAt),
-        ...movements.filter(({ userId }) => userId === id).map(({ createdAt }) => createdAt),
-      ]),
-    }
-  }
+  const activityOf = (id) => staff[id]?.activity ?? { sales: 0, shifts: 0, lastActive: null }
 
   const run = (action, onDone) =>
     new Promise((resolve) =>

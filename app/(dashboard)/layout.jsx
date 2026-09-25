@@ -3,8 +3,9 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
 import { requireRole } from "@/features/auth/server/session"
+import { QueryProvider } from "@/components/providers/query-provider"
 import { LedgerStoreProvider } from "@/features/ledger/store/ledger-store-provider"
-import { directoryFor, listPeople } from "@/features/staff/server/staff"
+import { directoryFor, listPeople, staffActivity } from "@/features/staff/server/staff"
 import { getDb } from "@/lib/db/client"
 import { appEnv } from "@/lib/env"
 
@@ -12,9 +13,11 @@ const DashboardLayout = async ({ children }) => {
   const user = await requireRole()
   const cookieStore = await cookies()
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false"
-  const directory = directoryFor(user, await listPeople(getDb()))
+  const db = getDb()
+  const directory = directoryFor(user, await listPeople(db), user.role === "admin" ? await staffActivity(db) : {})
 
   return (
+    <QueryProvider>
     <LedgerStoreProvider directory={directory}>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar user={user} demoMode={appEnv().DEMO_MODE} />
@@ -26,6 +29,7 @@ const DashboardLayout = async ({ children }) => {
         </SidebarInset>
       </SidebarProvider>
     </LedgerStoreProvider>
+    </QueryProvider>
   )
 }
 

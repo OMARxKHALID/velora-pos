@@ -86,7 +86,7 @@ lib/db/              MongoDB client, collections, indexes, transactions
 scripts/             db:indexes and db:seed
 ```
 
-Every screen reads the shop from the server (`GET /api/ledger`, the last 120 days, trimmed to what the signed-in role may see) and every change goes through a server action that checks the role and saves in a MongoDB transaction. The screens keep using the tested rules in `features/demo/lib/ledger.js` to show previews (cart totals, refund quotes, shift summaries); the server runs the same rules again before saving. Next: dashboard figures as database queries (phase 5), offline selling (phase 6), clean-up and deploy (phase 7).
+Screens read the shop from the server: `GET /api/ledger` (catalog, stock, recent shifts and refunds, held carts, settings, trimmed to the role), `GET /api/dashboard` (finished figures only), and paged, searchable `GET /api/sales` and `GET /api/movements`. Every change goes through a server action that checks the role and saves in a MongoDB transaction. Days and hours follow the shop's time zone (`Asia/Karachi`), not the server's. The screens keep using the tested rules in `features/demo/lib/ledger.js` to show previews (cart totals, refund quotes, shift summaries); the server runs the same rules again before saving. Next: offline selling (phase 6), clean-up and deploy (phase 7).
 
 Each shop type is a module in `features/catalog/types/` (only `footwear` today) that defines its product fields, how its items are built (colour × EU size), SKUs and labels. The selling, stock and refund code only uses the shared item fields, so a clothes or cosmetics shop is a new module rather than a rewrite.
 

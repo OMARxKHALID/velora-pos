@@ -66,7 +66,7 @@ const DeleteDialog = ({ product, onConfirm, onClose }) => (
 
 export const ProductsScreen = ({ user }) => {
   const stock = useLedgerStore(({ stock }) => stock)
-  const movements = useLedgerStore(({ movements }) => movements)
+  const usedVariantIds = useLedgerStore(({ usedVariantIds }) => usedVariantIds)
   const setProductStatus = useLedgerStore(({ setProductStatus }) => setProductStatus)
   const deleteProduct = useLedgerStore(({ deleteProduct }) => deleteProduct)
   const { products, variants, variantsByProduct } = useCatalog()
@@ -78,7 +78,7 @@ export const ProductsScreen = ({ user }) => {
   const [labelling, setLabelling] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const search = useDeferredValue(query.trim().toLowerCase())
-  const usedVariants = useMemo(() => new Set(movements.map(({ variantId }) => variantId)), [movements])
+  const usedVariants = useMemo(() => new Set(usedVariantIds ?? []), [usedVariantIds])
   const canDelete = (product) => !(variantsByProduct[product.id] ?? []).some(({ id }) => usedVariants.has(id))
 
   const active = products.filter((product) => product.status === "active")

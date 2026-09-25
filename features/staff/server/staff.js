@@ -32,7 +32,26 @@ const toPerson = (doc) => ({
 export const listPeople = async (db) =>
   (await db.collection(C.users).find({}, { sort: { createdAt: 1 } }).toArray()).map(toPerson)
 
-export const directoryFor = (viewer, people) =>
+const latestOf = (...dates) => dates.filter(Boolean).reduce((max, at) => Math.max(max, new Date(at).getTime()), 0) || null
+
+export const staffActivity = async (db) => {
+  const [sales, shifts, movements] = await Promise.all([
+    db.collection(C.sales).aggregate([{ $group: { _id: "$cashierId", count: { $sum: 1 }, last: { $max: "$soldAt" } } }]).toArray(),
+    db.collection(C.shifts).aggregate([{ $group: { _id: "$cashierId", count: { $sum: 1 }, last: { $max: { $ifNull: ["$closedAt", "$openedAt"] } } } }]).toArray(),
+    db.collection(C.movements).aggregate([{ $group: { _id: "$userId", last: { $max: "$createdAt" } } }]).toArray(),
+  ])
+  const byId = (rows) => Object.fromEntries(rows.map((row) => [row._id, row]))
+  const [saleRows, shiftRows, movementRows] = [byId(sales), byId(shifts), byId(movements)]
+  const ids = new Set([...Object.keys(saleRows), ...Object.keys(shiftRows), ...Object.keys(movementRows)])
+  return Object.fromEntries(
+    [...ids].map((id) => [
+      id,
+      { sales: saleRows[id]?.count ?? 0, shifts: shiftRows[id]?.count ?? 0, lastActive: latestOf(saleRows[id]?.last, shiftRows[id]?.last, movementRows[id]?.last) },
+    ])
+  )
+}
+
+export const directoryFor = (viewer, people, activity = {}) =>
   Object.fromEntries(
     people.map((person) => {
       const base = { id: person.id, name: person.name, role: person.role, removed: Boolean(person.removedAt), disabled: person.banned && !person.removedAt }
@@ -48,6 +67,7 @@ export const directoryFor = (viewer, people) =>
           joinedAt: new Date(person.createdAt).toISOString(),
           avatar: initialsOf(person.name),
           hasPin: person.hasPin,
+          activity: activity[person.id] ?? { sales: 0, shifts: 0, lastActive: null },
         },
       ]
     })

@@ -16,6 +16,17 @@ describe("demo data as database documents", () => {
     expect(documents[C.shifts].filter(({ status }) => status === "closed").every(({ summary }) => summary)).toBe(true)
   })
 
+  test("times are stored as dates, so date filters find the seeded history", () => {
+    const times = [
+      ...documents[C.sales].flatMap(({ soldAt, syncedAt }) => [soldAt, syncedAt]),
+      ...documents[C.movements].map(({ createdAt }) => createdAt),
+      ...documents[C.shifts].flatMap(({ openedAt, closedAt }) => [openedAt, closedAt].filter(Boolean)),
+      ...documents[C.refunds].flatMap(({ createdAt, decidedAt }) => [createdAt, decidedAt].filter(Boolean)),
+      ...documents[C.purchases].map(({ receivedAt }) => receivedAt),
+    ]
+    expect(times.every((value) => value instanceof Date)).toBe(true)
+  })
+
   test("stock documents add up to the stock history", () => {
     const fromMovements = {}
     for (const { variantId, quantity } of documents[C.movements]) fromMovements[variantId] = (fromMovements[variantId] ?? 0) + quantity
@@ -31,6 +42,8 @@ describe.skipIf(!hasTestDatabase)("seeding a database", () => {
     for (const [collection, count] of Object.entries(inserted)) {
       expect(await context.db.collection(collection).countDocuments()).toBe(count)
     }
+    const recent = await context.db.collection(C.sales).countDocuments({ soldAt: { $gte: new Date(new Date(2026, 8, 16, 18).getTime() - 120 * 24 * 60 * 60 * 1000) } })
+    expect(recent).toBe(documents[C.sales].length)
     await expect(loadDocuments(context.db, { [C.sales]: documents[C.sales].slice(0, 1) })).rejects.toMatchObject({ code: 11000 })
     await dropCollections(context.db)
     expect(await context.db.collection(C.sales).countDocuments()).toBe(0)

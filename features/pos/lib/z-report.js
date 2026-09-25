@@ -5,20 +5,20 @@ import { toCsv } from "@/lib/csv"
 
 const rupees = (paisa) => (paisa / 100).toFixed(2)
 
-export const generateZReportCsv = (state, shift, staff) => {
+export const generateZReportCsv = (state, shift, staff, { timeZone } = {}) => {
   const summary = shiftSummary(state, shift)
   const shiftSales = state.sales.filter((sale) => sale.shiftId === shift.id)
   const nameOf = (id) => staffName(id, staff)
 
   const rows = [
     ["VELORA POS - END OF DAY Z-REPORT"],
-    ["Generated At", formatFullDateTime(Date.now())],
+    ["Generated At", formatFullDateTime(Date.now(), timeZone)],
     ["Shift ID", shift.id],
     ["Register / Counter", shift.registerId],
     ["Cashier", nameOf(shift.cashierId)],
     ["Closed By", nameOf(shift.closedBy ?? shift.cashierId)],
-    ["Shift Opened", shift.openedAt ? formatFullDateTime(shift.openedAt) : "—"],
-    ["Shift Closed", shift.closedAt ? formatFullDateTime(shift.closedAt) : "—"],
+    ["Shift Opened", shift.openedAt ? formatFullDateTime(shift.openedAt, timeZone) : "—"],
+    ["Shift Closed", shift.closedAt ? formatFullDateTime(shift.closedAt, timeZone) : "—"],
     ["Status", shift.status.toUpperCase()],
     [],
     ["--- SALES SUMMARY ---"],
@@ -50,7 +50,7 @@ export const generateZReportCsv = (state, shift, staff) => {
     ["Receipt #", "Date/Time", "Items", "Gross (PKR)", "Discount (PKR)", "Tax (PKR)", "Total (PKR)", "Payment Methods"],
     ...shiftSales.map((sale) => [
       sale.number,
-      formatFullDateTime(sale.soldAt),
+      formatFullDateTime(sale.soldAt, timeZone),
       String(sale.items.length),
       rupees(sale.subtotal),
       rupees(sale.discountTotal),

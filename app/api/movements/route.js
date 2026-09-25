@@ -1,29 +1,26 @@
 import { z } from "zod"
-import { getSession } from "@/features/auth/server/session"
 import { movementsPage } from "@/features/catalog/server/queries"
-import { shopFor } from "@/features/shops/server/scope"
-import { getDb } from "@/lib/db/client"
+import { denied, noStore, viewerScope } from "@/features/sales/server/request"
+import { startOfDayIn } from "@/lib/zoned"
 
-const noStore = { "Cache-Control": "no-store" }
+const DAY = 24 * 60 * 60 * 1000
+const RANGE_DAYS = { today: 1, "7d": 7, all: null }
 
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).max(100000).default(1),
   type: z.enum(["purchase", "sale", "return", "adjustment"]).optional(),
+  range: z.enum(Object.keys(RANGE_DAYS)).default("7d"),
+  q: z.string().max(80).default(""),
   shop: z.string().max(60).optional(),
 })
 
 export const GET = async (request) => {
-  const user = await getSession()
-  if (!user) return Response.json({ error: "Sign in first" }, { status: 401, headers: noStore })
-  if (!["admin", "manager"].includes(user.role)) return Response.json({ error: "Not allowed" }, { status: 403, headers: noStore })
   const query = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams))
-  if (!query.success) return Response.json({ error: "Bad query" }, { status: 400, headers: noStore })
-  try {
-    const db = getDb()
-    const shopId = await shopFor(db, user, query.data.shop)
-    return Response.json(await movementsPage(db, { shopId, page: query.data.page, type: query.data.type ?? null }), { headers: noStore })
-  } catch (error) {
-    if (error?.expose) return Response.json({ error: error.message }, { status: 400, headers: noStore })
-    throw error
-  }
+  if (!query.success) return denied(400, "Bad query")
+  const scope = await viewerScope(query.data.shop)
+  if (scope.error) return scope.error
+  if (!["admin", "manager"].includes(scope.viewer.role)) return denied(403, "Not allowed")
+  const days = RANGE_DAYS[query.data.range]
+  const from = days ? new Date(startOfDayIn(scope.timeZone, Date.now()) - (days - 1) * DAY) : null
+  return Response.json(await movementsPage(scope.db, { shopIds: scope.shopIds, page: query.data.page, type: query.data.type ?? null, q: query.data.q, from }), { headers: noStore })
 }

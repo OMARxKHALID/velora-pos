@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { useStore } from "zustand"
 import { signOut } from "@/features/auth/actions"
 import { adjustStockAction, receiveDeliveryAction } from "@/features/inventory/actions"
@@ -35,7 +36,8 @@ const actions = {
 export const LedgerStoreContext = createContext(null)
 
 export const LedgerStoreProvider = ({ directory, children }) => {
-  const [store] = useState(() => createLedgerStore({ directory, actions }))
+  const queryClient = useQueryClient()
+  const [store] = useState(() => createLedgerStore({ directory, actions, onChanged: () => queryClient.invalidateQueries() }))
 
   useEffect(() => {
     store.getState().setDirectory(directory)

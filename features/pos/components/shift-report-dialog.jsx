@@ -8,11 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { shiftSummary } from "@/features/demo/lib/ledger"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
-import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
-import { downloadFile } from "@/lib/download"
+import { downloadFrom } from "@/lib/download"
 import { formatMoney } from "@/lib/money"
 import { printNode } from "../lib/print-node"
-import { generateZReportCsv } from "../lib/z-report"
 import { ZReportPrint } from "./z-report-print"
 
 const time = new Intl.DateTimeFormat("en-PK", { hour: "numeric", minute: "2-digit" })
@@ -26,24 +24,15 @@ const Line = ({ label, value, strong, className }) => (
 
 export const ShiftReportDialog = ({ shift, onClose }) => {
   const printRef = useRef(null)
-  const sales = useLedgerStore(({ sales }) => sales)
-  const refunds = useLedgerStore(({ refunds }) => refunds)
-  const staff = useLedgerStore(({ staff }) => staff)
   const nameOf = useStaffName()
-  const summary = shiftSummary({ sales, refunds }, shift)
+  const summary = shiftSummary({ sales: [], refunds: [] }, shift)
   const { difference } = shift
   const tone = difference === 0 ? "success" : difference < 0 ? "destructive" : "warning"
   const verdict = difference === 0 ? "Cash matches" : difference < 0 ? `Short by ${formatMoney(-difference)}` : `Over by ${formatMoney(difference)}`
 
   const handleExportCsv = () => {
-    try {
-      const csv = generateZReportCsv({ sales, refunds }, shift, staff)
-      const dateStr = new Date(shift.closedAt || Date.now()).toISOString().slice(0, 10)
-      downloadFile(`velora-z-report-${shift.id}-${dateStr}.csv`, csv)
-      toast.success("Z-Report exported", { description: "Downloaded CSV report for Excel and accounting." })
-    } catch {
-      toast.error("Failed to export Z-Report")
-    }
+    downloadFrom(`/api/reports/z/${encodeURIComponent(shift.id)}`)
+    toast.success("Z-Report exported", { description: "Downloaded CSV report for Excel and accounting." })
   }
 
   const handlePrint = () => {

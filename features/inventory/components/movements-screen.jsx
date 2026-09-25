@@ -6,13 +6,12 @@ import { cn } from "cn"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { TablePagination, paginate } from "@/components/ui/table-pagination"
-import { useCatalog } from "@/features/catalog/hooks/use-catalog"
+import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { TablePagination } from "@/components/ui/table-pagination"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
-import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
-import { ALL_SHOPS } from "@/features/shops/lib/shops"
-import { DAY, formatDateTime, startOfToday } from "@/lib/dates"
+import { formatDateTime } from "@/lib/dates"
+import { getJson, queryString } from "@/lib/get-json"
 import { addReasons, removeReasons } from "../schemas"
 
 const types = [
@@ -24,9 +23,9 @@ const types = [
 ]
 
 const ranges = [
-  { key: "today", label: "Today", from: () => startOfToday() },
-  { key: "7d", label: "7 days", from: () => startOfToday() - 6 * DAY },
-  { key: "all", label: "All", from: () => 0 },
+  { key: "today", label: "Today" },
+  { key: "7d", label: "7 days" },
+  { key: "all", label: "All" },
 ]
 
 const typeLabel = { sale: "Sold", return: "Returned", purchase: "Delivery", adjustment: "Fixed" }
@@ -38,28 +37,21 @@ const referenceFor = (movement) => {
 }
 
 export const MovementsScreen = ({ user }) => {
-  const allMovements = useLedgerStore(({ movements }) => movements)
   const scope = useShopScope(user)
-  const movements = scope === ALL_SHOPS ? allMovements : allMovements.filter(({ shopId }) => shopId === scope)
-  const { productById, variantById } = useCatalog()
   const nameOf = useStaffName()
   const [type, setType] = useState("all")
   const [range, setRange] = useState("7d")
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
-  const search = useDeferredValue(query.trim().toLowerCase())
-  const from = ranges.find(({ key }) => key === range).from()
-
-  const inRange = movements.filter(({ createdAt }) => new Date(createdAt).getTime() >= from)
-  const visible = inRange
-    .filter((movement) => {
-      if (type !== "all" && movement.type !== type) return false
-      if (!search) return true
-      const variant = variantById[movement.variantId]
-      return `${productById[variant.productId].name} ${variant.sku} ${variant.barcode} ${movement.ref?.number ?? ""} ${nameOf(movement.userId)}`.toLowerCase().includes(search)
-    })
-    .toReversed()
-  const pagination = paginate(visible, page)
+  const search = useDeferredValue(query.trim())
+  const filters = { type: type === "all" ? undefined : type, range, q: search, shop: scope, page }
+  const { data, error, isPending } = useQuery({
+    queryKey: ["movements", filters],
+    queryFn: ({ signal }) => getJson(`/api/movements?${queryString(filters)}`, { signal }),
+    placeholderData: keepPreviousData,
+  })
+  const rows = data?.rows ?? []
+  const pageCount = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
 
   const withReset = (setter) => (value) => {
     setter(value)
@@ -90,14 +82,13 @@ export const MovementsScreen = ({ user }) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pagination.rows.map((movement) => {
-              const variant = variantById[movement.variantId]
+            {rows.map((movement) => {
               return (
                 <TableRow key={movement.id}>
                   <TableCell className="max-w-64">
-                    <p className="truncate text-sm">{productById[variant.productId].name}</p>
+                    <p className="truncate text-sm">{movement.productName ?? "Deleted product"}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {variant.attributes.color} · EU {variant.attributes.size} · {referenceFor(movement)}
+                      {movement.label ?? movement.sku ?? movement.variantId} · {referenceFor(movement)}
                     </p>
                     <p className="truncate text-xs text-muted-foreground @lg:hidden">
                       {formatDateTime(movement.createdAt)} · {nameOf(movement.userId)}
@@ -117,8 +108,10 @@ export const MovementsScreen = ({ user }) => {
             })}
           </TableBody>
         </Table>
-        {!visible.length && <p className="py-12 text-center text-sm text-muted-foreground">No movements match.</p>}
-        <TablePagination {...pagination} onPageChange={setPage} />
+        {isPending && <p className="py-12 text-center text-sm text-muted-foreground">Loading history…</p>}
+        {error && !data && <p className="py-12 text-center text-sm text-destructive-foreground">{error.message}</p>}
+        {data && !rows.length && <p className="py-12 text-center text-sm text-muted-foreground">No movements match.</p>}
+        {data && <TablePagination page={data.page} pageCount={pageCount} total={data.total} size={data.pageSize} onPageChange={setPage} />}
       </div>
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <LockSimpleIcon className="size-3.5 text-gold" />

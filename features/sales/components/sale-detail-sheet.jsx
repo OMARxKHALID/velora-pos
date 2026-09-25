@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/sheet"
 import { refundableQuantity } from "@/features/demo/lib/ledger"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
-import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
+import { useQuery } from "@tanstack/react-query"
+import { getJson } from "@/lib/get-json"
 import { printNode } from "@/features/pos/lib/print-node"
 import { Receipt } from "@/features/pos/components/receipt"
 import { RefundRequestDialog } from "@/features/refunds/components/refund-request-dialog"
@@ -42,16 +43,14 @@ const refundTone = {
 }
 
 export const SaleDetailSheet = ({ saleId, user, onClose }) => {
-  const sales = useLedgerStore(({ sales }) => sales)
-  const refunds = useLedgerStore(({ refunds }) => refunds)
   const [refunding, setRefunding] = useState(false)
   const receipt = useRef(null)
   const nameOf = useStaffName()
-  const sale = sales.find(({ id }) => id === saleId)
-  if (!sale) return null
+  const { data } = useQuery({ queryKey: ["sale", saleId], queryFn: ({ signal }) => getJson(`/api/sales/${encodeURIComponent(saleId)}`, { signal }) })
+  if (!data) return null
 
-  const saleRefunds = refunds.filter((refund) => refund.saleId === saleId)
-  const canRefund = sale.items.some(({ variantId }) => refundableQuantity({ sales, refunds }, sale.id, variantId) > 0)
+  const { sale, refunds: saleRefunds } = data
+  const canRefund = sale.items.some(({ variantId }) => refundableQuantity({ sales: [sale], refunds: saleRefunds }, sale.id, variantId) > 0)
 
   return (
     <>
@@ -220,6 +219,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
       </Sheet>
       {refunding && (
         <RefundRequestDialog
+          refunds={saleRefunds}
           sale={sale}
           user={user}
           onClose={() => setRefunding(false)}
