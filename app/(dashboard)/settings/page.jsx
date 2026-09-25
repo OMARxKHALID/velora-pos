@@ -5,13 +5,13 @@ import { SettingsScreen } from "@/features/settings/components/settings-screen"
 import { appEnv } from "@/lib/env"
 
 const SettingsPage = async () => {
-  await requireRole("admin")
+  const user = await requireRole("admin")
 
   return (
     <>
-      <PageHeader title="Settings" description="Tax, discounts and each supervisor's approval PIN." />
+      <PageHeader title="Settings" description="Shops, counters, tax, payments, discounts and receipts." />
       <LedgerReady>
-        <SettingsScreen sampleData={appEnv().SAMPLE_DATA} />
+        <SettingsScreen user={user} sampleData={appEnv().SAMPLE_DATA} />
       </LedgerReady>
     </>
   )

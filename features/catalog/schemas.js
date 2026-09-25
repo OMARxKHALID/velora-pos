@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { PCT_PATTERN } from "./lib/catalog"
 
 export const productSchema = z
   .object({
@@ -8,6 +9,7 @@ export const productSchema = z
     audience: z.enum(["men", "women", "kids", "unisex"]),
     price: z.coerce.number({ error: "Enter the price" }).int({ error: "Use whole rupees" }).positive({ error: "Price must be above 0" }),
     cost: z.coerce.number({ error: "Enter the cost" }).min(0, { error: "Cost cannot be negative" }),
+    pctCode: z.string().trim().refine((code) => !code || PCT_PATTERN.test(code), { error: "Use the 8-digit PCT code, like 6403.9900" }).default(""),
     discountPct: z.coerce.number().min(0, { error: "Discount cannot be negative" }).max(90, { error: "Discount is too big" }).default(0),
     colors: z.array(z.string().trim().min(1)).min(1, { error: "Add at least one colour" }),
     sizes: z.array(z.string()).min(1, { error: "Pick at least one size" }),

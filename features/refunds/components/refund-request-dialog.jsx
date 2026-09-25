@@ -16,8 +16,9 @@ import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { newId } from "@/lib/id"
 import { formatMoney } from "@/lib/money"
 import { refundReasons, refundRequestSchema } from "../schemas"
+import { sizeLabel } from "@/features/catalog/lib/catalog"
 
-const methodLabels = { cash: "Cash from drawer", card: "Card reversal" }
+const methodLabels = { cash: "Cash from drawer", card: "Card reversal", jazzcash: "Back to JazzCash", easypaisa: "Back to Easypaisa", bank: "Bank transfer back" }
 
 const Choice = ({ active, children, onClick }) => (
   <button
@@ -34,10 +35,11 @@ const Choice = ({ active, children, onClick }) => (
 )
 
 export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
+  const exchanges = useLedgerStore(({ exchanges }) => exchanges)
   const shifts = useLedgerStore(({ shifts }) => shifts)
   const requestRefund = useLedgerStore(({ requestRefund }) => requestRefund)
   const decideRefund = useLedgerStore(({ decideRefund }) => decideRefund)
-  const state = { sales: [sale], refunds }
+  const state = { sales: [sale], refunds, exchanges }
   const refundable = Object.fromEntries(sale.items.map(({ variantId }) => [variantId, refundableQuantity(state, sale.id, variantId)]))
   const selfApprove = user.role !== "cashier"
   const methods = refundMethodsFor(sale)
@@ -103,7 +105,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{item.productName}</p>
                           <p className="text-xs text-muted-foreground">
-                            {item.attributes.color} · EU {item.attributes.size} · {max ? `${max} can be returned` : "already returned"}
+                            {item.attributes.color} · {sizeLabel(item.attributes.size)} · {max ? `${max} refundable` : "nothing left to return"}
                           </p>
                         </div>
                         <Controller

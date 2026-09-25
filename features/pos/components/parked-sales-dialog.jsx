@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
+import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
 import { timeAgo } from "@/lib/dates"
 import { formatMoney } from "@/lib/money"
 import { fitToStock } from "../lib/cart-fit"
@@ -27,7 +28,7 @@ const ParkedCard = ({ parked, catalog, settings, stock, onResume, onDiscard }) =
     <div className="flex flex-col gap-3 border bg-card p-3.5 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-x-2">
-          <span className="font-heading text-sm font-bold tracking-wider uppercase">{parked.label}</span>
+          <span className="text-sm font-semibold">{parked.label}</span>
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <ClockIcon className="size-3 text-gold" />
             {timeAgo(parked.parkedAt)}
@@ -68,11 +69,11 @@ const ParkedCard = ({ parked, catalog, settings, stock, onResume, onDiscard }) =
   )
 }
 
-export const ParkedSalesDialog = ({ heldCarts: parkedSales, onResume, onClose }) => {
+export const ParkedSalesDialog = ({ shopId, heldCarts: parkedSales, onResume, onClose }) => {
   const discardHeldCart = useLedgerStore(({ discardHeldCart }) => discardHeldCart)
   const removeParkedSale = (id) => discardHeldCart(id).catch((error) => toast.error(error.message))
   const stock = useLedgerStore(({ stock }) => stock)
-  const settings = useLedgerStore(({ settings }) => settings)
+  const settings = useSettingsFor(shopId)
   const catalog = useCatalog()
 
   return (

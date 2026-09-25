@@ -13,16 +13,20 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
+import { useSettingsFor, useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { beep } from "@/features/pos/lib/beep"
 import { formatMoney, sumBy } from "@/lib/money"
 import { purchaseSchema } from "../schemas"
+import { lowLimitFor, sizeLabel } from "@/features/catalog/lib/catalog"
 
-export const ReceiveStockDialog = ({ onClose }) => {
+export const ReceiveStockDialog = ({ user, onClose }) => {
   const stock = useLedgerStore(({ stock }) => stock)
   const { productById, variantByBarcode, variantById, variants: allVariants } = useCatalog()
-  const variants = allVariants.filter(({ active }) => active)
+  const shopId = useShopScope(user)
+  const variants = allVariants.filter(({ active, productId }) => active && productById[productId]?.shopId === shopId)
   const receivePurchase = useLedgerStore(({ receivePurchase }) => receivePurchase)
-  const lowLimit = useLedgerStore(({ settings }) => settings.lowStockThreshold)
+  const lowLimit = useSettingsFor(shopId).lowStockThreshold
+  const categories = useLedgerStore(({ categories }) => categories)
   const [code, setCode] = useState("")
   const form = useForm({ resolver: zodResolver(purchaseSchema), defaultValues: { supplier: "Velora Warehouse", lines: [] } })
   const { fields, append, update, remove, replace } = useFieldArray({ control: form.control, name: "lines" })
@@ -37,7 +41,7 @@ export const ReceiveStockDialog = ({ onClose }) => {
 
   const handleScan = (value) => {
     const variant = variantByBarcode[value.trim()]
-    if (!variant || !variant.active) {
+    if (!variant || !variant.active || productById[variant.productId]?.shopId !== shopId) {
       beep(false)
       toast.error("Barcode not found", { description: value })
       return
@@ -54,7 +58,7 @@ export const ReceiveStockDialog = ({ onClose }) => {
   }
 
   const handleAddLowStock = () => {
-    const low = variants.filter(({ id, productId }) => productById[productId]?.status === "active" && (stock[id] ?? 0) <= lowLimit)
+    const low = variants.filter(({ id, productId }) => productById[productId]?.status === "active" && (stock[id] ?? 0) <= lowLimitFor(categories, productById[productId]?.category, lowLimit))
     replace(low.map(({ id }) => ({ variantId: id, quantity: 6 })))
     form.clearErrors("lines")
   }
@@ -80,7 +84,7 @@ export const ReceiveStockDialog = ({ onClose }) => {
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-col gap-5">
           <DialogHeader>
             <DialogTitle>Receive delivery</DialogTitle>
-            <DialogDescription>Scan each box as it comes in. Every pair is recorded as a purchase movement.</DialogDescription>
+            <DialogDescription>Scan each box as it comes in. Every item is recorded as a purchase movement.</DialogDescription>
           </DialogHeader>
 
           <FieldGroup className="min-h-0">
@@ -126,7 +130,7 @@ export const ReceiveStockDialog = ({ onClose }) => {
                           <p className="truncate text-sm">{productById[variant.productId].name}</p>
                           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <ColorDot color={variant.attributes.color} className="size-3.5" />
-                            {variant.attributes.color} · EU {variant.attributes.size} · {stock[variant.id] ?? 0} on hand
+                            {variant.attributes.color} · {sizeLabel(variant.attributes.size)} · {stock[variant.id] ?? 0} on hand
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
@@ -149,7 +153,7 @@ export const ReceiveStockDialog = ({ onClose }) => {
 
           <div className="flex items-center justify-between border bg-muted/50 px-4 py-3 text-sm">
             <span className="text-muted-foreground">
-              {pairs} pairs · {fields.length} sizes
+              {pairs} items · {fields.length} sizes
             </span>
             <span className="font-sans text-lg font-bold text-gold tabular-nums">{formatMoney(cost)} at cost</span>
           </div>
@@ -158,7 +162,7 @@ export const ReceiveStockDialog = ({ onClose }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">Receive {pairs || ""} pairs</Button>
+            <Button type="submit">Receive {pairs || ""} items</Button>
           </DialogFooter>
         </form>
       </DialogContent>

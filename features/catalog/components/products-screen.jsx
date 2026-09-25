@@ -12,6 +12,7 @@ import {
   PencilSimpleIcon,
   PlusIcon,
   TrashIcon,
+  SquaresFourIcon,
   UploadSimpleIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
@@ -31,8 +32,11 @@ import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { StatusBadge } from "@/features/sales/components/sale-status-badges"
 import { downloadFile } from "@/lib/download"
 import { formatMoney, sumBy } from "@/lib/money"
+import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { useCatalog } from "../hooks/use-catalog"
 import { exportCatalogCsv } from "../lib/catalog-csv"
+import { CategoriesDialog } from "./categories-dialog"
 import { ImportCatalogDialog } from "./import-catalog-dialog"
 import { LabelsDialog } from "./labels-dialog"
 import { ProductFormDialog } from "./product-form-dialog"
@@ -64,17 +68,20 @@ const DeleteDialog = ({ product, onConfirm, onClose }) => (
   </Dialog>
 )
 
-export const ProductsScreen = () => {
+export const ProductsScreen = ({ user }) => {
   const stock = useLedgerStore(({ stock }) => stock)
   const usedVariantIds = useLedgerStore(({ usedVariantIds }) => usedVariantIds)
   const setProductStatus = useLedgerStore(({ setProductStatus }) => setProductStatus)
   const deleteProduct = useLedgerStore(({ deleteProduct }) => deleteProduct)
-  const { products, variants, variantsByProduct } = useCatalog()
+  const { products: allProducts, variants, variantsByProduct } = useCatalog()
+  const scope = useShopScope(user)
+  const products = allProducts.filter((product) => scope === ALL_SHOPS || product.shopId === scope)
   const [status, setStatus] = useState("active")
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
   const [editing, setEditing] = useState(null)
   const [importing, setImporting] = useState(false)
+  const [managingCategories, setManagingCategories] = useState(false)
   const [labelling, setLabelling] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const search = useDeferredValue(query.trim().toLowerCase())
@@ -130,6 +137,10 @@ export const ProductsScreen = () => {
         </InputGroup>
         <Segmented label="Status" options={statuses} value={status} onChange={withReset(setStatus)} />
         <div className="flex w-full items-center gap-2 @2xl:ml-auto @2xl:w-auto">
+          <Button size="sm" variant="outline" aria-label="Categories" onClick={() => setManagingCategories(true)}>
+            <SquaresFourIcon />
+            <span className="hidden @lg:inline">Categories</span>
+          </Button>
           <Button size="sm" variant="outline" aria-label="Import products" onClick={() => setImporting(true)}>
             <UploadSimpleIcon />
             <span className="hidden @lg:inline">Import</span>
@@ -151,7 +162,7 @@ export const ProductsScreen = () => {
             <TableRow>
               <TableHead>Product</TableHead>
               <TableHead className="text-right">Price</TableHead>
-              <TableHead className="hidden text-right @lg:table-cell">Pairs</TableHead>
+              <TableHead className="hidden text-right @lg:table-cell">In stock</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -211,9 +222,10 @@ export const ProductsScreen = () => {
         {!visible.length && <p className="py-12 text-center text-sm text-muted-foreground">No products here.</p>}
         <TablePagination {...pagination} onPageChange={setPage} />
       </div>
-      <p className="text-xs text-muted-foreground">Shoes that were ever sold can be archived but not deleted, so old receipts stay correct.</p>
+      <p className="text-xs text-muted-foreground">Products that were ever sold can be archived but not deleted, so old receipts stay correct.</p>
 
-      {editing && <ProductFormDialog product={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+      {editing && <ProductFormDialog product={editing === "new" ? null : editing} user={user} onClose={() => setEditing(null)} />}
+      {managingCategories && <CategoriesDialog onClose={() => setManagingCategories(false)} />}
       {importing && <ImportCatalogDialog onClose={() => setImporting(false)} />}
       {labelling && <LabelsDialog product={labelling} onClose={() => setLabelling(null)} />}
       {deleting && <DeleteDialog product={deleting} onConfirm={handleDelete} onClose={() => setDeleting(null)} />}

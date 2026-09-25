@@ -10,10 +10,14 @@ import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { openShiftFor } from "@/features/ledger/lib/rules"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
+import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { SaleDetailSheet } from "@/features/sales/components/sale-detail-sheet"
 import { StatusBadge } from "@/features/sales/components/sale-status-badges"
 import { formatDateTime, timeAgo } from "@/lib/dates"
 import { formatMoney } from "@/lib/money"
+import { sizeLabel } from "@/features/catalog/lib/catalog"
+import { methodLabel } from "@/features/pos/lib/payment-methods"
 
 const tabs = [
   { key: "pending", label: "To approve" },
@@ -43,7 +47,7 @@ const RefundCard = ({ refund, drawerOpen, onOpenSale, onDecide }) => {
               : formatDateTime(refund.createdAt)}
           </span>
           <StatusBadge tone={refund.method === "cash" ? "gold" : "info"}>
-            {refund.method}
+            {methodLabel(refund.method)}
           </StatusBadge>
           {refund.syncedAt === null && <StatusBadge tone="info">Not synced</StatusBadge>}
         </div>
@@ -55,7 +59,7 @@ const RefundCard = ({ refund, drawerOpen, onOpenSale, onDecide }) => {
                 {quantity} × {productById[variant.productId].name}
                 <span className="text-muted-foreground">
                   {" "}
-                  · {variant.attributes.color} · EU {variant.attributes.size}
+                  · {variant.attributes.color} · {sizeLabel(variant.attributes.size)}
                   {!restock && " · not restocked"}
                 </span>
               </li>
@@ -102,7 +106,9 @@ const RefundCard = ({ refund, drawerOpen, onOpenSale, onDecide }) => {
 }
 
 export const RefundsScreen = ({ user }) => {
-  const refunds = useLedgerStore(({ refunds }) => refunds)
+  const allRefunds = useLedgerStore(({ refunds }) => refunds)
+  const scope = useShopScope(user)
+  const refunds = scope === ALL_SHOPS ? allRefunds : allRefunds.filter(({ shopId }) => shopId === scope)
   const decideRefund = useLedgerStore(({ decideRefund }) => decideRefund)
   const drawerOpen = useLedgerStore(({ shifts }) => Boolean(openShiftFor({ shifts })))
   const [tab, setTab] = useState("pending")

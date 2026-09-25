@@ -10,7 +10,7 @@ const SalesPage = async () => {
     <>
       <PageHeader
         title="Sales"
-        description={user.role === "cashier" ? "Your sales. Finished sales cannot be changed." : "Every sale in your shops. Finished sales cannot be changed."}
+        description={user.role === "cashier" ? "Your sales. Finished sales cannot be changed." : `Every sale, by shop. Finished sales cannot be changed.`}
       />
       <LedgerReady>
         <SalesScreen user={user} />

@@ -79,7 +79,7 @@ export const SalesScreen = ({ user }) => {
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Receipt no, customer, or shoe name" />
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Receipt no, customer, or product" />
         </InputGroup>
         <Segmented label="Date range" options={ranges} value={range} onChange={withReset(setRange)} />
         {user.role !== "cashier" && (

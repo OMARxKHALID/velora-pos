@@ -31,7 +31,7 @@ const SizeGrid = ({ product, color, availableFor, onChoose }) => {
               onClick={() => onChoose(variant)}
               className="flex h-16 flex-col items-center justify-center gap-0.5 border transition-colors hover:border-primary disabled:pointer-events-none disabled:opacity-35"
             >
-              <span className="text-lg font-semibold tabular-nums">
+              <span className={cn("font-semibold tabular-nums", /^\d+$/.test(variant.attributes.size) ? "text-lg" : "text-sm")}>
                 {variant.attributes.size}
               </span>
               <span
@@ -95,7 +95,7 @@ export const VariantPickerDialog = ({
           </div>
           <div className="space-y-2">
             <p className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">
-              Size (EU)
+              Size
             </p>
             <SizeGrid
               product={product}

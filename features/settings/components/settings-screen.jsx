@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Segmented } from "@/components/ui/segmented"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowCounterClockwiseIcon, LockKeyIcon } from "@phosphor-icons/react"
 import { ResetSampleDataDialog } from "@/features/sample-data/components/reset-sample-data-dialog"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
@@ -13,23 +14,14 @@ import { supervisorsOf } from "@/features/staff/lib/people"
 import { setSupervisorPinAction } from "@/features/staff/actions"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { Panel } from "@/features/analytics/components/panel"
-
-const Toggle = ({ on, onChange, label, description }) => (
-  <div className="flex flex-col gap-3 @lg:flex-row @lg:items-start @lg:justify-between">
-    <div className="min-w-0 flex-1">
-      <p className="text-sm font-medium">{label}</p>
-      {description && <p className="text-xs text-muted-foreground">{description}</p>}
-    </div>
-    <Segmented
-      options={[
-        { key: "off", label: "Off" },
-        { key: "on", label: "On" },
-      ]}
-      value={on ? "on" : "off"}
-      onChange={(value) => onChange(value === "on")}
-    />
-  </div>
-)
+import { NTN_PATTERN, POSID_PATTERN } from "@/features/fbr/lib/fbr"
+import { ShopsSettings } from "@/features/shops/components/shops-settings"
+import { PaymentsSettings } from "./payments-settings"
+import { ReceiptDesigner } from "./receipt-designer"
+import { SettingToggle as Toggle } from "./setting-toggle"
+import { useSettingsFor, useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ScopeBar } from "./scope-bar"
+import { ALL_SHOPS, SETTING_GROUPS } from "@/features/shops/lib/shops"
 
 const useSyncedDraft = (saved) => {
   const [previous, setPrevious] = useState(saved)
@@ -42,6 +34,48 @@ const useSyncedDraft = (saved) => {
 }
 
 const digitsOnly = (value, length) => value.replace(/\D/g, "").slice(0, length)
+
+const FbrPanel = ({ settings, update, shopId }) => {
+  const shops = useLedgerStore(({ shops }) => shops)
+  const registers = useLedgerStore(({ registers }) => registers)
+  const open = shops.filter(({ id, active }) => active !== false && (!shopId || id === shopId))
+  const missing = [
+    ...open.filter(({ ntn }) => !NTN_PATTERN.test(ntn ?? "")).map(({ name }) => `${name}: NTN`),
+    ...registers.filter(({ shopId, fbrPosId }) => open.some(({ id }) => id === shopId) && !POSID_PATTERN.test(fbrPosId ?? "")).map(({ code }) => `${code}: POSID`),
+  ]
+
+  const handleEnabled = (fbrEnabled) => {
+    if (fbrEnabled && missing.length) {
+      toast.error("Fill in the missing tax details in the Shops tab first", { description: missing.join(", ") })
+      return
+    }
+    update({ fbrEnabled }, fbrEnabled ? "FBR reporting turned on" : "FBR reporting turned off")
+  }
+
+  return (
+    <Panel title="FBR reporting" description="Report every sale, return and exchange to FBR and print its invoice number and QR code.">
+      <div className="space-y-5 p-4">
+        <Toggle
+          on={Boolean(settings.fbrEnabled)}
+          onChange={handleEnabled}
+          label="Report to FBR"
+          description="Fiscal numbers are simulated; nothing is sent to FBR yet."
+        />
+        <p className="text-xs text-muted-foreground">
+          Each shop&apos;s NTN and STRN and each counter&apos;s POSID are set in the Shops tab.
+          {missing.length > 0 && <span className="text-warning"> Missing: {missing.join(", ")}.</span>}
+        </p>
+        <div className="border-t" />
+        <Toggle
+          on={settings.fbrServiceFee !== false}
+          onChange={(fbrServiceFee) => update({ fbrServiceFee }, fbrServiceFee ? "FBR POS fee added to each sale" : "FBR POS fee removed")}
+          label="FBR POS fee (Rs 1 per invoice)"
+          description="Added to the customer's total while FBR reporting is on. It is not counted as sales."
+        />
+      </div>
+    </Panel>
+  )
+}
 
 const PinRow = ({ person, hasPin }) => {
   const [next, setNext] = useState("")
@@ -122,15 +156,20 @@ const SupervisorPins = () => {
   )
 }
 
-export const SettingsScreen = ({ sampleData = false }) => {
-  const settings = useLedgerStore(({ settings }) => settings)
+const columnOptions = [3, 4, 5, 6, 7, 8].map((count) => ({ key: String(count), label: String(count) }))
+
+export const SettingsScreen = ({ user, sampleData = false }) => {
+  const scope = useShopScope(user)
+  const shopId = scope === ALL_SHOPS ? null : scope
+  const settings = useSettingsFor(scope)
   const setSettings = useLedgerStore(({ setSettings }) => setSettings)
+  const setShopSettings = useLedgerStore(({ setShopSettings }) => setShopSettings)
   const [resetOpen, setResetOpen] = useState(false)
   const [rateDraft, setRateDraft] = useSyncedDraft(settings.taxRate ? String(settings.taxRate) : "")
   const [thresholdDraft, setThresholdDraft] = useSyncedDraft(String(settings.lowStockThreshold))
 
   const update = (patch, message) =>
-    setSettings(patch).then(
+    (shopId ? setShopSettings({ shopId, patch }) : setSettings(patch)).then(
       () => message && toast.success(message),
       (error) => toast.error(error.message)
     )
@@ -152,110 +191,79 @@ export const SettingsScreen = ({ sampleData = false }) => {
   const rateValid = rateDraft === "" || (Number.isFinite(Number(rateDraft)) && Number(rateDraft) >= 0 && Number(rateDraft) <= 100)
 
   return (
-    <div className="grid items-start gap-4 @4xl:grid-cols-2">
-      <div className="grid gap-4">
-        <Panel title="Sales tax" description="Add a tax to every sale, shown on the cart and the receipt.">
-          <div className="space-y-5 p-4">
-            <Toggle
-              on={settings.taxEnabled}
-              onChange={(taxEnabled) => update({ taxEnabled }, taxEnabled ? "Sales tax turned on" : "Sales tax turned off")}
-              label="Charge sales tax"
-              description="When off, no tax is added to any sale."
-            />
-            {settings.taxEnabled && (
-              <div className="space-y-4 border-t pt-4">
-                <Field>
-                  <FieldLabel>Tax name</FieldLabel>
-                  <InputGroup>
-                    <InputGroupInput
-                      value={settings.taxLabel || ""}
-                      onChange={(event) => update({ taxLabel: event.target.value })}
-                      placeholder="e.g. Sales tax, GST, VAT"
-                      aria-label="Tax name"
-                    />
-                  </InputGroup>
-                </Field>
-                <Field data-invalid={!rateValid}>
-                  <FieldLabel>Tax rate</FieldLabel>
-                  <InputGroup>
-                    <InputGroupInput
-                      value={rateDraft}
-                      onChange={(event) => handleRate(event.target.value)}
-                      inputMode="decimal"
-                      aria-label="Tax rate percent"
-                      aria-invalid={!rateValid}
-                    />
-                    <InputGroupAddon align="inline-end">
-                      <InputGroupText>%</InputGroupText>
-                    </InputGroupAddon>
-                  </InputGroup>
-                  {!rateValid && <FieldError errors={[{ message: "Enter a number between 0 and 100" }]} />}
-                </Field>
-                <FieldDescription>Tax is added on top of the total after discounts, on every new sale. Past sales keep their recorded figures.</FieldDescription>
-              </div>
-            )}
-          </div>
-        </Panel>
+    <Tabs defaultValue="shops" className="gap-4">
+      <TabsList variant="line" className="w-full justify-start overflow-x-auto">
+        <TabsTrigger value="shops" className="flex-none">Shops</TabsTrigger>
+        <TabsTrigger value="tax" className="flex-none">Tax & FBR</TabsTrigger>
+        <TabsTrigger value="payments" className="flex-none">Payments</TabsTrigger>
+        <TabsTrigger value="discounts" className="flex-none">Discounts & PIN</TabsTrigger>
+        <TabsTrigger value="receipt" className="flex-none">Receipt</TabsTrigger>
+        <TabsTrigger value="counter" className="flex-none">Counter & data</TabsTrigger>
+      </TabsList>
 
-        <Panel title="Checkout & counter" description="Customer details, low-stock warnings and sample data.">
-          <div className="space-y-5 p-4">
-            <Toggle
-              on={settings.customerInfoEnabled !== false}
-              onChange={(customerInfoEnabled) =>
-                update({ customerInfoEnabled }, customerInfoEnabled ? "Customer details enabled" : "Customer details disabled")
-              }
-              label="Customer details at checkout"
-              description="Collect optional customer name and phone number during checkout for receipt printing and returns."
-            />
-            <div className="border-t" />
-            <div className="space-y-2">
+      <TabsContent value="shops">
+        <ShopsSettings scope={scope} />
+      </TabsContent>
+
+      <TabsContent value="tax" className="grid items-start gap-4 @4xl:grid-cols-2">
+        <ScopeBar shopId={shopId} keys={SETTING_GROUPS.tax} />
+      <Panel title="Sales tax" description="Add a tax to every sale, shown on the cart and the receipt.">
+        <div className="space-y-5 p-4">
+          <Toggle
+            on={settings.taxEnabled}
+            onChange={(taxEnabled) => update({ taxEnabled }, taxEnabled ? "Sales tax turned on" : "Sales tax turned off")}
+            label="Charge sales tax"
+            description="When off, no tax is added to any sale."
+          />
+          {settings.taxEnabled && (
+            <div className="space-y-4 border-t pt-4">
               <Field>
-                <div className="flex items-center justify-between">
-                  <FieldLabel htmlFor="lowStockThreshold">Low-stock warning threshold</FieldLabel>
-                  <span className="text-2xs tracking-wider text-muted-foreground uppercase">Pairs</span>
-                </div>
-                <InputGroup className="max-w-xs">
+                <FieldLabel>Tax name</FieldLabel>
+                <InputGroup>
                   <InputGroupInput
-                    id="lowStockThreshold"
-                    value={thresholdDraft}
-                    onChange={(event) => handleThreshold(event.target.value)}
-                    inputMode="numeric"
-                    maxLength={2}
-                    placeholder="2"
-                    className="font-mono text-sm"
-                    aria-label="Low-stock threshold in pairs"
+                    value={settings.taxLabel || ""}
+                    onChange={(event) => update({ taxLabel: event.target.value })}
+                    placeholder="e.g. Sales tax, GST, VAT"
+                    aria-label="Tax name"
+                  />
+                </InputGroup>
+              </Field>
+              <Field data-invalid={!rateValid}>
+                <FieldLabel>Tax rate</FieldLabel>
+                <InputGroup>
+                  <InputGroupInput
+                    value={rateDraft}
+                    onChange={(event) => handleRate(event.target.value)}
+                    inputMode="decimal"
+                    aria-label="Tax rate percent"
+                    aria-invalid={!rateValid}
                   />
                   <InputGroupAddon align="inline-end">
-                    <InputGroupText>pairs</InputGroupText>
+                    <InputGroupText>%</InputGroupText>
                   </InputGroupAddon>
                 </InputGroup>
-                <FieldDescription className="text-xs">
-                  Sizes at or below this many pairs are flagged as running low in Stock, on the dashboard and when receiving a delivery.
-                </FieldDescription>
+                {!rateValid && <FieldError errors={[{ message: "Enter a number between 0 and 100" }]} />}
               </Field>
+              <Toggle
+                on={Boolean(settings.pricesIncludeTax)}
+                onChange={(pricesIncludeTax) => update({ pricesIncludeTax }, pricesIncludeTax ? "Prices now include tax" : "Tax now added on top")}
+                label="Prices include tax"
+                description="On: the shelf price is what the customer pays and the tax inside it is shown. Off: tax is added on top."
+              />
+              <FieldDescription>Applies to every new sale. Past sales keep their recorded figures.</FieldDescription>
             </div>
-            {sampleData && (
-              <>
-                <div className="border-t" />
-                <div className="flex flex-col gap-3 @lg:flex-row @lg:items-start @lg:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">Reset sample data</p>
-                    <p className="text-xs text-muted-foreground">Restore 30 days of sample sales, stock, shifts, the sample team and these settings.</p>
-                  </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setResetOpen(true)}>
-                    <ArrowCounterClockwiseIcon />
-                    Reset data
-                  </Button>
-                </div>
-              </>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Changes take effect immediately at the sales counter and on printed receipts.
-            </p>
-          </div>
-        </Panel>
-      </div>
+          )}
+        </div>
+      </Panel>
+      <FbrPanel settings={settings} update={update} shopId={shopId} />
+      </TabsContent>
 
+      <TabsContent value="payments">
+        <PaymentsSettings settings={settings} update={update} scopeBar={<ScopeBar shopId={shopId} keys={SETTING_GROUPS.payments} />} />
+      </TabsContent>
+
+      <TabsContent value="discounts" className="max-w-3xl space-y-4">
+        <ScopeBar shopId={shopId} keys={SETTING_GROUPS.discounts} />
       <Panel title="Discounts" description="Choose which kinds of discount the counter can give.">
         <div className="space-y-5 p-4">
           <Toggle
@@ -277,14 +285,91 @@ export const SettingsScreen = ({ sampleData = false }) => {
           />
           <div className="border-t" />
           <SupervisorPins />
-          <p className="text-xs text-muted-foreground">
+          <FieldDescription>
             Every discount is saved with the sale and appears on the receipt, in sales history and in the owner&apos;s reports.
-          </p>
+          </FieldDescription>
         </div>
       </Panel>
+      </TabsContent>
 
-      <p className="text-xs text-muted-foreground @4xl:col-span-2">Pricing changes apply from the next sale. Past sales remain locked in the ledger.</p>
+      <TabsContent value="receipt">
+        <ReceiptDesigner settings={settings} update={update} shopId={shopId} scopeBar={<ScopeBar shopId={shopId} keys={SETTING_GROUPS.receipt} />} />
+      </TabsContent>
+
+      <TabsContent value="counter" className="max-w-3xl space-y-4">
+        <ScopeBar shopId={shopId} keys={SETTING_GROUPS.counter} />
+      <Panel title="Checkout & counter" description="Customer details, low-stock warnings and the till layout.">
+        <div className="space-y-5 p-4">
+          <Toggle
+            on={settings.customerInfoEnabled !== false}
+            onChange={(customerInfoEnabled) =>
+              update({ customerInfoEnabled }, customerInfoEnabled ? "Customer details enabled" : "Customer details disabled")
+            }
+            label="Customer details at checkout"
+            description="Collect optional customer name and phone number during checkout for receipt printing and returns."
+          />
+          <div className="border-t" />
+          <div className="space-y-2">
+            <Field>
+              <div className="flex items-center justify-between">
+                <FieldLabel htmlFor="lowStockThreshold">Low-stock warning threshold</FieldLabel>
+                <span className="text-2xs tracking-wider text-muted-foreground uppercase">Per size</span>
+              </div>
+              <InputGroup className="max-w-xs">
+                <InputGroupInput
+                  id="lowStockThreshold"
+                  value={thresholdDraft}
+                  onChange={(event) => handleThreshold(event.target.value)}
+                  inputMode="numeric"
+                  maxLength={2}
+                  placeholder="2"
+                  className="font-mono text-sm"
+                  aria-label="Low-stock threshold per size"
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupText>in stock</InputGroupText>
+                </InputGroupAddon>
+              </InputGroup>
+              <FieldDescription>
+                Sizes at or below this many in stock are flagged as running low in Stock, on the dashboard and when receiving a delivery.
+              </FieldDescription>
+            </Field>
+          </div>
+          <div className="border-t" />
+          <Field>
+            <FieldLabel>Products per row at the till</FieldLabel>
+            <Segmented
+              label="Products per row"
+              options={columnOptions}
+              value={String(settings.posColumns ?? 6)}
+              onChange={(value) => update({ posColumns: Number(value) }, `Till shows up to ${value} products per row`)}
+            />
+            <FieldDescription>The most tiles in one row on a wide screen. Smaller screens show fewer so every tile stays easy to tap.</FieldDescription>
+          </Field>
+          {sampleData && !shopId && (
+            <>
+              <div className="border-t" />
+              <div className="flex flex-col gap-3 @lg:flex-row @lg:items-start @lg:justify-between">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">Reset sample data</p>
+                  <p className="text-xs text-muted-foreground">Restore 30 days of sample sales, stock, shifts, staff and settings for every shop.</p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => setResetOpen(true)}>
+                  <ArrowCounterClockwiseIcon />
+                  Reset data
+                </Button>
+              </div>
+            </>
+          )}
+          <FieldDescription>
+            Changes take effect immediately at the sales counter and on printed receipts.
+          </FieldDescription>
+        </div>
+      </Panel>
+      </TabsContent>
+
+      <p className="text-xs text-muted-foreground">Pricing changes apply from the next sale. Past sales remain locked in the ledger.</p>
       {sampleData && <ResetSampleDataDialog open={resetOpen} onOpenChange={setResetOpen} />}
-    </div>
+    </Tabs>
   )
 }

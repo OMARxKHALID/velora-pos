@@ -9,7 +9,7 @@ const currentCart = ({ lines, discountPct, approvedBy, approvalToken, customerNa
 export const createCartStore = () =>
   createStore()(
     persist(
-      (set) => ({
+      (set, get) => ({
         ...blank,
         add: (variantId, entry = "scan") =>
           set(({ lines }) => ({
@@ -32,7 +32,16 @@ export const createCartStore = () =>
           })),
         load: (cart) => set({ ...blank, ...currentCart({ ...blank, ...cart }) }),
         prune: (variantIds) => set(({ lines }) => ({ lines: lines.filter(({ variantId }) => variantIds.has(variantId)) })),
-        clear: () => set(blank),
+        clear: () => {
+          const removed = currentCart(get())
+          set(blank)
+          return removed
+        },
+        restore: (removed) => {
+          if (get().lines.length) return false
+          set(removed)
+          return true
+        },
       }),
       {
         name: CART_STORAGE_KEY,

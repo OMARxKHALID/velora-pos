@@ -11,6 +11,7 @@ import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { printNode } from "@/features/pos/lib/print-node"
 import { formatMoney } from "@/lib/money"
 import { useCatalog } from "../hooks/use-catalog"
+import { sizeLabel } from "../lib/catalog"
 
 const Label = ({ product, variant }) => {
   const svg = useRef(null)
@@ -23,7 +24,7 @@ const Label = ({ product, variant }) => {
     <div className="flex w-[190px] flex-col items-center gap-0.5 border border-dashed border-black/30 bg-white p-2 text-center text-2xs leading-tight text-black">
       <span className="w-full truncate font-bold">{product.name}</span>
       <span>
-        {variant.attributes.color} · EU {variant.attributes.size} · <b>{formatMoney(variant.price)}</b>
+        {variant.attributes.color} · {sizeLabel(variant.attributes.size)} · <b>{formatMoney(variant.price)}</b>
       </span>
       <svg ref={svg} />
     </div>
@@ -48,7 +49,7 @@ export const LabelsDialog = ({ product, onClose }) => {
         <Segmented
           options={[
             { key: "size", label: "One per size" },
-            { key: "stock", label: "One per pair in stock" },
+            { key: "stock", label: "One per item in stock" },
           ]}
           value={mode}
           onChange={setMode}

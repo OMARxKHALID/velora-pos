@@ -33,7 +33,7 @@ function FieldLegend({
       data-slot="field-legend"
       data-variant={variant}
       className={cn(
-        "mb-3 font-semibold uppercase data-[variant=label]:text-xs data-[variant=legend]:text-xs",
+        "mb-3 font-semibold data-[variant=label]:text-sm data-[variant=legend]:text-sm",
         className
       )}
       {...props}
@@ -62,7 +62,7 @@ const fieldVariants = cva(
   {
     variants: {
       orientation: {
-        vertical: "flex-col *:w-full [&>.sr-only]:w-auto",
+        vertical: "flex-col *:w-full [&>.sr-only]:w-auto [&>[data-slot=segmented]]:w-fit",
         horizontal:
           "flex-row items-center has-[>[data-slot=field-content]]:items-start *:data-[slot=field-label]:flex-auto has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mt-px",
         responsive:
@@ -132,7 +132,7 @@ function FieldTitle({
     <div
       data-slot="field-label"
       className={cn(
-        "flex w-fit items-center gap-2 text-xs font-semibold uppercase group-data-[disabled=true]/field:opacity-50 in-data-[slot=field-label]:font-semibold",
+        "flex w-fit items-center gap-2 text-sm font-medium group-data-[disabled=true]/field:opacity-50 in-data-[slot=field-label]:font-semibold",
         className
       )}
       {...props}

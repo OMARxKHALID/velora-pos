@@ -1,13 +1,14 @@
 "use client"
 
 import { useState } from "react"
-import { KeyIcon, TrashIcon } from "@phosphor-icons/react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { KeyIcon, PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { formatFullDateTime, timeAgo } from "@/lib/dates"
 import { RoleBadge } from "./role-badge"
+import { useShopNameOf } from "@/features/shops/hooks/use-shop-scope"
+import { StaffAvatar } from "./staff-avatar"
 
 const Fact = ({ label, children }) => (
   <div>
@@ -40,19 +41,21 @@ const PasswordForm = ({ person, pending, onSetPassword }) => {
   )
 }
 
-export const StaffDetailsDialog = ({ person, activity, pending, onTransfer, onSetPassword, onRemove, onClose }) => (
+const ShopName = ({ person }) => useShopNameOf()(person)
+
+export const StaffDetailsDialog = ({ person, activity, pending, onEdit, onTransfer, onSetPassword, onRemove, onClose }) => (
   <Dialog open onOpenChange={(open) => !open && onClose()}>
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <div className="flex items-center gap-3">
-          <Avatar size="lg">
-            <AvatarFallback className="text-base font-bold">{person.avatar || person.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
+          <StaffAvatar person={person} size="lg" className="size-12" fallbackClassName="text-base font-bold" />
           <div>
             <DialogTitle>{person.name}</DialogTitle>
             <DialogDescription className="mt-0.5 flex items-center gap-2">
               <RoleBadge role={person.role} />
-              <span>{person.shop}</span>
+              <span>
+                <ShopName person={person} />
+              </span>
             </DialogDescription>
           </div>
         </div>
@@ -68,7 +71,23 @@ export const StaffDetailsDialog = ({ person, activity, pending, onTransfer, onSe
             <span className="font-mono">{person.username}</span>
           </Fact>
           <Fact label="Access">{person.disabled ? "Turned off" : "Active"}</Fact>
+          <Fact label="CNIC">{person.cnic || "—"}</Fact>
+          <Fact label="City">{person.city || "—"}</Fact>
+          <Fact label="Emergency contact">{person.emergencyContact || "—"}</Fact>
           <Fact label="Joined">{person.joinedAt ? formatFullDateTime(person.joinedAt) : "—"}</Fact>
+          {person.leave && (
+            <div className="col-span-2">
+              <Fact label="Leave">
+                {person.leave.from} to {person.leave.until ?? "not set"}
+                {person.leave.note && ` · ${person.leave.note}`}
+              </Fact>
+            </div>
+          )}
+          {person.address && (
+            <div className="col-span-2">
+              <Fact label="Address">{person.address}</Fact>
+            </div>
+          )}
           <Fact label="Last active">{activity.lastActive ? timeAgo(activity.lastActive) : "Never"}</Fact>
         </div>
 
@@ -111,9 +130,15 @@ export const StaffDetailsDialog = ({ person, activity, pending, onTransfer, onSe
         ) : (
           <div />
         )}
-        <Button variant="outline" size="sm" onClick={onClose}>
-          Close
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => onEdit(person)}>
+            <PencilSimpleIcon />
+            Edit profile
+          </Button>
+          <Button variant="outline" size="sm" onClick={onClose}>
+            Close
+          </Button>
+        </div>
       </DialogFooter>
     </DialogContent>
   </Dialog>

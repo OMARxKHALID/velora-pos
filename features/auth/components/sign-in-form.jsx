@@ -59,7 +59,7 @@ export const SignInForm = ({ sampleAccounts }) => {
       <form action={action} className="space-y-4">
         <Field data-invalid={Boolean(state?.error)}>
           <FieldLabel htmlFor="username">Username</FieldLabel>
-          <Input ref={usernameRef} id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} defaultValue={state?.username ?? ""} required autoFocus />
+          <Input key={state?.username ?? ""} ref={usernameRef} id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} defaultValue={state?.username ?? ""} required autoFocus />
         </Field>
         <Field data-invalid={Boolean(state?.error)}>
           <FieldLabel htmlFor="password">Password</FieldLabel>

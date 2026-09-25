@@ -36,5 +36,6 @@ export const SaleStatusBadges = ({ sale, refundState }) => (
           {FLAGS[flag][1]}
         </StatusBadge>
       ))}
+    {sale.fbr?.status === "pending" && <StatusBadge tone="warning">FBR pending</StatusBadge>}
   </div>
 )

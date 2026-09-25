@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { seedCatalog } from "@/features/catalog/lib/catalog"
 import { defaultPricingSettings } from "./pricing"
-import { cartTotals, lineDiscount, netRefund, netRevenue, taxFor } from "./pricing"
+import { cartTotals, lineDiscount, netRefund, netRevenue, taxFor, taxInside } from "./pricing"
 
 const catalog = seedCatalog()
 const index = {
@@ -51,6 +51,15 @@ describe("pricing", () => {
     const totals = cartTotals([{ variantId: variant.id, quantity: 1 }], 10, withPct, { ...settings, cartDiscountEnabled: false })
     expect(totals.rows[0].discount).toBe(0)
     expect(totals.rows[0].productDiscount).toBe(lineDiscount(variant.price, 5))
+  })
+
+  test("inclusive prices keep the shelf total, carry the tax inside and add the FBR fee once", () => {
+    const inclusive = { ...settings, taxEnabled: true, taxRate: 18, pricesIncludeTax: true, fbrEnabled: true, fbrServiceFee: true }
+    const totals = cartTotals([{ variantId: variant.id, quantity: 2 }], 0, index, inclusive)
+    expect(totals.taxTotal).toBe(taxInside(variant.price * 2, 18))
+    expect(totals.serviceFee).toBe(100)
+    expect(totals.total).toBe(variant.price * 2 + 100)
+    expect(netRevenue({ total: totals.total, taxTotal: totals.taxTotal, serviceFee: totals.serviceFee })).toBe(variant.price * 2 - totals.taxTotal)
   })
 
   test("netRevenue strips tax for reports", () => {

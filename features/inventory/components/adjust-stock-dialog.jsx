@@ -13,6 +13,7 @@ import { Segmented } from "@/components/ui/segmented"
 import { Textarea } from "@/components/ui/textarea"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { addReasons, adjustmentSchema, removeReasons } from "../schemas"
+import { sizeLabel } from "@/features/catalog/lib/catalog"
 
 const AdjustForm = ({ row, size, onHand, onDone }) => {
   const adjustStock = useLedgerStore(({ adjustStock }) => adjustStock)
@@ -27,7 +28,7 @@ const AdjustForm = ({ row, size, onHand, onDone }) => {
     try {
       await adjustStock({ variantId: size.variant.id, quantity: chosen === "remove" ? -quantity : quantity, reason, note })
       toast.success("Stock adjusted", {
-        description: `${row.product.name} · EU ${size.variant.attributes.size}: ${chosen === "remove" ? "−" : "+"}${quantity} (${reasons[reason]})`,
+        description: `${row.product.name} · ${sizeLabel(size.variant.attributes.size)}: ${chosen === "remove" ? "−" : "+"}${quantity} (${reasons[reason]})`,
       })
       onDone()
     } catch (error) {
@@ -46,8 +47,8 @@ const AdjustForm = ({ row, size, onHand, onDone }) => {
               <FieldLabel>Change</FieldLabel>
               <Segmented
                 options={[
-                  { key: "remove", label: "Remove pairs" },
-                  { key: "add", label: "Add pairs" },
+                  { key: "remove", label: "Remove" },
+                  { key: "add", label: "Add" },
                 ]}
                 value={field.value}
                 onChange={(value) => {
@@ -63,7 +64,7 @@ const AdjustForm = ({ row, size, onHand, onDone }) => {
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={field.name}>Pairs</FieldLabel>
+              <FieldLabel htmlFor={field.name}>Quantity</FieldLabel>
               <Input {...field} id={field.name} inputMode="numeric" className="w-32 tabular-nums" aria-invalid={fieldState.invalid} />
               <FieldDescription>{onHand} on hand now.</FieldDescription>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}

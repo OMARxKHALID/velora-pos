@@ -52,7 +52,7 @@ describe("sample data", () => {
     }
     for (const shift of state.shifts.filter(({ status }) => status === "closed")) {
       expect(expectedCash(state, shift)).toBe(shift.expectedCash)
-      expect(shiftSummary(state, shift).cashRefunds).toBe(state.refunds.filter(({ payoutShiftId }) => payoutShiftId === shift.id).reduce((sum, { total }) => sum + total, 0))
+      expect(shiftSummary(state, shift).cashRefunds).toBe(state.refunds.filter(({ payoutShiftId, method }) => payoutShiftId === shift.id && method === "cash").reduce((sum, { total }) => sum + total, 0))
     }
   })
 })

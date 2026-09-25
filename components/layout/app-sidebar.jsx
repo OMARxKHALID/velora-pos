@@ -27,26 +27,36 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { signOut } from "@/features/auth/actions"
 import { forgetDevice } from "@/features/offline/lib/forget-device"
 import { roleLabels } from "@/features/auth/lib/roles"
-import { initialsOf } from "@/features/staff/lib/rules"
-import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { useShopNameOf, useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS, shopName } from "@/features/shops/lib/shops"
 import { GROUP_NAME } from "@/features/shops/lib/constants"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
+import { StaffAvatar } from "@/features/staff/components/staff-avatar"
 import { navItems } from "./nav-items"
 import { ResetSampleDataDialog } from "@/features/sample-data/components/reset-sample-data-dialog"
 import { ThemeToggle } from "./theme-toggle"
 import { VeloraLogo } from "./velora-logo"
+
+const UserTitle = ({ user }) => {
+  const person = useLedgerStore(({ staff }) => staff[user.id])
+  const shopOf = useShopNameOf()
+  return user.role === "admin" ? `${roleLabels.admin} · ${GROUP_NAME}` : `${roleLabels[user.role]} · ${shopOf(person ?? user)}`
+}
+
+const SignedInAvatar = ({ user }) => {
+  const person = useLedgerStore(({ staff }) => staff[user.id])
+  return <StaffAvatar person={person ?? { name: user.name }} className="size-8" fallbackClassName="bg-accent text-xs font-semibold text-accent-foreground" />
+}
 
 const ShopSwitcher = ({ user }) => {
   const scope = useShopScope(user)
   const setShopScope = useLedgerStore(({ setShopScope }) => setShopScope)
   const shops = useLedgerStore(({ shops }) => shops)
   const canSwitch = user.role === "admin"
-  const options = [{ id: ALL_SHOPS, name: "All shops" }, ...shops]
+  const options = [{ id: ALL_SHOPS, name: "All shops" }, ...shops.filter(({ active }) => active !== false)]
 
   return (
     <DropdownMenu>
@@ -77,10 +87,9 @@ const ShopSwitcher = ({ user }) => {
 export const AppSidebar = ({ user, sampleData = false }) => {
   const pathname = usePathname()
   const items = navItems.filter(({ roles }) => roles.includes(user.role))
-  const pendingRefunds = useLedgerStore(({ refunds }) => refunds.filter(({ status }) => status === "pending").length)
+  const scope = useShopScope(user)
+  const pendingRefunds = useLedgerStore(({ refunds }) => refunds.filter(({ status, shopId }) => status === "pending" && (scope === ALL_SHOPS || shopId === scope)).length)
   const badges = { "/refunds": pendingRefunds }
-  const shops = useLedgerStore(({ shops }) => shops)
-
   const [resetOpen, setResetOpen] = useState(false)
 
   return (
@@ -128,14 +137,12 @@ export const AppSidebar = ({ user, sampleData = false }) => {
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger render={<SidebarMenuButton size="lg" tooltip={user.name} />}>
-                <Avatar className="size-8">
-                  <AvatarFallback className="bg-accent text-xs font-semibold text-accent-foreground">
-                    {initialsOf(user.name)}
-                  </AvatarFallback>
-                </Avatar>
+                <SignedInAvatar user={user} />
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate text-sm font-semibold">{user.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">{roleLabels[user.role]} · {user.role === "admin" ? GROUP_NAME : shopName(user.shopId, shops)}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    <UserTitle user={user} />
+                  </span>
                 </div>
                 <CaretUpDownIcon className="ml-auto" />
               </DropdownMenuTrigger>

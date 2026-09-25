@@ -47,16 +47,16 @@ export const HeldCartsButton = ({ count, onClick, variant = "panel", className }
   return (
     <Button
       type="button"
-      size="sm"
+      size="icon-sm"
       variant="outline"
       disabled={!active}
       onClick={onClick}
+      aria-label={active ? `${heldLabel(count)} waiting` : "No held carts"}
       title={active ? `${heldLabel(count)} waiting` : "No held carts"}
-      className={cn("w-full px-2", active && "border-gold/50 bg-gold/10 text-gold hover:bg-gold/20", className)}
+      className={cn("relative", active && "border-gold/50 bg-gold/10 text-gold hover:bg-gold/20", className)}
     >
-      <PauseCircleIcon />
-      Held
-      {active && <CountBadge count={count} />}
+      <PauseCircleIcon className="size-4" />
+      {active && <CountBadge count={count} className="absolute -top-1.5 -right-1.5" />}
     </Button>
   )
 }

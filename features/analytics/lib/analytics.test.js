@@ -3,7 +3,7 @@ import { seedCatalog } from "@/features/catalog/lib/catalog"
 import { applyOpenShift, applyPurchase, applyRefundDecision, applyRefundRequest, applySale, emptyLedger } from "@/features/ledger/lib/rules"
 import { createSeed } from "@/features/sample-data/lib/seed"
 import { SAMPLE_TEAM } from "@/features/sample-data/lib/team"
-import { brandPerformance, cashierIdsFor, cashierStats, dailySeries, hourlySeries, lowStock, notSelling, paymentSplit, periodFor, stockValue, summarize } from "./analytics"
+import { brandPerformance, cashierIdsFor, cashierStats, dailySeries, hourlySeries, lowStock, notSelling, paymentSplit, periodFor, splitLiveTail, stockValue, summarize } from "./analytics"
 
 test("net revenue and profit subtract approved refunds, keeping cost when restocked", () => {
   const catalog = seedCatalog()
@@ -76,6 +76,7 @@ test("low stock follows the shop setting when one is given", () => {
   const state = createSeed(new Date(2026, 8, 16, 15).getTime())
   expect(lowStock(state, 5).length).toBeGreaterThan(lowStock(state, 0).length)
   expect(lowStock(state).every(({ quantity, variant }) => quantity <= variant.lowStockAt)).toBe(true)
+  expect(lowStock(state, () => 5)).toEqual(lowStock(state, 5))
 })
 
 test("the staff panel lists current cashiers and anyone who has sold", () => {
@@ -85,4 +86,14 @@ test("the staff panel lists current cashiers and anyone who has sold", () => {
   expect(ids).toContain("u-cashier")
   expect(ids).toContain("u-cashier-new")
   expect(ids).not.toContain("u-cashier-gone")
+})
+
+test("the chart draws only the unfinished last point dashed and leaves future hours empty", () => {
+  const days = splitLiveTail([{ day: 1, revenue: 5, profit: 2 }, { day: 2, revenue: 6, profit: 3 }, { day: 3, revenue: 1, profit: 0 }], false)
+  expect(days.map(({ revenueDone }) => revenueDone)).toEqual([5, 6, null])
+  expect(days.map(({ revenueLive }) => revenueLive)).toEqual([null, 6, 1])
+
+  const hours = splitLiveTail([{ hour: 10, revenue: 5, profit: 2 }, { hour: 11, revenue: 4, profit: 1 }, { hour: 12, revenue: 0, profit: 0 }], true, 11)
+  expect(hours.map(({ revenue }) => revenue)).toEqual([5, 4, null])
+  expect(hours.map(({ profitLive }) => profitLive)).toEqual([2, 1, null])
 })

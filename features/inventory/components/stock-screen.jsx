@@ -1,9 +1,10 @@
 "use client"
 
 import { useDeferredValue, useState } from "react"
-import { MagnifyingGlassIcon, PackageIcon } from "@phosphor-icons/react"
+import Link from "next/link"
+import { BarcodeIcon, MagnifyingGlassIcon, PackageIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -11,16 +12,23 @@ import { TablePagination, paginate, resetsPage } from "@/components/ui/table-pag
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
-import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { useLowLimitOf, useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { stockRows } from "../lib/stock-rows"
 import { AdjustStockDialog } from "./adjust-stock-dialog"
 import { ReceiveStockDialog } from "./receive-stock-dialog"
+import { SizeRunTable } from "./size-run-table"
+import { sizeLabel } from "@/features/catalog/lib/catalog"
 
 const filters = [
   { key: "all", label: "All" },
   { key: "low", label: "Low" },
   { key: "out", label: "Sold-out sizes" },
+]
+
+const views = [
+  { key: "list", label: "List" },
+  { key: "on-hand", label: "Size run" },
 ]
 
 const SizeChips = ({ sizes, threshold }) => (
@@ -29,7 +37,7 @@ const SizeChips = ({ sizes, threshold }) => (
       const out = quantity <= 0
       const low = !out && quantity <= (Number.isFinite(threshold) ? threshold : variant.lowStockAt)
       return (
-        <div key={variant.id} title={`EU ${variant.attributes.size}: ${quantity} pairs`} className="flex w-8 flex-col items-center gap-1">
+        <div key={variant.id} title={`${sizeLabel(variant.attributes.size)}: ${quantity} in stock`} className="flex min-w-8 flex-col items-center gap-1 px-0.5">
           <span className="text-2xs leading-none text-muted-foreground tabular-nums">{variant.attributes.size}</span>
           <span className={cn("text-sm leading-none tabular-nums", out && "text-destructive", low && "font-semibold text-warning")}>{out ? "–" : quantity}</span>
           <span className={cn("h-0.5 w-5", out ? "bg-destructive" : low ? "bg-warning" : "bg-border")} />
@@ -41,8 +49,9 @@ const SizeChips = ({ sizes, threshold }) => (
 
 export const StockScreen = ({ user }) => {
   const stock = useLedgerStore(({ stock }) => stock)
-  const settings = useLedgerStore(({ settings }) => settings)
-  const lowLimit = settings?.lowStockThreshold ?? 2
+  const categories = useLedgerStore(({ categories }) => categories)
+  const [view, setView] = useState("list")
+  const lowLimit = useLowLimitOf()
   const [filter, setFilter] = useState("all")
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
@@ -51,7 +60,7 @@ export const StockScreen = ({ user }) => {
   const search = useDeferredValue(query.trim().toLowerCase())
   const catalog = useCatalog()
   const scope = useShopScope(user)
-  const rows = stockRows(stock, catalog, lowLimit).filter(({ product }) => scope === ALL_SHOPS || product.shopId === scope)
+  const rows = stockRows(stock, catalog, lowLimit, categories).filter(({ product }) => scope === ALL_SHOPS || product.shopId === scope)
   const canEdit = user.role !== "admin"
 
   const visible = rows.filter(
@@ -72,24 +81,34 @@ export const StockScreen = ({ user }) => {
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Shoe, brand, SKU or barcode" />
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Product, brand, SKU or barcode" />
         </InputGroup>
         <Segmented label="Stock level" options={filters} value={filter} onChange={withReset(setFilter)} />
+        <Segmented label="View" options={views} value={view} onChange={setView} />
         {canEdit && (
-          <Button size="sm" className="w-full @2xl:ml-auto @2xl:w-auto" onClick={() => setReceiving(true)}>
-            <PackageIcon />
-            Receive delivery
-          </Button>
+          <div className="flex w-full gap-2 @2xl:ml-auto @2xl:w-auto">
+            <Link href="/stock/count" className={buttonVariants({ size: "sm", variant: "outline", className: "flex-1 @2xl:flex-none" })}>
+              <BarcodeIcon />
+              Count stock
+            </Link>
+            <Button size="sm" className="flex-1 @2xl:flex-none" onClick={() => setReceiving(true)}>
+              <PackageIcon />
+              Receive delivery
+            </Button>
+          </div>
         )}
       </div>
 
       <div className="border bg-card">
-        <Table>
+        {view !== "list" ? (
+          <SizeRunTable rows={pagination.rows} scaleFrom={visible} metric="on-hand" />
+        ) : (
+          <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Shoe</TableHead>
-              <TableHead className="hidden @2xl:table-cell">Stock by size (EU)</TableHead>
-              <TableHead className="text-right">Pairs</TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead className="hidden @2xl:table-cell">Stock by size</TableHead>
+              <TableHead className="text-right">In stock</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -108,23 +127,24 @@ export const StockScreen = ({ user }) => {
                     </div>
                   </div>
                   <div className="mt-2.5 max-w-[calc(100cqw-6rem)] overflow-x-auto pb-1 @2xl:hidden">
-                    <SizeChips sizes={row.sizes} threshold={lowLimit} />
+                    <SizeChips sizes={row.sizes} threshold={row.limit} />
                   </div>
                 </TableCell>
                 <TableCell className="hidden @2xl:table-cell">
-                  <SizeChips sizes={row.sizes} threshold={lowLimit} />
+                  <SizeChips sizes={row.sizes} threshold={row.limit} />
                 </TableCell>
                 <TableCell className="text-right font-semibold tabular-nums">{row.total}</TableCell>
               </TableRow>
             ))}
           </TableBody>
-        </Table>
+          </Table>
+        )}
         {!visible.length && <p className="py-12 text-center text-sm text-muted-foreground">Nothing matches.</p>}
         <TablePagination {...pagination} onPageChange={setPage} />
       </div>
-      {canEdit && <p className="text-xs text-muted-foreground">Tap a shoe to fix its stock. Every change is saved with your name and a reason.</p>}
+      {canEdit && <p className="text-xs text-muted-foreground">Tap a product to fix its stock. Every change is saved with your name and a reason.</p>}
 
-      {receiving && <ReceiveStockDialog onClose={() => setReceiving(false)} />}
+      {receiving && <ReceiveStockDialog user={user} onClose={() => setReceiving(false)} />}
       {adjusting && <AdjustStockDialog row={adjusting} onClose={() => setAdjusting(null)} />}
     </>
   )

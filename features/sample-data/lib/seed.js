@@ -1,4 +1,5 @@
 import { indexCatalog, seedCatalog } from "@/features/catalog/lib/catalog"
+import { seedRegisters, seedShops } from "@/features/shops/lib/shops"
 import { lineDiscount } from "@/features/pricing/lib/pricing"
 import {
   applyAdjustment,
@@ -51,7 +52,7 @@ export const createSeed = (now = Date.now()) => {
   const today = new Date(now).setHours(0, 0, 0, 0)
   const start = today - 30 * DAY
 
-  let state = { ...emptyLedger(), ...catalog }
+  let state = { ...emptyLedger(), ...catalog, shops: seedShops(), registers: seedRegisters() }
   const run = (reducer, input) => {
     const result = reducer(state, input)
     state = result.state

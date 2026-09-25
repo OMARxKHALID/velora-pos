@@ -13,7 +13,7 @@ export const ThemeToggle = () => {
         <button
           type="button"
           onClick={() => setTheme("light")}
-          className="flex h-8 items-center justify-center gap-1.5 pointer-coarse:h-11 bg-primary text-2xs font-semibold tracking-widest text-primary-foreground uppercase transition-colors dark:bg-transparent dark:text-muted-foreground dark:hover:text-foreground"
+          className="flex h-8 items-center justify-center gap-1.5 pointer-coarse:h-11 bg-primary text-xs font-medium text-primary-foreground transition-colors dark:bg-transparent dark:text-muted-foreground dark:hover:text-foreground"
         >
           <SunIcon className="size-3.5" />
           Light
@@ -21,7 +21,7 @@ export const ThemeToggle = () => {
         <button
           type="button"
           onClick={() => setTheme("dark")}
-          className="flex h-8 items-center justify-center gap-1.5 pointer-coarse:h-11 text-2xs font-semibold tracking-widest text-muted-foreground uppercase transition-colors hover:text-foreground dark:bg-primary dark:text-primary-foreground dark:hover:text-primary-foreground"
+          className="flex h-8 items-center justify-center gap-1.5 pointer-coarse:h-11 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground dark:bg-primary dark:text-primary-foreground dark:hover:text-primary-foreground"
         >
           <MoonIcon className="size-3.5" />
           Dark

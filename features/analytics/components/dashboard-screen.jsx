@@ -101,13 +101,13 @@ export const DashboardScreen = ({ user }) => {
             tone: view.cashShort > 0 ? "destructive" : undefined,
             hint: <span>{view.shortShifts} of {view.closedShifts} shifts</span>,
           },
-          { label: "Stock value", value: formatMoney(view.stock.value), hint: <span>{view.stock.pairs.toLocaleString("en-PK")} pairs at cost</span> },
+          { label: "Stock value", value: formatMoney(view.stock.value), hint: <span>{view.stock.pairs.toLocaleString("en-PK")} items at cost</span> },
         ]}
       />
 
       <Panel
         title={byHour ? "Today" : "Sales & profit"}
-        description={`${current.count} sales · ${percent(view.cashShare)} cash, ${percent(1 - view.cashShare)} card`}
+        description={`${current.count} sales · ${percent(view.cashShare)} cash, ${percent(1 - view.cashShare)} card and wallets`}
       >
         <div className="p-3">
           <TrendChart data={trend} byHour={byHour} timeZone={view.timeZone} />
@@ -146,7 +146,7 @@ export const DashboardScreen = ({ user }) => {
       )}
 
       <div className="grid gap-4 @4xl:grid-cols-3">
-        <Panel title="Best sellers" description="Most pairs sold">
+        <Panel title="Best sellers" description="Most items sold">
           <List
             empty="No sales in this period."
             rows={best.map(({ id, name, brand, pairs }) => ({ key: id, title: name, detail: brand, value: `${pairs} sold` }))}
@@ -166,8 +166,8 @@ export const DashboardScreen = ({ user }) => {
         </Panel>
         <Panel title="Not selling" description={`No sale in 14 days · ${formatMoney(idle.value)} tied up`}>
           <List
-            empty="Every shoe sold in the last 14 days."
-            rows={idle.rows.map(({ id, name, pairs, value }) => ({ key: id, title: name, detail: `${pairs} pairs in stock`, value: formatMoney(value) }))}
+            empty="Every product sold in the last 14 days."
+            rows={idle.rows.map(({ id, name, pairs, value }) => ({ key: id, title: name, detail: `${pairs} in stock`, value: formatMoney(value) }))}
           />
         </Panel>
       </div>
@@ -180,7 +180,7 @@ export const DashboardScreen = ({ user }) => {
                 <div className="flex justify-between gap-3 text-sm">
                   <span>{brand}</span>
                   <span className="text-muted-foreground tabular-nums">
-                    {formatMoney(revenue)} · {pairs} pairs
+                    {formatMoney(revenue)} · {pairs} sold
                   </span>
                 </div>
                 <div className="h-2 bg-muted">

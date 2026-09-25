@@ -3,8 +3,7 @@
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
 import { cn } from "cn"
-import { CheckCircleIcon, DotsThreeVerticalIcon, InfoIcon, MagnifyingGlassIcon, PlusIcon, ProhibitIcon, TrashIcon, UserSwitchIcon } from "@phosphor-icons/react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { AirplaneTiltIcon, CheckCircleIcon, DotsThreeVerticalIcon, InfoIcon, MagnifyingGlassIcon, PlusIcon, ProhibitIcon, TrashIcon, UserSwitchIcon } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -20,13 +19,18 @@ import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TablePagination, paginate, resetsPage } from "@/components/ui/table-pagination"
 import { roleLabels } from "@/features/auth/lib/roles"
-import { activeStaff } from "@/features/staff/lib/people"
+import { activeStaff, isOnLeave, worksAtClosedShop } from "@/features/staff/lib/people"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
+import { useShopNameOf, useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ALL_SHOPS, staffShopId } from "@/features/shops/lib/shops"
 import { timeAgo } from "@/lib/dates"
-import { changeRoleAction, createStaffAction, removeStaffAction, setAccessAction, setPasswordAction } from "../actions"
+import { changeRoleAction, createStaffAction, removeStaffAction, setAccessAction, setLeaveAction, setPasswordAction, updateProfileAction } from "../actions"
 import { CreateStaffDialog } from "./create-staff-dialog"
+import { EditStaffDialog } from "./edit-staff-dialog"
+import { LeaveDialog } from "./leave-dialog"
 import { RemoveStaffDialog } from "./remove-staff-dialog"
 import { RoleBadge } from "./role-badge"
+import { StaffAvatar } from "./staff-avatar"
 import { StaffDetailsDialog } from "./staff-details-dialog"
 
 const roleFilters = [
@@ -37,8 +41,13 @@ const roleFilters = [
 
 const unreachable = { error: "Could not reach the server. Check the connection." }
 
-export const StaffScreen = () => {
+const statusTones = { Disabled: "text-destructive", "On leave": "text-warning", "Shop closed": "text-warning", Active: "text-success" }
+
+export const StaffScreen = ({ user }) => {
   const staff = useLedgerStore(({ staff }) => staff)
+  const shops = useLedgerStore(({ shops }) => shops)
+  const [editing, setEditing] = useState(null)
+  const [leaveFor, setLeaveFor] = useState(null)
 
   const [roleFilter, setRoleFilter] = useState("all")
   const [query, setQuery] = useState("")
@@ -49,13 +58,15 @@ export const StaffScreen = () => {
   const [creating, setCreating] = useState(false)
 
   const search = query.trim().toLowerCase()
-  const people = activeStaff(staff)
+  const scope = useShopScope(user)
+  const people = activeStaff(staff).filter((person) => scope === ALL_SHOPS || person.role === "admin" || staffShopId(person) === scope)
+  const shopOf = useShopNameOf()
   const selected = selectedId ? (staff[selectedId] ?? null) : null
 
   const visible = people.filter(
     (person) =>
       (roleFilter === "all" || person.role === roleFilter) &&
-      (!search || [person.name, person.username, person.email, person.phone, person.shop, roleLabels[person.role]].some((value) => value?.toLowerCase().includes(search)))
+      (!search || [person.name, person.username, person.email, person.phone, shopOf(person), roleLabels[person.role]].some((value) => value?.toLowerCase().includes(search)))
   )
 
   const pagination = paginate(visible, page)
@@ -116,6 +127,24 @@ export const StaffScreen = () => {
       () => toast.success("Password changed", { description: `${person.name} was signed out and can sign in with the new password.` })
     )
 
+  const handleLeave = (person, leave) =>
+    run(
+      () => setLeaveAction(person.id, leave),
+      () => {
+        toast.success(leave ? "Leave saved" : "Welcome back", { description: leave ? `${person.name} is marked on leave.` : `${person.name} can sign in again.` })
+        setLeaveFor(null)
+      }
+    )
+
+  const handleSaveProfile = (id, input) =>
+    run(
+      () => updateProfileAction(id, input),
+      () => {
+        toast.success("Profile saved")
+        setEditing(null)
+      }
+    )
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -147,6 +176,7 @@ export const StaffScreen = () => {
           <TableBody>
             {pagination.rows.map((person) => {
               const off = person.disabled
+              const status = off ? "Disabled" : isOnLeave(person) ? "On leave" : worksAtClosedShop(person, shops) ? "Shop closed" : "Active"
               const lastActive = activityOf(person.id).lastActive
               const isOwner = person.role === "admin"
 
@@ -154,34 +184,32 @@ export const StaffScreen = () => {
                 <TableRow key={person.id} className="hover:bg-accent/40" onClick={() => setSelectedId(person.id)}>
                   <TableCell className="w-full max-w-0 @lg:w-auto @lg:max-w-none">
                     <div className="flex items-center gap-3">
-                      <Avatar size="default" className="size-9 shrink-0">
-                        <AvatarFallback className="text-xs font-semibold">{person.avatar || person.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
+                      <StaffAvatar person={person} className="size-9 shrink-0" fallbackClassName="text-xs font-semibold" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className={cn("truncate text-sm font-medium", off && "text-muted-foreground line-through")}>{person.name}</p>
                           <RoleBadge role={person.role} className="@lg:hidden" />
                         </div>
                         <p className="truncate text-xs text-muted-foreground">
-                          <span className="font-mono">{person.username}</span> · {person.shop}
+                          <span className="font-mono">{person.username}</span> · {shopOf(person)}
                         </p>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden @@4xl:table-cell">
+                  <TableCell className="hidden @3xl:table-cell">
                     <RoleBadge role={person.role} />
                   </TableCell>
                   <TableCell className="hidden text-xs text-muted-foreground @2xl:table-cell">
                     <p className="truncate">{person.email || "—"}</p>
                     <p className="mt-0.5">{person.phone || "—"}</p>
                   </TableCell>
-                  <TableCell className="hidden text-xs text-muted-foreground @4xl:table-cell">{person.shop}</TableCell>
-                  <TableCell className="hidden text-xs text-muted-foreground @@4xl:table-cell">{lastActive ? timeAgo(lastActive) : "Never"}</TableCell>
+                  <TableCell className="hidden text-xs text-muted-foreground @4xl:table-cell">{shopOf(person)}</TableCell>
+                  <TableCell className="hidden text-xs text-muted-foreground @5xl:table-cell">{lastActive ? timeAgo(lastActive) : "Never"}</TableCell>
                   <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
-                      <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase", off ? "text-destructive" : "text-success")}>
-                        <span className={cn("size-1.5 rounded-full", off ? "bg-destructive" : "bg-success")} />
-                        <span className="hidden @lg:inline">{off ? "Disabled" : "Active"}</span>
+                      <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase", statusTones[status])}>
+                        <span className="size-1.5 rounded-full bg-current" />
+                        <span className="hidden @lg:inline">{status}</span>
                       </span>
 
                       {isOwner ? (
@@ -208,6 +236,17 @@ export const StaffScreen = () => {
                                 </DropdownMenuItem>
                               </DropdownMenuGroup>
                               <DropdownMenuSeparator />
+                              {person.leave ? (
+                                <DropdownMenuItem onClick={() => handleLeave(person, null)}>
+                                  <CheckCircleIcon className="text-success" />
+                                  End leave
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => setLeaveFor(person)}>
+                                  <AirplaneTiltIcon />
+                                  Mark on leave
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => handleTransfer(person, person.role === "cashier" ? "manager" : "cashier")}>
                                 <UserSwitchIcon />
                                 {person.role === "cashier" ? "Make supervisor" : "Make cashier"}
@@ -234,12 +273,16 @@ export const StaffScreen = () => {
 
       <p className="text-xs text-muted-foreground">Tap a staff member to see their profile and activity, or to set a new password. Everyone on this list signs in with their own username.</p>
 
-      {creating && <CreateStaffDialog pending={pending} onClose={() => setCreating(false)} onCreate={handleCreate} />}
+      {creating && <CreateStaffDialog user={user} pending={pending} onClose={() => setCreating(false)} onCreate={handleCreate} />}
       {selected && (
         <StaffDetailsDialog
           person={selected}
           activity={activityOf(selected.id)}
           pending={pending}
+          onEdit={(person) => {
+            setSelectedId(null)
+            setEditing(person)
+          }}
           onTransfer={handleTransfer}
           onSetPassword={handleSetPassword}
           onRemove={(person) => {
@@ -249,6 +292,8 @@ export const StaffScreen = () => {
           onClose={() => setSelectedId(null)}
         />
       )}
+      {leaveFor && <LeaveDialog person={leaveFor} onClose={() => setLeaveFor(null)} onSave={handleLeave} />}
+      {editing && <EditStaffDialog person={editing} onClose={() => setEditing(null)} onSave={handleSaveProfile} />}
       {removing && <RemoveStaffDialog person={removing} pending={pending} onCancel={() => setRemoving(null)} onConfirm={handleConfirmRemove} />}
     </div>
   )

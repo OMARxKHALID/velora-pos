@@ -8,7 +8,7 @@ const MovementsPage = async () => {
 
   return (
     <>
-      <PageHeader title="Stock history" description="Every pair in and out, with who did it and why." />
+      <PageHeader title="Stock history" description="Every item in and out, with who did it and why." />
       <LedgerReady>
         <MovementsScreen user={user} />
       </LedgerReady>
