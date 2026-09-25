@@ -4,6 +4,8 @@ export const activeStaff = (staff) => Object.values(staff ?? {}).filter((person)
 
 export const supervisorsOf = (staff) => activeStaff(staff).filter(({ role, disabled }) => role === "manager" && !disabled)
 
+export const approversOf = (staff, shopId, today) => supervisorsOf(staff).filter((person) => person.shopId === shopId && !isOnLeave(person, today))
+
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const CNIC_PATTERN = /^(\d{5})-?(\d{7})-?(\d)$/
 const PHONE_PATTERN = /^(?:\+92|0)(3\d{2})[\s-]?(\d{7})$/

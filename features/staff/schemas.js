@@ -15,6 +15,24 @@ export const createStaffSchema = z.object({
   password: passwordSchema,
   email: z.union([z.literal(""), z.email({ error: "Enter a valid email" })]).default(""),
   phone: z.string().trim().max(30, { error: "Keep the phone number under 30 characters" }).default(""),
+  shopId: z.string().min(1).max(64).nullish(),
+  cnic: z.string().max(20).default(""),
+  address: z.string().max(200).default(""),
+  city: z.string().max(60).default(""),
+  emergencyContact: z.string().max(30).default(""),
+  photo: z.string().max(200000).nullish(),
+})
+
+export const profileSchema = z.object({
+  name,
+  email: z.string().max(80).default(""),
+  phone: z.string().max(30).default(""),
+  shopId: z.string().min(1).max(64).nullish(),
+  cnic: z.string().max(20).default(""),
+  address: z.string().max(200).default(""),
+  city: z.string().max(60).default(""),
+  emergencyContact: z.string().max(30).default(""),
+  photo: z.string().max(200000).nullish(),
 })
 
 export const pinSchema = z.string().regex(/^\d{4}$/, { error: "The PIN must be 4 digits" })

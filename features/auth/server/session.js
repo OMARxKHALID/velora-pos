@@ -2,6 +2,7 @@ import "server-only"
 import { cache } from "react"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import { blockedReason } from "@/features/staff/server/access"
 import { getDb, getMongoClient } from "@/lib/db/client"
 import { authEnv } from "@/lib/env"
 import { AccessDenied } from "@/lib/errors"
@@ -12,6 +13,7 @@ export const getSession = cache(async () => {
   const requestHeaders = await headers()
   const session = await getAuth().api.getSession({ headers: requestHeaders })
   if (!session?.user || session.user.banned || session.user.removedAt) return null
+  if (await blockedReason(getDb(), session.user)) return null
   return toSessionUser(session.user)
 })
 

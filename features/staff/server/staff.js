@@ -1,10 +1,10 @@
 import "server-only"
-import { SHOP_ID } from "@/features/catalog/lib/catalog"
 import { hashPin } from "@/features/auth/server/pins"
 import { UserError, parseInput } from "@/lib/errors"
 import { COLLECTIONS as C } from "@/lib/db/collections"
+import { cleanLeave, cleanProfile } from "../lib/people"
 import { checkStaffChange, initialsOf } from "../lib/rules"
-import { createStaffSchema, passwordSchema, pinSchema } from "../schemas"
+import { createStaffSchema, passwordSchema, pinSchema, profileSchema } from "../schemas"
 
 const PLACEHOLDER_EMAIL_DOMAIN = "staff.invalid"
 
@@ -20,6 +20,12 @@ const toPerson = (doc) => ({
   banned: Boolean(doc.banned),
   removedAt: doc.removedAt ?? null,
   hasPin: Boolean(doc.pinHash),
+  cnic: doc.cnic ?? "",
+  city: doc.city ?? "",
+  address: doc.address ?? "",
+  emergencyContact: doc.emergencyContact ?? "",
+  photo: doc.photo ?? null,
+  leave: doc.leaveFrom ? { from: doc.leaveFrom, until: doc.leaveUntil ?? null, note: doc.leaveNote ?? "" } : null,
 })
 
 export const listPeople = async (db) =>
@@ -47,7 +53,16 @@ export const staffActivity = async (db) => {
 export const directoryFor = (viewer, people, activity = {}, shops = []) =>
   Object.fromEntries(
     people.map((person) => {
-      const base = { id: person.id, name: person.name, role: person.role, removed: Boolean(person.removedAt), disabled: person.banned && !person.removedAt }
+      const base = {
+        id: person.id,
+        name: person.name,
+        role: person.role,
+        removed: Boolean(person.removedAt),
+        disabled: person.banned && !person.removedAt,
+        shopId: person.role === "admin" ? null : (person.shopIds[0] ?? null),
+        leave: person.leave,
+        ...(person.id === viewer.id && { photo: person.photo }),
+      }
       if (viewer.role !== "admin") return [person.id, base]
       return [
         person.id,
@@ -56,6 +71,11 @@ export const directoryFor = (viewer, people, activity = {}, shops = []) =>
           username: person.username,
           email: person.email,
           phone: person.phone,
+          cnic: person.cnic,
+          city: person.city,
+          address: person.address,
+          emergencyContact: person.emergencyContact,
+          photo: person.photo,
           shop: person.role === "admin" ? "Head Office" : (shops.find(({ id }) => id === person.shopIds[0])?.name ?? "Shop"),
           joinedAt: new Date(person.createdAt).toISOString(),
           avatar: initialsOf(person.name),
@@ -71,21 +91,75 @@ const guard = async (db, id, change) => {
   if (reason) throw new UserError(reason)
 }
 
+const profileOf = (input) => {
+  try {
+    return cleanProfile(input)
+  } catch (error) {
+    throw new UserError(error.message)
+  }
+}
+
+const workplaceFor = async (db, requested) => {
+  const shop = await db.collection(C.shops).findOne(requested ? { _id: requested } : {}, { sort: { createdAt: 1, _id: 1 }, projection: { active: 1 } })
+  if (!shop) throw new UserError("Choose the shop this person works at.")
+  if (shop.active === false) throw new UserError("That shop is closed.")
+  return shop._id
+}
+
+const editable = async (db, id) => {
+  const person = (await listPeople(db)).find((entry) => entry.id === id)
+  if (!person || person.removedAt) throw new UserError("This person is not on the team.")
+  if (person.role === "admin") throw new UserError("The owner account cannot be changed.")
+  return person
+}
+
 export const createStaff = async ({ auth, db, headers }, input) => {
   const data = parseInput(createStaffSchema, input)
+  const profile = profileOf(data)
+  const shopId = await workplaceFor(db, data.shopId)
   if (await db.collection(C.users).findOne({ username: data.username })) throw new UserError(`The username ${data.username} is taken.`)
-  const email = data.email || `${data.username}@${PLACEHOLDER_EMAIL_DOMAIN}`
+  const email = profile.email || `${data.username}@${PLACEHOLDER_EMAIL_DOMAIN}`
   const { user } = await auth.api.createUser({
     headers,
     body: {
-      name: data.name.replace(/\s+/g, " "),
+      name: profile.name,
       email,
       password: data.password,
       role: data.role,
-      data: { username: data.username, displayUsername: data.username, phone: data.phone, shopIds: [SHOP_ID] },
+      data: { username: data.username, displayUsername: data.username, phone: profile.phone, shopIds: [shopId] },
     },
   })
+  await db.collection(C.users).updateOne({ _id: user.id }, { $set: { cnic: profile.cnic, city: profile.city, address: profile.address, emergencyContact: profile.emergencyContact, photo: profile.photo } })
   return { id: user.id }
+}
+
+export const updateProfile = async ({ db }, id, input) => {
+  const person = await editable(db, id)
+  const data = parseInput(profileSchema, input)
+  const profile = profileOf(data)
+  const email = profile.email || person.email || `${person.username}@${PLACEHOLDER_EMAIL_DOMAIN}`
+  if (email !== person.email && (await db.collection(C.users).findOne({ email, _id: { $ne: id } }))) throw new UserError("Another person already uses that email.")
+  const shopIds = data.shopId && data.shopId !== person.shopIds[0] ? [await workplaceFor(db, data.shopId)] : person.shopIds
+  await db.collection(C.users).updateOne(
+    { _id: id },
+    { $set: { name: profile.name, email, phone: profile.phone, cnic: profile.cnic, city: profile.city, address: profile.address, emergencyContact: profile.emergencyContact, photo: profile.photo, shopIds, updatedAt: new Date() } }
+  )
+  return {}
+}
+
+export const setLeave = async ({ db }, id, input) => {
+  await editable(db, id)
+  let leave
+  try {
+    leave = cleanLeave(input)
+  } catch (error) {
+    throw new UserError(error.message)
+  }
+  await db.collection(C.users).updateOne(
+    { _id: id },
+    leave ? { $set: { leaveFrom: leave.from, leaveUntil: leave.until, leaveNote: leave.note } } : { $unset: { leaveFrom: "", leaveUntil: "", leaveNote: "" } }
+  )
+  return {}
 }
 
 export const changeRole = async ({ auth, db, headers }, id, role) => {

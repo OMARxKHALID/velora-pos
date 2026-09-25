@@ -10,13 +10,13 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { Segmented } from "@/components/ui/segmented"
 import { approveDiscountAction } from "@/features/auth/actions"
-import { supervisorsOf } from "@/features/staff/lib/people"
+import { approversOf } from "@/features/staff/lib/people"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { managerPinSchema } from "../schemas"
 
-export const ManagerApprovalDialog = ({ reason, discountPct, onApprove, onClose }) => {
+export const ManagerApprovalDialog = ({ shopId, reason, discountPct, onApprove, onClose }) => {
   const staff = useLedgerStore(({ staff }) => staff)
-  const supervisors = supervisorsOf(staff)
+  const supervisors = approversOf(staff, shopId)
   const offline = useLedgerStore(({ offline }) => offline)
   const [chosen, setChosen] = useState(null)
   const approver = supervisors.find(({ id }) => id === chosen) ?? supervisors[0] ?? null

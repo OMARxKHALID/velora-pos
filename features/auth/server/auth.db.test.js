@@ -2,9 +2,11 @@ import { beforeAll, describe, expect, test } from "bun:test"
 import { hasTestDatabase, useTestDatabase } from "@/test/db"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { resetSampleTeam, seedSampleTeam } from "@/features/sample-data/server/sample-data"
-import { changeRole, createStaff, directoryFor, listPeople, removeStaff, setAccess, setPassword, setSupervisorPin } from "@/features/staff/server/staff"
+import { changeRole, createStaff, directoryFor, listPeople, removeStaff, setAccess, setLeave, setPassword, setSupervisorPin, updateProfile } from "@/features/staff/server/staff"
 import { readApproval } from "./approval-token"
 import { approveDiscount } from "./approvals"
+import { ensureFirstShop } from "@/features/shops/server/first-shop"
+import { blockedReason } from "@/features/staff/server/access"
 import { createAuth } from "./create-auth"
 
 const SECRET = "test-secret-that-is-long-enough-123456"
@@ -26,6 +28,7 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     deps.auth = createAuth({ db: context.db, client: context.client, secret: SECRET, baseURL: "http://localhost:3000", rateLimit: false })
     deps.db = context.db
     deps.pinSecret = SECRET
+    await ensureFirstShop(context.db)
     await seedSampleTeam({ auth: deps.auth, db: context.db, password: PASSWORD, pinSecret: SECRET })
   })
 
@@ -44,7 +47,7 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
 
   test("the owner adds staff who can then sign in; usernames are unique; a cashier cannot add staff", async () => {
     const owner = await as("asif")
-    const { id } = await createStaff(owner, { name: "Zain  Malik", role: "cashier", username: "Zain", password: "zain-pass-1", email: "", phone: "0300 1" })
+    const { id } = await createStaff(owner, { name: "Zain  Malik", role: "cashier", username: "Zain", password: "zain-pass-1", email: "", phone: "0300 1234567" })
     expect(id).toMatch(/^u-[a-f0-9]{16}$/)
     expect(await signIn("zain", "zain-pass-1")).not.toBeNull()
     expect((await person(id)).email).toBeNull()
@@ -98,7 +101,7 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
 
   test("other roles only see names and roles in the staff directory", async () => {
     const directory = directoryFor({ role: "cashier" }, await listPeople(context.db))
-    expect(Object.keys(directory["u-manager"]).toSorted()).toEqual(["disabled", "id", "name", "removed", "role"])
+    expect(Object.keys(directory["u-manager"]).toSorted()).toEqual(["disabled", "id", "leave", "name", "removed", "role", "shopId"])
     expect(directoryFor({ role: "admin" }, await listPeople(context.db))["u-manager"]).toMatchObject({ username: "bilal", hasPin: true })
   })
 
@@ -129,5 +132,43 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     expect(await context.db.collection(C.pinFailures).countDocuments()).toBe(0)
     const { approvedBy } = await approveDiscount({ db: context.db, pinSecret: SECRET, approvalSecret: SECRET }, { cashierId: "u-cashier", discountPct: 10, supervisorId: "u-manager", pin: "1234" })
     expect(approvedBy).toBe("u-manager")
+  })
+
+  test("profiles are checked and saved, and a person can move to another shop", async () => {
+    const owner = await as("asif")
+    const { id } = await createStaff(owner, { name: "Profile Person", role: "cashier", username: "profile", password: "profile-pass-1", cnic: "35202-1234567-1", city: "Lahore" })
+    expect(await person(id)).toMatchObject({ cnic: "35202-1234567-1", city: "Lahore", shopIds: ["shop-shoes"] })
+    await expect(updateProfile(owner, id, { name: "Profile Person", cnic: "123" })).rejects.toThrow("CNIC")
+    await expect(updateProfile(owner, id, { name: "Profile Person", phone: "12" })).rejects.toThrow("Pakistani mobile")
+    await expect(updateProfile(owner, id, { name: "Profile Person", email: "nope" })).rejects.toThrow("email")
+    await expect(updateProfile(owner, id, { name: "P", shopId: "shop-none" })).rejects.toThrow()
+    await updateProfile(owner, id, { name: "Profile Renamed", email: "profile@velora.pk", phone: "03001234567", address: "Gulberg", emergencyContact: "0321 7654321", photo: "data:image/jpeg;base64,AAAA" })
+    expect(await person(id)).toMatchObject({ name: "Profile Renamed", email: "profile@velora.pk", phone: "0300 1234567", address: "Gulberg", emergencyContact: "0321 7654321", photo: "data:image/jpeg;base64,AAAA" })
+    await expect(updateProfile(owner, "u-admin", { name: "Hacker" })).rejects.toThrow("owner account")
+  })
+
+  test("someone on leave, or at a closed shop, cannot use the till or approve discounts", async () => {
+    const owner = await as("asif")
+    const { id } = await createStaff(owner, { name: "Leave Person", role: "manager", username: "leaver", password: "leaver-pass-1" })
+    await setSupervisorPin(owner, id, "2468")
+    const doc = () => context.db.collection("users").findOne({ _id: id })
+    expect(await blockedReason(context.db, await doc())).toBeNull()
+
+    await setLeave(owner, id, { from: "2020-01-01", until: "2099-12-31", note: "Hajj" })
+    expect(await blockedReason(context.db, await doc())).toMatch("on leave until 2099-12-31")
+    const approve = (supervisorId, shopId = "shop-shoes") => approveDiscount({ db: context.db, pinSecret: SECRET, approvalSecret: SECRET }, { cashierId: "u-cashier", shopId, discountPct: 10, supervisorId, pin: "2468" })
+    await expect(approve(id)).rejects.toThrow("on leave")
+    await expect(setLeave(owner, id, { from: "2026-02-01", until: "2026-01-01" })).rejects.toThrow("on or after")
+    await expect(setLeave(owner, id, { from: "soon" })).rejects.toThrow("first day")
+
+    await setLeave(owner, id, null)
+    expect(await blockedReason(context.db, await doc())).toBeNull()
+    expect((await approve(id)).approvedBy).toBe(id)
+    await expect(approve(id, "shop-other")).rejects.toThrow("from this shop")
+
+    await context.db.collection("shops").updateOne({ _id: "shop-shoes" }, { $set: { active: false } })
+    expect(await blockedReason(context.db, await doc())).toBe("Your shop is closed.")
+    expect(await blockedReason(context.db, await context.db.collection("users").findOne({ _id: "u-admin" }))).toBeNull()
+    await context.db.collection("shops").updateOne({ _id: "shop-shoes" }, { $set: { active: true } })
   })
 })
