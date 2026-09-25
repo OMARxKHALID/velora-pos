@@ -5,7 +5,7 @@ import { DAY } from "@/lib/dates"
 import { escapeRegExp } from "@/lib/escape-regexp"
 
 export const SALE_RANGES = { today: 1, "7d": 7, "30d": 30, all: null }
-export const PAGE_SIZE = 25
+export const PAGE_SIZE = 10
 
 const saleFilter = ({ shopIds, viewer, range = "7d", cashierId = null, q = "", timeZone = SHOP_TIME_ZONE, now = Date.now() }) => {
   const days = SALE_RANGES[range]

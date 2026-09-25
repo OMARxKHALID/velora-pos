@@ -1,7 +1,7 @@
 import { COLLECTIONS as C, fromDoc } from "@/lib/db/collections"
 import { escapeRegExp } from "@/lib/escape-regexp"
 
-export const PAGE_SIZE = 50
+export const PAGE_SIZE = 10
 
 const searchFilter = async (db, shopIds, q) => {
   const pattern = new RegExp(escapeRegExp(q.trim()), "i")
