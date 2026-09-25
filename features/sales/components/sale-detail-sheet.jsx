@@ -281,7 +281,6 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
       {exchanging && (
         <ExchangeDialog
           sale={sale}
-          user={user}
           onClose={() => setExchanging(false)}
         />
       )}

@@ -95,9 +95,10 @@ export const applySale = (
     shopId = SHOP_ID,
     registerId = REGISTER_ID,
     registerCode = REGISTER_CODE,
-    fbrPosId = settings.fbrPosId,
-    ntn = settings.ntn,
-    strn = settings.strn,
+    number: forcedNumber = null,
+    fbrPosId = null,
+    ntn = null,
+    strn = null,
   }
 ) => {
   const existing = state.sales.find((sale) => sale.clientId === clientId)
@@ -168,7 +169,7 @@ export const applySale = (
 
   const receiptSeq = state.receiptSeq + 1
   const counterSeq = (state.receiptSeqs?.[registerId] ?? (registerId === REGISTER_ID ? state.receiptSeq : 0)) + 1
-  const number = `${registerCode}-${String(counterSeq).padStart(6, "0")}`
+  const number = forcedNumber ?? `${registerCode}-${String(counterSeq).padStart(6, "0")}`
   const stamped = settings.fbrEnabled
     ? fbrRecord(state, { posId: fbrPosId, usin: number, at, offline, invoiceType: FBR_INVOICE_TYPE.sale })
     : { state, fbr: null }

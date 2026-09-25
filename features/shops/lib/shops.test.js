@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { applyOpenShift, applySale } from "@/features/ledger/lib/rules"
 import { createSeed } from "@/features/sample-data/lib/seed"
-import { ALL_SHOPS, SETTING_GROUPS, applyDeleteShop, applyResetShopSettings, applySaveRegister, applySaveShop, applySetShopSettings, overriddenKeys, scopeState, settingsFor, shopName, shopRegisters } from "./shops"
+import { ALL_SHOPS, applyDeleteShop, applySaveRegister, applySaveShop, scopeState, settingsFor, shopName, shopRegisters } from "./shops"
 
 test("scoping to a shop keeps only that shop's records", () => {
   const state = createSeed()
@@ -69,15 +69,13 @@ test("only an empty shop can be deleted, never the last one", () => {
   expect(() => applyDeleteShop(withHistory, { shopId: record.id })).toThrow("Close it instead")
 })
 
-test("a shop can override group settings and go back to them", () => {
-  const state = createSeed()
-  const settings = { taxEnabled: false, taxRate: 0, cashRounding: 1 }
-  const shopId = state.shops[0].id
-  const { state: custom } = applySetShopSettings(state, { shopId, patch: { taxEnabled: true, taxRate: 18 } })
-  expect(settingsFor(settings, custom.shops, shopId)).toMatchObject({ taxEnabled: true, taxRate: 18, cashRounding: 1 })
-  expect(settingsFor(settings, custom.shops, "shop-other")).toMatchObject({ taxEnabled: false, taxRate: 0 })
-  expect(overriddenKeys(custom.shops[0], SETTING_GROUPS.tax)).toEqual(["taxEnabled", "taxRate"])
-  const { state: back } = applyResetShopSettings(custom, { shopId, keys: SETTING_GROUPS.tax })
-  expect(settingsFor(settings, back.shops, shopId).taxEnabled).toBe(false)
-  expect(() => applySetShopSettings(state, { shopId, patch: { staff: {} } })).toThrow("whole group")
+test("a shop's settings come from its own document, falling back to the first shop", () => {
+  const shops = [
+    { id: "a", settings: { taxEnabled: true, taxRate: 18 } },
+    { id: "b", settings: { taxEnabled: false, taxRate: 0 } },
+  ]
+  expect(settingsFor(shops, "b")).toMatchObject({ taxEnabled: false })
+  expect(settingsFor(shops, "a")).toMatchObject({ taxRate: 18 })
+  expect(settingsFor(shops, "all")).toMatchObject({ taxRate: 18 })
+  expect(settingsFor([], "a")).toMatchObject({ taxEnabled: false, cashRounding: 1 })
 })

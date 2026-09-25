@@ -1,4 +1,5 @@
 import { offlineNumbers } from "@/features/pos/lib/receipts"
+import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 import { listRegisters, listShops } from "@/features/shops/server/shops"
 import { COLLECTIONS as C, fromDoc } from "@/lib/db/collections"
 
@@ -25,7 +26,7 @@ export const ledgerSnapshot = async (db, { user, now = new Date() }) => {
   const cashier = user.role === "cashier"
   const all = (name, filter = {}, sort = { _id: 1 }) => db.collection(name).find({ ...inShops, ...filter }, { sort }).toArray()
 
-  const [shops, registers, products, variants, stock, shifts, settings, refunds, usedVariantIds, heldCarts] = await Promise.all([
+  const [shops, registers, products, variants, stock, shifts, settings, refunds, usedVariantIds, heldCarts, exchanges, categories] = await Promise.all([
     listShops(db, shopIds),
     listRegisters(db, shopIds),
     all(C.products),
@@ -36,6 +37,8 @@ export const ledgerSnapshot = async (db, { user, now = new Date() }) => {
     all(C.refunds, { $or: [{ status: "pending" }, { createdAt: { $gte: since } }], ...(cashier ? { requestedBy: user.id } : {}) }, { createdAt: 1 }),
     cashier ? [] : db.collection(C.movements).distinct("variantId", inShops),
     cashier ? all(C.heldCarts, {}, { parkedAt: -1 }) : [],
+    all(C.exchanges, { createdAt: { $gte: since } }, { createdAt: 1 }),
+    all(C.categories, {}, { name: 1 }),
   ])
 
   const { _id: _settingsId, shopId: _settingsShop, ...shopSettings } = settings ?? {}
@@ -47,9 +50,11 @@ export const ledgerSnapshot = async (db, { user, now = new Date() }) => {
     variants: variants.map(fromDoc).map((variant) => (cashier ? withoutCost(variant) : variant)),
     stock: Object.fromEntries(stock.map(({ variantId, quantity }) => [variantId, quantity])),
     refunds: refunds.map(fromDoc),
+    exchanges: exchanges.map(fromDoc),
+    categories: categories.map(fromDoc),
     shifts: (await withOfflineNext(db, shifts)).map(fromDoc),
     usedVariantIds,
     heldCarts: heldCarts.map(fromDoc),
-    settings: shopSettings,
+    settings: { ...defaultPricingSettings(), ...shopSettings },
   }
 }

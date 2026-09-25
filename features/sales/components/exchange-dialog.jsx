@@ -17,17 +17,16 @@ const sectionLabel = "text-2xs font-semibold tracking-label text-muted-foregroun
 
 const describe = ({ attributes }) => `${attributes.color} · ${sizeLabel(attributes.size)}`
 
-export const ExchangeDialog = ({ sale, user, onClose }) => {
-  const sales = useLedgerStore(({ sales }) => sales)
-  const refunds = useLedgerStore(({ refunds }) => refunds)
-  const exchanges = useLedgerStore(({ exchanges }) => exchanges)
+export const ExchangeDialog = ({ sale, onClose }) => {
+  const refunds = useLedgerStore(({ refunds }) => refunds).filter(({ saleId }) => saleId === sale.id)
+  const exchanges = useLedgerStore(({ exchanges }) => exchanges).filter(({ saleId }) => saleId === sale.id)
   const stock = useLedgerStore(({ stock }) => stock)
   const exchangeItem = useLedgerStore(({ exchangeItem }) => exchangeItem)
   const { productById, variantById, variantsByProduct } = useCatalog()
   const [clientId] = useState(newId)
 
   const swappable = sale.items
-    .map((item) => ({ item, left: refundableQuantity({ sales, refunds, exchanges }, sale.id, item.variantId) }))
+    .map((item) => ({ item, left: refundableQuantity({ sales: [sale], refunds, exchanges }, sale.id, item.variantId) }))
     .filter(({ left }) => left > 0)
   const [fromId, setFromId] = useState(swappable[0]?.item.variantId ?? null)
   const [quantity, setQuantity] = useState(1)
@@ -44,10 +43,10 @@ export const ExchangeDialog = ({ sale, user, onClose }) => {
     setQuantity(1)
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     try {
-      exchangeItem({ saleId: sale.id, fromVariantId: fromId, toVariantId: toId, quantity, userId: user.id, clientId })
+      await exchangeItem({ saleId: sale.id, fromVariantId: fromId, toVariantId: toId, quantity, clientId })
       toast.success("Swapped", { description: `${product.name}: ${describe(from)} → ${describe(variantById[toId])}` })
       onClose()
     } catch (error) {

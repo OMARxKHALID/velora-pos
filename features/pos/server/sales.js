@@ -7,11 +7,11 @@ import { cartTotals, effectiveRate } from "@/features/pricing/lib/pricing"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/lib/db/collections"
 import { isDuplicateKey, withTransaction } from "@/lib/db/transaction"
 import { inBlocks, receiptNumber } from "../lib/receipts"
-import { registerFor, shopSettings } from "./register"
+import { fbrSeqOf, registerFor, saveFbrSeq, shopSettings } from "./register"
 
 const CLOCK_SLACK = 5 * 60 * 1000
 const PRICE_HISTORY_SLACK = 24 * 60 * 60 * 1000
-const TILL_SETTINGS = ["taxEnabled", "taxRate", "productDiscountEnabled", "cartDiscountEnabled"]
+const TILL_SETTINGS = ["taxEnabled", "taxRate", "productDiscountEnabled", "cartDiscountEnabled", "pricesIncludeTax", "fbrServiceFee", "cashRounding"]
 
 const lineSchema = z.object({
   variantId: z.string().min(1).max(80),
@@ -47,6 +47,9 @@ const offlineSaleSchema = saleSchema.extend({
     taxLabel: z.string().max(40).nullish(),
     productDiscountEnabled: z.boolean(),
     cartDiscountEnabled: z.boolean(),
+    pricesIncludeTax: z.boolean().optional(),
+    fbrServiceFee: z.boolean().optional(),
+    cashRounding: z.union([z.literal(1), z.literal(5), z.literal(10)]).optional(),
   }),
 })
 
@@ -73,14 +76,17 @@ const indexOf = ({ products, variants }) => ({
   variantById: Object.fromEntries(variants.map((variant) => [variant.id, variant])),
 })
 
-const buildSale = async (db, session, { user, shift, register, catalog, settings, lines, input, at, approvalSecret }) => {
+const categoriesOf = async (db, session, shopId) => (await db.collection(C.categories).find({ shopId }, { session }).toArray()).map(fromDoc)
+
+const buildSale = async (db, session, { user, shift, register, shop, catalog, settings, lines, input, at, approvalSecret, number }) => {
   const { rows, subtotal } = cartTotals(lines, input.discountPct, indexOf(catalog), settings)
   const cartDiscount = rows.reduce((sum, { discount }) => sum + discount, 0)
   const needsApproval = cartDiscount > subtotal * MAX_CASHIER_DISCOUNT
   const approvedBy = needsApproval ? await approverFor(db, session, { approvalSecret, cashierId: user.id, discountPct: input.discountPct, token: input.approvalToken, at }) : null
+  const categories = await categoriesOf(db, session, shift.shopId)
   try {
-    return applySale(
-      { ...catalog, sales: [], stock: {}, movements: [], outbox: [], shifts: [{ ...fromDoc(shift), status: "open" }], receiptSeq: register.lastReceiptSeq },
+    const { record, state } = applySale(
+      { ...catalog, categories, sales: [], stock: {}, movements: [], shifts: [{ ...fromDoc(shift), status: "open" }], receiptSeq: register.lastReceiptSeq, fbrSeq: fbrSeqOf(register) },
       {
         lines: rows.map(({ variantId, quantity, discount, productDiscount, entry }) => ({ variantId, quantity, discount, productDiscount, entry })),
         payments: input.payments,
@@ -95,8 +101,14 @@ const buildSale = async (db, session, { user, shift, register, catalog, settings
         shopId: shift.shopId,
         registerId: register._id,
         registerCode: register.code,
+        number,
+        fbrPosId: register.fbrPosId ?? null,
+        ntn: shop.ntn ?? null,
+        strn: shop.strn ?? null,
       }
-    ).record
+    )
+    if (record.fbr) await saveFbrSeq(db, session, register._id, state.fbrSeq)
+    return record
   } catch (error) {
     throw new UserError(error.message)
   }
@@ -145,8 +157,9 @@ const recordInSession = async (db, session, { user, shopId, at, approvalSecret }
   const lines = merge(input.lines)
   const catalog = await loadCatalog(db, session, shopId, lines)
 
-  const sale = await buildSale(db, session, { user, shift, register, catalog, settings, lines, input, at, approvalSecret })
+  const shop = await db.collection(C.shops).findOne({ _id: shopId }, { session })
   const number = await nextReceiptNumber(db, session, register)
+  const sale = await buildSale(db, session, { user, shift, register, shop, catalog, settings, lines, input, at, approvalSecret, number })
   await takeStock(db, session, { sale, number, user, at, allowNegative: false })
 
   const stored = { ...sale, number, flags: sale.flags.filter((flag) => flag !== "negative_stock"), syncedAt: at, offline: false }
@@ -228,17 +241,18 @@ const syncInSession = async (db, session, { user, shopId, now, approvalSecret },
   const at = new Date(soldAt)
 
   const inUse = await pricesInUse(db, session, { shopId, since: new Date(shift.openedAt.getTime() - PRICE_HISTORY_SLACK), catalog, current })
-  checkTillPrices(catalog, lines, input.pricing, inUse)
+  checkTillPrices(catalog, lines, { ...Object.fromEntries(TILL_SETTINGS.map((field) => [field, current[field]])), ...input.pricing }, inUse)
 
   const settings = { ...current, ...input.pricing, taxLabel: input.pricing.taxLabel ?? current.taxLabel }
   if (pricingChanged(catalog, lines, current, settings)) flags.add("price_mismatch")
 
-  const sale = await buildSale(db, session, { user, shift, register, catalog: tillCatalog(catalog, lines), settings, lines, input, at, approvalSecret })
-  if (sale.total !== input.total) flags.add("total_mismatch")
-
+  const shop = await db.collection(C.shops).findOne({ _id: shopId }, { session })
   const numberFree = inBlocks(register.code, shift.receiptBlocks, input.number) && !(await db.collection(C.sales).findOne({ registerId: register._id, number: input.number }, { session, projection: { _id: 1 } }))
   const number = numberFree ? input.number : await nextReceiptNumber(db, session, register)
   if (!numberFree) flags.add("renumbered")
+
+  const sale = await buildSale(db, session, { user, shift, register, shop, catalog: tillCatalog(catalog, lines), settings, lines, input, at, approvalSecret, number })
+  if (sale.total !== input.total) flags.add("total_mismatch")
 
   if (await takeStock(db, session, { sale, number, user, at, allowNegative: true })) flags.add("negative_stock")
 

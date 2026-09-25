@@ -13,6 +13,7 @@ import { outboxFor } from "@/features/offline/lib/outbox"
 import { tillDb } from "@/features/offline/lib/till-db"
 import { closeShiftAction, discardHeldCartAction, holdCartAction, openShiftAction, recordSaleAction, reserveReceiptsAction, takeHeldCartAction } from "@/features/pos/actions"
 import { decideRefundAction, requestRefundAction } from "@/features/refunds/actions"
+import { exchangeItemAction } from "@/features/sales/actions"
 import { updateSettingsAction } from "@/features/settings/actions"
 import { createLedgerStore } from "./ledger-store"
 
@@ -27,6 +28,7 @@ const actions = {
   takeHeldCart: takeHeldCartAction,
   discardHeldCart: discardHeldCartAction,
   requestRefund: requestRefundAction,
+  exchangeItem: exchangeItemAction,
   decideRefund: decideRefundAction,
   receiveDelivery: receiveDeliveryAction,
   adjustStock: adjustStockAction,

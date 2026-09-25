@@ -21,7 +21,7 @@ import { ReceiptDesigner } from "./receipt-designer"
 import { SettingToggle as Toggle } from "./setting-toggle"
 import { useSettingsFor, useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ScopeBar } from "./scope-bar"
-import { ALL_SHOPS, SETTING_GROUPS } from "@/features/shops/lib/shops"
+import { ALL_SHOPS } from "@/features/shops/lib/shops"
 
 const useSyncedDraft = (saved) => {
   const [previous, setPrevious] = useState(saved)
@@ -163,13 +163,12 @@ export const SettingsScreen = ({ user, sampleData = false }) => {
   const shopId = scope === ALL_SHOPS ? null : scope
   const settings = useSettingsFor(scope)
   const setSettings = useLedgerStore(({ setSettings }) => setSettings)
-  const setShopSettings = useLedgerStore(({ setShopSettings }) => setShopSettings)
   const [resetOpen, setResetOpen] = useState(false)
   const [rateDraft, setRateDraft] = useSyncedDraft(settings.taxRate ? String(settings.taxRate) : "")
   const [thresholdDraft, setThresholdDraft] = useSyncedDraft(String(settings.lowStockThreshold))
 
   const update = (patch, message) =>
-    (shopId ? setShopSettings({ shopId, patch }) : setSettings(patch)).then(
+    setSettings(patch, scope).then(
       () => message && toast.success(message),
       (error) => toast.error(error.message)
     )
@@ -191,6 +190,8 @@ export const SettingsScreen = ({ user, sampleData = false }) => {
   const rateValid = rateDraft === "" || (Number.isFinite(Number(rateDraft)) && Number(rateDraft) >= 0 && Number(rateDraft) <= 100)
 
   return (
+    <div className="space-y-4">
+      <ScopeBar shopId={shopId} />
     <Tabs defaultValue="shops" className="gap-4">
       <TabsList variant="line" className="w-full justify-start overflow-x-auto">
         <TabsTrigger value="shops" className="flex-none">Shops</TabsTrigger>
@@ -206,7 +207,6 @@ export const SettingsScreen = ({ user, sampleData = false }) => {
       </TabsContent>
 
       <TabsContent value="tax" className="grid items-start gap-4 @4xl:grid-cols-2">
-        <ScopeBar shopId={shopId} keys={SETTING_GROUPS.tax} />
       <Panel title="Sales tax" description="Add a tax to every sale, shown on the cart and the receipt.">
         <div className="space-y-5 p-4">
           <Toggle
@@ -259,11 +259,10 @@ export const SettingsScreen = ({ user, sampleData = false }) => {
       </TabsContent>
 
       <TabsContent value="payments">
-        <PaymentsSettings settings={settings} update={update} scopeBar={<ScopeBar shopId={shopId} keys={SETTING_GROUPS.payments} />} />
+        <PaymentsSettings settings={settings} update={update} />
       </TabsContent>
 
       <TabsContent value="discounts" className="max-w-3xl space-y-4">
-        <ScopeBar shopId={shopId} keys={SETTING_GROUPS.discounts} />
       <Panel title="Discounts" description="Choose which kinds of discount the counter can give.">
         <div className="space-y-5 p-4">
           <Toggle
@@ -293,11 +292,10 @@ export const SettingsScreen = ({ user, sampleData = false }) => {
       </TabsContent>
 
       <TabsContent value="receipt">
-        <ReceiptDesigner settings={settings} update={update} shopId={shopId} scopeBar={<ScopeBar shopId={shopId} keys={SETTING_GROUPS.receipt} />} />
+        <ReceiptDesigner settings={settings} update={update} shopId={shopId} />
       </TabsContent>
 
       <TabsContent value="counter" className="max-w-3xl space-y-4">
-        <ScopeBar shopId={shopId} keys={SETTING_GROUPS.counter} />
       <Panel title="Checkout & counter" description="Customer details, low-stock warnings and the till layout.">
         <div className="space-y-5 p-4">
           <Toggle
@@ -371,5 +369,6 @@ export const SettingsScreen = ({ user, sampleData = false }) => {
       <p className="text-xs text-muted-foreground">Pricing changes apply from the next sale. Past sales remain locked in the ledger.</p>
       {sampleData && <ResetSampleDataDialog open={resetOpen} onOpenChange={setResetOpen} />}
     </Tabs>
+    </div>
   )
 }

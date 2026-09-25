@@ -14,9 +14,6 @@ export const defaultPricingSettings = () => ({
   pricesIncludeTax: false,
   fbrEnabled: false,
   fbrServiceFee: true,
-  ntn: "",
-  strn: "",
-  fbrPosId: "",
 })
 
 export const FBR_SERVICE_FEE = 100

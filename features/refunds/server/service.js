@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { UserError, parseInput } from "@/lib/errors"
 import { PAYMENT_METHODS, applyRefundDecision, applyRefundRequest } from "@/features/ledger/lib/rules"
+import { fbrSeqOf, registerFor, saveFbrSeq } from "@/features/pos/server/register"
 import { moveStock } from "@/features/inventory/server/stock"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/lib/db/collections"
 import { isDuplicateKey, withTransaction } from "@/lib/db/transaction"
@@ -18,6 +19,8 @@ const requestSchema = z.object({
 
 const refundsOf = async (db, session, saleId) => (await db.collection(C.refunds).find({ saleId }, { session }).toArray()).map(fromDoc)
 
+const exchangesOf = async (db, session, saleId) => (await db.collection(C.exchanges).find({ saleId }, { session }).toArray()).map(fromDoc)
+
 export const requestRefund = async ({ db, client, user, shopId, at = new Date() }, input) => {
   const request = parseInput(requestSchema, input)
   try {
@@ -31,7 +34,7 @@ export const requestRefund = async ({ db, client, user, shopId, at = new Date() 
       let record
       try {
         ;({ record } = applyRefundRequest(
-          { sales: [fromDoc(sale)], refunds: await refundsOf(db, session, sale._id) },
+          { sales: [fromDoc(sale)], refunds: await refundsOf(db, session, sale._id), exchanges: await exchangesOf(db, session, sale._id) },
           { ...request, requestedBy: user.id, shiftId: openShift?._id ?? sale.shiftId, at }
         ))
       } catch (error) {
@@ -56,15 +59,30 @@ export const decideRefund = async ({ db, client, user, shopId, at = new Date() }
     if (!refund) throw new UserError("Return not found")
     const sale = await db.collection(C.sales).findOne({ _id: refund.saleId }, { session })
     const openShift = await db.collection(C.shifts).findOne({ registerId: sale.registerId, status: "open" }, { session })
+    const register = await registerFor(db, session, shopId, sale.registerId)
     let decided
+    let fbrSeq
     try {
-      ;({ record: decided } = applyRefundDecision(
-        { refunds: [fromDoc(refund)], sales: [fromDoc(sale)], shifts: openShift ? [fromDoc(openShift)] : [], variants: [], products: [], stock: {}, movements: [] },
+      const result = applyRefundDecision(
+        {
+          refunds: [fromDoc(refund)],
+          sales: [fromDoc(sale)],
+          exchanges: await exchangesOf(db, session, sale._id),
+          shifts: openShift ? [fromDoc(openShift)] : [],
+          variants: [],
+          products: [],
+          stock: {},
+          movements: [],
+          fbrSeq: fbrSeqOf(register),
+        },
         { refundId, approve: Boolean(approve), userId: user.id, at }
-      ))
+      )
+      decided = result.record
+      fbrSeq = result.state.fbrSeq
     } catch (error) {
       throw new UserError(error.message)
     }
+    if (decided.fbr) await saveFbrSeq(db, session, register._id, fbrSeq)
     const updated = await db.collection(C.refunds).replaceOne({ _id: refundId, status: "pending" }, toDoc({ ...decided, syncedAt: at }), { session })
     if (!updated.matchedCount) throw new UserError("This return was already decided")
     if (approve) {

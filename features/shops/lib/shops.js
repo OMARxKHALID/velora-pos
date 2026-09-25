@@ -1,5 +1,6 @@
 import { REGISTER_CODE, REGISTER_ID, SHOP_ID } from "@/features/catalog/lib/catalog"
 import { NTN_PATTERN, POSID_PATTERN, STRN_PATTERN } from "@/features/fbr/lib/fbr"
+import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 import { newId } from "@/lib/id"
 
 export const ALL_SHOPS = "all"
@@ -121,32 +122,4 @@ export const applyDeleteShop = (state, { shopId }) => {
   }
 }
 
-export const SETTING_GROUPS = {
-  tax: ["taxEnabled", "taxLabel", "taxRate", "pricesIncludeTax", "fbrEnabled", "fbrServiceFee"],
-  payments: ["paymentMethods", "cashRounding"],
-  discounts: ["productDiscountEnabled", "cartDiscountEnabled", "managerPin"],
-  receipt: ["receipt"],
-  counter: ["customerInfoEnabled", "lowStockThreshold", "posColumns"],
-}
-
-const SHOP_SETTING_KEYS = Object.values(SETTING_GROUPS).flat()
-
-export const settingsFor = (settings, shops, shopId) => ({ ...settings, ...(shops?.find(({ id }) => id === shopId)?.settings ?? {}) })
-
-export const overriddenKeys = (shop, keys = SHOP_SETTING_KEYS) => keys.filter((key) => Object.hasOwn(shop?.settings ?? {}, key))
-
-export const applySetShopSettings = (state, { shopId, patch }) => {
-  const shop = state.shops.find(({ id }) => id === shopId)
-  if (!shop) throw new Error("Shop not found")
-  const unknown = Object.keys(patch).filter((key) => !SHOP_SETTING_KEYS.includes(key))
-  if (unknown.length) throw new Error(`These settings are for the whole group: ${unknown.join(", ")}`)
-  const record = { ...shop, settings: { ...shop.settings, ...patch } }
-  return { state: { ...state, shops: state.shops.map((item) => (item.id === shopId ? record : item)) }, record }
-}
-
-export const applyResetShopSettings = (state, { shopId, keys = SHOP_SETTING_KEYS }) => {
-  const shop = state.shops.find(({ id }) => id === shopId)
-  if (!shop) throw new Error("Shop not found")
-  const record = { ...shop, settings: Object.fromEntries(Object.entries(shop.settings ?? {}).filter(([key]) => !keys.includes(key))) }
-  return { state: { ...state, shops: state.shops.map((item) => (item.id === shopId ? record : item)) }, record }
-}
+export const settingsFor = (shops, shopId) => (shops.find(({ id }) => id === shopId) ?? shops[0])?.settings ?? defaultPricingSettings()

@@ -128,6 +128,8 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
       stock: {},
       shifts: [],
       refunds: [],
+      exchanges: [],
+      categories: [],
       usedVariantIds: [],
       heldCarts: [],
       settings: defaultPricingSettings(),
@@ -174,6 +176,7 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
       openShift: mutate("openShift"),
       closeShift: mutate("closeShift"),
       requestRefund: mutate("requestRefund"),
+      exchangeItem: mutate("exchangeItem"),
       decideRefund: mutate("decideRefund", ({ refundId, approve }) => [refundId, approve]),
       receivePurchase: mutate("receiveDelivery"),
       adjustStock: mutate("adjustStock"),
@@ -184,13 +187,15 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
       holdCart: mutate("holdCart"),
       takeHeldCart: mutate("takeHeldCart", (id) => [id]),
       discardHeldCart: mutate("discardHeldCart", (id) => [id]),
-      setSettings: async (patch) => {
-        const before = get().settings
-        set({ settings: { ...before, ...patch } })
+      setSettings: async (patch, scope = get().shopScope) => {
+        const { shops, settings } = get()
+        const touches = ({ id }) => scope === "all" || id === scope
+        set({ settings: { ...settings, ...patch }, shops: shops.map((shop) => (touches(shop) ? { ...shop, settings: { ...shop.settings, ...patch } } : shop)) })
         try {
-          set({ settings: await call("updateSettings", patch) })
+          await call("updateSettings", patch, scope)
+          await load()
         } catch (error) {
-          set({ settings: before })
+          set({ settings, shops })
           throw error
         }
       },
