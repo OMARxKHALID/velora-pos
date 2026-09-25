@@ -194,6 +194,17 @@ describe("ledger", () => {
     expect(() => applySale(state, { ...base, lines: [{ variantId: shoe.id, quantity: 1.5 }], payments: [{ method: "cash", amount: shoe.price }] })).toThrow("Quantity")
   })
 
+  test("wallet and bank payments need a transaction ID, refund the same way and show in the shift summary", () => {
+    const { state, record: shift } = withShift()
+    const base = { lines: [{ variantId: shoe.id, quantity: 1 }], cashierId: "u-cashier", shiftId: shift.id, at }
+    expect(() => applySale(state, { ...base, payments: [{ method: "jazzcash", amount: shoe.price }] })).toThrow("transaction ID")
+    expect(() => applySale(state, { ...base, payments: [{ method: "bank", amount: shoe.price, reference: "  " }] })).toThrow("transaction ID")
+    const { state: sold, record: sale } = applySale(state, { ...base, payments: [{ method: "jazzcash", amount: shoe.price, reference: "TX123" }] })
+    expect(refundMethodsFor(sale)).toEqual(["jazzcash"])
+    expect(shiftSummary(sold, shift).otherSales).toEqual({ jazzcash: shoe.price, easypaisa: 0, bank: 0 })
+    expect(shiftSummary(sold, shift).cashSales).toBe(0)
+  })
+
   test("a counter can only have one open shift, per register", () => {
     const { state, record } = withShift()
     expect(openShiftFor(state).id).toBe(record.id)

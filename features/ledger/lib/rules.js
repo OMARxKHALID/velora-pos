@@ -4,7 +4,9 @@ import { newId } from "@/lib/id"
 import { roundToRupee, sumBy } from "@/lib/money"
 
 export const MAX_CASHIER_DISCOUNT = 0.05
-export const PAYMENT_METHODS = ["cash", "card"]
+export const PAYMENT_METHODS = ["cash", "card", "jazzcash", "easypaisa", "bank"]
+
+export const REFERENCE_REQUIRED = ["jazzcash", "easypaisa", "bank"]
 
 const pricingDefaults = { taxEnabled: false, taxRate: 0, productDiscountEnabled: true, cartDiscountEnabled: true }
 
@@ -79,6 +81,9 @@ export const applySale = (
   if (!payments?.length) throw new Error("Add a payment")
   if (payments.some(({ method, amount }) => !PAYMENT_METHODS.includes(method) || !Number.isInteger(amount) || amount <= 0)) {
     throw new Error("Invalid payment")
+  }
+  if (payments.some(({ method, reference }) => REFERENCE_REQUIRED.includes(method) && !reference?.trim())) {
+    throw new Error("Enter the transaction ID for wallet and bank payments")
   }
 
   const { productById, variantById } = indexCatalog(state)
@@ -191,10 +196,13 @@ export const refundableQuantity = (state, saleId, variantId) => {
   return sold - claimed
 }
 
-const paidByMethod = (sale) => ({
-  cash: sumBy(sale.payments.filter(({ method }) => method === "cash"), ({ amount }) => amount) - sale.change,
-  card: sumBy(sale.payments.filter(({ method }) => method === "card"), ({ amount }) => amount),
-})
+const paidByMethod = (sale) =>
+  Object.fromEntries(
+    PAYMENT_METHODS.map((method) => [
+      method,
+      sumBy(sale.payments.filter((payment) => payment.method === method), ({ amount }) => amount) - (method === "cash" ? sale.change : 0),
+    ])
+  )
 
 export const refundMethodsFor = (sale) => {
   const paid = paidByMethod(sale)
@@ -353,9 +361,9 @@ const cashSalesFor = (state, shift) =>
 
 const cashRefundsFor = (state, shift) => sumBy(state.refunds.filter(({ payoutShiftId }) => payoutShiftId === shift.id), ({ total }) => total)
 
-const cardRefundsFor = (state, shift) =>
+const approvedRefundsFor = (state, shift, method) =>
   sumBy(
-    state.refunds.filter(({ approvedInShiftId, status, method }) => approvedInShiftId === shift.id && status === "approved" && method === "card"),
+    state.refunds.filter((refund) => refund.approvedInShiftId === shift.id && refund.status === "approved" && refund.method === method),
     ({ total }) => total
   )
 
@@ -376,8 +384,10 @@ const liveSummary = (state, shift) => {
     revenue: sumBy(sales, ({ total }) => total),
     cashSales: cashSalesFor(state, shift),
     cardSales: paidBy("card"),
+    otherSales: Object.fromEntries(REFERENCE_REQUIRED.map((method) => [method, paidBy(method)])),
+    otherRefunds: Object.fromEntries(REFERENCE_REQUIRED.map((method) => [method, approvedRefundsFor(state, shift, method)])),
     cashRefunds: cashRefundsFor(state, shift),
-    cardRefunds: cardRefundsFor(state, shift),
+    cardRefunds: approvedRefundsFor(state, shift, "card"),
     openingCash: shift.openingCash,
     expectedCash: expectedCash(state, shift),
   }

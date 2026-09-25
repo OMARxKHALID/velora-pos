@@ -4,7 +4,7 @@ import { changesBetween, writeAudit } from "@/lib/db/audit"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { withTransaction } from "@/lib/db/transaction"
 
-const FIELDS = ["taxEnabled", "taxLabel", "taxRate", "productDiscountEnabled", "cartDiscountEnabled", "customerInfoEnabled", "lowStockThreshold"]
+const FIELDS = ["taxEnabled", "taxLabel", "taxRate", "productDiscountEnabled", "cartDiscountEnabled", "customerInfoEnabled", "lowStockThreshold", "paymentMethods"]
 
 const patchSchema = z
   .object({
@@ -15,6 +15,7 @@ const patchSchema = z
     cartDiscountEnabled: z.boolean(),
     customerInfoEnabled: z.boolean(),
     lowStockThreshold: z.number().int().min(1).max(99),
+    paymentMethods: z.object({ card: z.boolean(), jazzcash: z.boolean(), easypaisa: z.boolean(), bank: z.boolean() }),
   })
   .partial()
   .strict()

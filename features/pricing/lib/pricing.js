@@ -8,6 +8,7 @@ export const defaultPricingSettings = () => ({
   cartDiscountEnabled: true,
   customerInfoEnabled: true,
   lowStockThreshold: 2,
+  paymentMethods: { card: true, jazzcash: false, easypaisa: false, bank: false },
 })
 
 export const effectiveRate = (settings) => (settings.taxEnabled && Number(settings.taxRate) > 0 ? Number(settings.taxRate) : 0)

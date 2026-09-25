@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { UserError, parseInput } from "@/lib/errors"
-import { applyRefundDecision, applyRefundRequest } from "@/features/ledger/lib/rules"
+import { PAYMENT_METHODS, applyRefundDecision, applyRefundRequest } from "@/features/ledger/lib/rules"
 import { moveStock } from "@/features/inventory/server/stock"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/lib/db/collections"
 import { isDuplicateKey, withTransaction } from "@/lib/db/transaction"
@@ -13,7 +13,7 @@ const requestSchema = z.object({
     .min(1, { error: "Pick at least one item" })
     .max(100),
   reason: z.string().trim().min(3, { error: "Describe the reason" }).max(240),
-  method: z.enum(["cash", "card"]),
+  method: z.enum(PAYMENT_METHODS),
 })
 
 const refundsOf = async (db, session, saleId) => (await db.collection(C.refunds).find({ saleId }, { session }).toArray()).map(fromDoc)
