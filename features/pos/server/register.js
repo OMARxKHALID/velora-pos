@@ -4,7 +4,7 @@ import { COLLECTIONS as C } from "@/lib/db/collections"
 import { OFFLINE_BLOCK } from "../lib/receipts"
 
 export const registerFor = async (db, session, shopId, registerId = null) => {
-  const register = await db.collection(C.registers).findOne(registerId ? { _id: registerId, shopId } : { shopId }, { sort: { _id: 1 }, session })
+  const register = await db.collection(C.registers).findOne(registerId ? { _id: registerId, shopId } : { shopId }, { sort: { code: 1 }, session })
   if (!register) throw new UserError("This shop has no counter set up")
   return register
 }

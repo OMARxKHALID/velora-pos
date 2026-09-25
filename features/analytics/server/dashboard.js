@@ -13,7 +13,7 @@ const asTimes = (doc) => {
 }
 
 export const loadDashboard = async (db, { shopIds, scope, range, now = Date.now() }) => {
-  const shops = (await db.collection(C.shops).find({ _id: { $in: shopIds } }, { sort: { _id: 1 } }).toArray()).map(({ _id, name, timezone }) => ({ id: _id, name, timeZone: timezone ?? SHOP_TIME_ZONE }))
+  const shops = (await db.collection(C.shops).find({ _id: { $in: shopIds } }, { sort: { createdAt: 1, _id: 1 } }).toArray()).map(({ _id, name, timezone }) => ({ id: _id, name, timeZone: timezone ?? SHOP_TIME_ZONE }))
   const timeZone = (shops.find(({ id }) => id === scope) ?? shops[0])?.timeZone ?? SHOP_TIME_ZONE
   const period = periodFor(range, now, (at) => startOfDayIn(timeZone, at))
   const since = new Date(Math.min(period.prevFrom, now - 14 * DAY))

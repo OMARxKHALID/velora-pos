@@ -51,10 +51,10 @@ export const ShopDialog = ({ shop = null, onClose }) => {
   const deleteShop = useLedgerStore(({ deleteShop }) => deleteShop)
   const [confirming, setConfirming] = useState(false)
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!confirming) return setConfirming(true)
     try {
-      deleteShop({ shopId: shop.id })
+      await deleteShop({ shopId: shop.id })
       toast.success("Shop deleted", { description: shop.name })
       onClose()
     } catch (error) {
@@ -73,9 +73,9 @@ export const ShopDialog = ({ shop = null, onClose }) => {
   })
   const change = (patch) => setDraft((current) => ({ ...current, ...patch }))
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     try {
-      const saved = saveShop({ shopId: shop?.id ?? null, ...draft })
+      const saved = await saveShop({ shopId: shop?.id ?? null, ...draft })
       toast.success(shop ? "Shop updated" : "Shop added", { description: shop ? saved.name : `${saved.name} is ready with counter ${saved.code}-R1.` })
       onClose()
     } catch (error) {
@@ -140,9 +140,9 @@ export const CounterDialog = ({ shop, register = null, onClose }) => {
   })
   const change = (patch) => setDraft((current) => ({ ...current, ...patch }))
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     try {
-      const saved = saveRegister({ registerId: register?.id ?? null, shopId: shop.id, ...draft })
+      const saved = await saveRegister({ registerId: register?.id ?? null, shopId: shop.id, ...draft })
       toast.success(register ? "Counter updated" : "Counter added", { description: `${saved.code} · ${saved.name}` })
       onClose()
     } catch (error) {

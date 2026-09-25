@@ -12,7 +12,7 @@ export const updateSettingsAction = async (patch, scope = null) =>
     const user = await authorize("admin")
     const db = getDb()
     const client = getMongoClient()
-    const shopIds = scope === ALL_SHOPS ? (await db.collection(C.shops).find({}, { projection: { _id: 1 }, sort: { _id: 1 } }).toArray()).map(({ _id }) => _id) : [await shopFor(db, user, scope)]
+    const shopIds = scope === ALL_SHOPS ? (await db.collection(C.shops).find({}, { projection: { _id: 1 }, sort: { createdAt: 1, _id: 1 } }).toArray()).map(({ _id }) => _id) : [await shopFor(db, user, scope)]
     const records = []
     for (const shopId of shopIds) records.push(await updateSettings({ db, client, user, shopId }, patch))
     return { record: records[0] }

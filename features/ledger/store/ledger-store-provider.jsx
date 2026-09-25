@@ -15,6 +15,7 @@ import { closeShiftAction, discardHeldCartAction, holdCartAction, openShiftActio
 import { decideRefundAction, requestRefundAction } from "@/features/refunds/actions"
 import { exchangeItemAction } from "@/features/sales/actions"
 import { updateSettingsAction } from "@/features/settings/actions"
+import { deleteShopAction, saveRegisterAction, saveShopAction } from "@/features/shops/actions"
 import { createLedgerStore } from "./ledger-store"
 
 const REFRESH_MS = 30_000
@@ -39,6 +40,9 @@ const actions = {
   saveCategory: saveCategoryAction,
   deleteCategory: deleteCategoryAction,
   updateSettings: updateSettingsAction,
+  saveShop: saveShopAction,
+  saveRegister: saveRegisterAction,
+  deleteShop: deleteShopAction,
   resetSampleData: resetSampleDataAction,
 }
 

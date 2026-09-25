@@ -21,7 +21,7 @@ const withOfflineNext = async (db, shifts) => {
 
 export const ledgerSnapshot = async (db, { user, now = new Date() }) => {
   const since = new Date(now.getTime() - HISTORY_DAYS * 24 * 60 * 60 * 1000)
-  const shopIds = user.role === "admin" ? (await db.collection(C.shops).find({}, { projection: { _id: 1 } }).toArray()).map(({ _id }) => _id) : [user.shopId]
+  const shopIds = user.role === "admin" ? (await db.collection(C.shops).find({}, { projection: { _id: 1 }, sort: { createdAt: 1, _id: 1 } }).toArray()).map(({ _id }) => _id) : [user.shopId]
   const inShops = { shopId: { $in: shopIds } }
   const cashier = user.role === "cashier"
   const all = (name, filter = {}, sort = { _id: 1 }) => db.collection(name).find({ ...inShops, ...filter }, { sort }).toArray()
