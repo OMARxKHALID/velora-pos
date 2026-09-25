@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header"
 import { requireRole } from "@/features/auth/server/session"
-import { DemoReady } from "@/features/demo/components/demo-ready"
+import { LedgerReady } from "@/features/ledger/components/ledger-ready"
 import { StockScreen } from "@/features/inventory/components/stock-screen"
 
 const StockPage = async () => {
@@ -9,9 +9,9 @@ const StockPage = async () => {
   return (
     <>
       <PageHeader title="Stock" description="Pairs on hand for every shoe and size." />
-      <DemoReady>
+      <LedgerReady>
         <StockScreen user={user} />
-      </DemoReady>
+      </LedgerReady>
     </>
   )
 }

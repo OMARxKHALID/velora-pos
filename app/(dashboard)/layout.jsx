@@ -3,7 +3,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
 import { requireRole } from "@/features/auth/server/session"
-import { DemoStoreProvider } from "@/features/demo/store/demo-store-provider"
+import { LedgerStoreProvider } from "@/features/ledger/store/ledger-store-provider"
 import { directoryFor, listPeople } from "@/features/staff/server/staff"
 import { getDb } from "@/lib/db/client"
 import { appEnv } from "@/lib/env"
@@ -15,7 +15,7 @@ const DashboardLayout = async ({ children }) => {
   const directory = directoryFor(user, await listPeople(getDb()))
 
   return (
-    <DemoStoreProvider user={user} directory={directory}>
+    <LedgerStoreProvider directory={directory}>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar user={user} demoMode={appEnv().DEMO_MODE} />
         <SidebarInset className="min-w-0">
@@ -25,7 +25,7 @@ const DashboardLayout = async ({ children }) => {
           </div>
         </SidebarInset>
       </SidebarProvider>
-    </DemoStoreProvider>
+    </LedgerStoreProvider>
   )
 }
 

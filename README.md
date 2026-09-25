@@ -2,12 +2,12 @@
 
 Point of sale demo for **Velora Group** (Fashion · Footwear · Lifestyle), built for the first shop, **Velora Shoes**.
 
-> **This is a demo build.** There is no database, server-side ledger or real login. Everything you do is stored in this browser (local storage) on top of 30 days of generated history. Card payment, offline sync and the FBR/tax documents are simulated. Nothing here is a real tax invoice.
+> **Demo build.** Accounts, sales, stock, shifts and returns live in MongoDB, with 30 days of generated history in demo mode. Card payment and the FBR/tax documents are simulated; nothing here is a real tax invoice. Selling without internet is not available yet (phase 6).
 
 ## Before a presentation
 
 1. Sign in as the owner, then **Reset demo data** (user menu or Settings; only shown when `DEMO_MODE=true`). Do this the same day: the sample history is generated relative to now, so "Today" has sales from mid-morning onwards. A reset also deletes staff you added, restores the demo team's passwords, roles and PIN, and turns everyone's access back on.
-2. Present from **one browser**. Accounts live in the database, but sales, stock and shifts still live in the browser until the next phases move them, so an owner on a laptop and a cashier on a phone will not see each other's sales yet. Use **Sign out** to move between roles.
+2. Use as many devices as you like: an owner on a laptop, a supervisor on a tablet and a cashier at the till all see the same shop. Screens refresh every 30 seconds, when you come back to the tab, and after every change. Use **Sign out** to move between roles on one device.
 3. Use the https link when showing it on a phone or tablet.
 4. Print once on the demo machine (**Print receipt**) to make sure the browser's print preview looks right. Receipts are sized for 80mm thermal paper; choose that paper size (or a PDF) in the print dialog.
 
@@ -36,7 +36,7 @@ Only the owner can add staff, change roles, set passwords and PINs, or turn acce
 - **Stock**: per size and colour, receive deliveries, adjustments with reasons, append-only movement history
 - **Settings** (owner): sales tax, discounts, a PIN per supervisor, low-stock threshold, customer details at checkout
 - **Dashboard**: sales, profit, busiest hours, top and slow sellers, low stock, cashier watch. Charts add up to the headline numbers
-- **Offline (simulated)**: turn on "Simulate internet drop" in the header. Sales, refund requests and decisions, shift openings and closings, deliveries and stock adjustments are queued and each syncs once when you reconnect. Discount approvals need the connection, because PINs are checked on the server. There is no server behind the demo, so a real browser reload while offline will not work
+- **Connection**: the header shows Online or Offline. While offline nothing can be saved; the cart stays on the screen. Selling offline with a queue that syncs later comes in phase 6
 - Dark and light mode, responsive down to phone width
 
 ## Stack
@@ -86,7 +86,7 @@ lib/db/              MongoDB client, collections, indexes, transactions
 scripts/             db:indexes and db:seed
 ```
 
-The move to MongoDB is in progress. Done: phase 0 (database foundations), phase 1 (sign-in and staff), phase 2 (products and stock services), phase 3 (selling services). Stock is shared by selling, returns and the dashboard, so the screens switch from this browser's demo data to the server together once selling (phase 3) and returns (phase 4) are on the server too; until then only sign-in and staff use the server.
+Every screen reads the shop from the server (`GET /api/ledger`, the last 120 days, trimmed to what the signed-in role may see) and every change goes through a server action that checks the role and saves in a MongoDB transaction. The screens keep using the tested rules in `features/demo/lib/ledger.js` to show previews (cart totals, refund quotes, shift summaries); the server runs the same rules again before saving. Next: dashboard figures as database queries (phase 5), offline selling (phase 6), clean-up and deploy (phase 7).
 
 Each shop type is a module in `features/catalog/types/` (only `footwear` today) that defines its product fields, how its items are built (colour × EU size), SKUs and labels. The selling, stock and refund code only uses the shared item fields, so a clothes or cosmetics shop is a new module rather than a rewrite.
 

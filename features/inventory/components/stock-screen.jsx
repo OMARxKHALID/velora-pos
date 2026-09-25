@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TablePagination, paginate, resetsPage } from "@/components/ui/table-pagination"
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { stockRows } from "../lib/stock-rows"
@@ -40,8 +40,8 @@ const SizeChips = ({ sizes, threshold }) => (
 )
 
 export const StockScreen = ({ user }) => {
-  const stock = useDemoStore(({ stock }) => stock)
-  const settings = useDemoStore(({ settings }) => settings)
+  const stock = useLedgerStore(({ stock }) => stock)
+  const settings = useLedgerStore(({ settings }) => settings)
   const lowLimit = settings?.lowStockThreshold ?? 2
   const [filter, setFilter] = useState("all")
   const [query, setQuery] = useState("")

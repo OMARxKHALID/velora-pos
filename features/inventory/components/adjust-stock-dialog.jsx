@@ -11,11 +11,11 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input"
 import { Segmented } from "@/components/ui/segmented"
 import { Textarea } from "@/components/ui/textarea"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { addReasons, adjustmentSchema, removeReasons } from "../schemas"
 
 const AdjustForm = ({ row, size, onHand, user, onDone }) => {
-  const adjustStock = useDemoStore(({ adjustStock }) => adjustStock)
+  const adjustStock = useLedgerStore(({ adjustStock }) => adjustStock)
   const form = useForm({
     resolver: zodResolver(adjustmentSchema(onHand)),
     defaultValues: { direction: "remove", quantity: "1", reason: "", note: "" },
@@ -23,9 +23,9 @@ const AdjustForm = ({ row, size, onHand, user, onDone }) => {
   const direction = useWatch({ control: form.control, name: "direction" })
   const reasons = direction === "remove" ? removeReasons : addReasons
 
-  const handleSubmit = form.handleSubmit(({ direction: chosen, quantity, reason, note }) => {
+  const handleSubmit = form.handleSubmit(async ({ direction: chosen, quantity, reason, note }) => {
     try {
-      adjustStock({ variantId: size.variant.id, quantity: chosen === "remove" ? -quantity : quantity, reason, note, userId: user.id })
+      await adjustStock({ variantId: size.variant.id, quantity: chosen === "remove" ? -quantity : quantity, reason, note })
       toast.success("Stock adjusted", {
         description: `${row.product.name} · EU ${size.variant.attributes.size}: ${chosen === "remove" ? "−" : "+"}${quantity} (${reasons[reason]})`,
       })
@@ -114,7 +114,7 @@ const AdjustForm = ({ row, size, onHand, user, onDone }) => {
 }
 
 export const AdjustStockDialog = ({ row, user, onClose }) => {
-  const stock = useDemoStore(({ stock }) => stock)
+  const stock = useLedgerStore(({ stock }) => stock)
   const [variantId, setVariantId] = useState(null)
   const size = row.sizes.find(({ variant }) => variant.id === variantId)
 

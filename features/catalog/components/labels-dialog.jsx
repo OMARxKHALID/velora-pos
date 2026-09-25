@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Segmented } from "@/components/ui/segmented"
 import { isValidEan13 } from "@/features/catalog/lib/barcode"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { printNode } from "@/features/pos/lib/print-node"
 import { formatMoney } from "@/lib/money"
 import { useCatalog } from "../hooks/use-catalog"
@@ -31,7 +31,7 @@ const Label = ({ product, variant }) => {
 }
 
 export const LabelsDialog = ({ product, onClose }) => {
-  const stock = useDemoStore(({ stock }) => stock)
+  const stock = useLedgerStore(({ stock }) => stock)
   const { variantsByProduct } = useCatalog()
   const [mode, setMode] = useState("size")
   const sheet = useRef(null)

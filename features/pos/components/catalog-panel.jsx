@@ -7,7 +7,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { CategoryIcon } from "@/features/catalog/components/category-icon"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { formatMoney, sumBy } from "@/lib/money"
 
 const audiences = ["All", "men", "women", "kids", "unisex"]
@@ -65,7 +65,7 @@ const ProductCard = ({ product, available, lowLimit, onPick }) => {
 
 export const CatalogPanel = ({ availableFor, onPick }) => {
   const { products: allProducts, variantsByProduct } = useCatalog()
-  const lowLimit = useDemoStore(({ settings }) => settings.lowStockThreshold) * LOW_MODEL_FACTOR
+  const lowLimit = useLedgerStore(({ settings }) => settings.lowStockThreshold) * LOW_MODEL_FACTOR
   const products = allProducts.filter(({ status }) => status === "active")
   const brands = ["All", ...new Set(products.map(({ brand }) => brand))]
   const [query, setQuery] = useState("")

@@ -9,7 +9,7 @@ import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { openShiftFor } from "@/features/demo/lib/ledger"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { SaleDetailSheet } from "@/features/sales/components/sale-detail-sheet"
 import { StatusBadge } from "@/features/sales/components/sale-status-badges"
 import { formatDateTime, timeAgo } from "@/lib/dates"
@@ -102,9 +102,9 @@ const RefundCard = ({ refund, drawerOpen, onOpenSale, onDecide }) => {
 }
 
 export const RefundsScreen = ({ user }) => {
-  const refunds = useDemoStore(({ refunds }) => refunds)
-  const decideRefund = useDemoStore(({ decideRefund }) => decideRefund)
-  const drawerOpen = useDemoStore(({ shifts }) => Boolean(openShiftFor({ shifts })))
+  const refunds = useLedgerStore(({ refunds }) => refunds)
+  const decideRefund = useLedgerStore(({ decideRefund }) => decideRefund)
+  const drawerOpen = useLedgerStore(({ shifts }) => Boolean(openShiftFor({ shifts })))
   const [tab, setTab] = useState("pending")
   const [page, setPage] = useState(1)
   const [openSaleId, setOpenSaleId] = useState(null)
@@ -112,9 +112,9 @@ export const RefundsScreen = ({ user }) => {
   const visible = (counts[tab] ?? []).toReversed()
   const pagination = paginate(visible, page)
 
-  const handleDecide = (refund, approve) => {
+  const handleDecide = async (refund, approve) => {
     try {
-      decideRefund({ refundId: refund.id, approve, userId: user.id })
+      await decideRefund({ refundId: refund.id, approve })
       toast.success(approve ? "Refund approved" : "Refund rejected", {
         description: approve
           ? `${formatMoney(refund.total)} returned${refund.items.some(({ restock }) => restock) ? ", stock updated" : ""}.`

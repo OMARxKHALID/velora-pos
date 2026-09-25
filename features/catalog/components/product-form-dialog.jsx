@@ -12,10 +12,10 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { formatMoney, toPaisa } from "@/lib/money"
 import { useCatalog } from "../hooks/use-catalog"
-import { sameColor, sizePresets, variantKey } from "../lib/catalog"
+import { sameColor, sizePresets } from "../lib/catalog"
 import { mostUsedColors, suggestColors, swatchStyle } from "../lib/colors"
 import { ColorDot } from "./color-dot"
 import { OpeningStockGrid, stockKey, toPairs } from "./opening-stock-grid"
@@ -136,9 +136,8 @@ const ColorPicker = ({ value, onChange, popular }) => {
 }
 
 export const ProductFormDialog = ({ product, user, onClose }) => {
-  const saveProduct = useDemoStore(({ saveProduct }) => saveProduct)
-  const receivePurchase = useDemoStore(({ receivePurchase }) => receivePurchase)
-  const settings = useDemoStore(({ settings }) => settings)
+  const saveProduct = useLedgerStore(({ saveProduct }) => saveProduct)
+  const settings = useLedgerStore(({ settings }) => settings)
   const [quantities, setQuantities] = useState({})
   const { products } = useCatalog()
   const form = useForm({
@@ -152,23 +151,21 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
   const brands = [...new Set(products.map(({ brand }) => brand))]
   const categories = [...new Set(products.map(({ category }) => category))]
 
-  const handleSubmit = form.handleSubmit((values) => {
+  const handleSubmit = form.handleSubmit(async (values) => {
     try {
-      const saved = saveProduct({
-        productId: product?.id ?? null,
-        input: { ...values, price: toPaisa(values.price), cost: toPaisa(values.cost), sizes: values.sizes.toSorted((a, b) => Number(a) - Number(b)) },
-      })
-      const lines = product
+      const price = toPaisa(values.price)
+      const openingStock = product
         ? []
         : values.colors.flatMap((color) =>
-            values.sizes
-              .map((size) => ({ variantId: variantKey(saved.id, color, size), quantity: toPairs(quantities[stockKey(color, size)]), unitCost: saved.cost }))
-              .filter(({ quantity }) => quantity > 0)
+            values.sizes.map((size) => ({ options: { color, size }, quantity: toPairs(quantities[stockKey(color, size)]) })).filter(({ quantity }) => quantity > 0)
           )
-      if (lines.length) receivePurchase({ supplier: "Opening stock", receivedBy: user.id, lines })
-      const pairs = lines.reduce((sum, { quantity }) => sum + quantity, 0)
+      const saved = await saveProduct({
+        productId: product?.id ?? null,
+        input: { ...values, productType: product?.productType ?? "footwear", price, cost: toPaisa(values.cost), sizes: values.sizes.toSorted((a, b) => Number(a) - Number(b)) },
+        openingStock,
+      })
       toast.success(product ? "Product updated" : "Product added", {
-        description: product ? `${saved.name} · ${formatMoney(saved.price)}` : `${saved.name} · ${pairs} pairs in stock, ready to sell at ${formatMoney(saved.price)}`,
+        description: product ? `${values.name} · ${formatMoney(price)}` : `${values.name} · ${saved.pairs} pairs in stock, ready to sell at ${formatMoney(price)}`,
       })
       onClose()
     } catch (error) {

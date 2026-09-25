@@ -21,7 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TablePagination, paginate, resetsPage } from "@/components/ui/table-pagination"
 import { roleLabels } from "@/features/auth/lib/roles"
 import { activeStaff } from "@/features/demo/lib/staff"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { timeAgo } from "@/lib/dates"
 import { changeRoleAction, createStaffAction, removeStaffAction, setAccessAction, setPasswordAction } from "../actions"
 import { CreateStaffDialog } from "./create-staff-dialog"
@@ -40,10 +40,10 @@ const latest = (list) => list.reduce((max, at) => Math.max(max, new Date(at).get
 const unreachable = { error: "Could not reach the server. Check the connection." }
 
 export const StaffScreen = () => {
-  const staff = useDemoStore(({ staff }) => staff)
-  const sales = useDemoStore(({ sales }) => sales)
-  const shifts = useDemoStore(({ shifts }) => shifts)
-  const movements = useDemoStore(({ movements }) => movements)
+  const staff = useLedgerStore(({ staff }) => staff)
+  const sales = useLedgerStore(({ sales }) => sales)
+  const shifts = useLedgerStore(({ shifts }) => shifts)
+  const movements = useLedgerStore(({ movements }) => movements)
 
   const [roleFilter, setRoleFilter] = useState("all")
   const [query, setQuery] = useState("")

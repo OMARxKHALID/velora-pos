@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header"
 import { DashboardScreen } from "@/features/analytics/components/dashboard-screen"
 import { requireRole } from "@/features/auth/server/session"
-import { DemoReady } from "@/features/demo/components/demo-ready"
+import { LedgerReady } from "@/features/ledger/components/ledger-ready"
 
 const DashboardPage = async () => {
   const user = await requireRole("admin")
@@ -9,9 +9,9 @@ const DashboardPage = async () => {
   return (
     <>
       <PageHeader title="Overview" description="How your shops are doing." />
-      <DemoReady>
+      <LedgerReady>
         <DashboardScreen user={user} />
-      </DemoReady>
+      </LedgerReady>
     </>
   )
 }

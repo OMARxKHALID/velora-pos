@@ -71,7 +71,9 @@ const saveInSession = async (db, session, { shopId, user, at }, { productId = nu
   }
 
   const barcodes = typeof barcodesFor === "function" ? barcodesFor(product.id) : barcodesFor
-  const openingStock = typeof stockFor === "function" ? stockFor(product.id) : stockFor
+  const openingStock = (typeof stockFor === "function" ? stockFor(product.id) : stockFor).map((line) =>
+    line.options ? { variantId: type.variantId(product.id, line.options), quantity: line.quantity } : line
+  )
   const current = (await variants.find({ productId: product.id }, { session }).toArray()).map(fromDoc)
   const usedIds = await usedVariantIds(db, session, current.map(({ id }) => id))
   const customBarcodes = Object.values(barcodes)

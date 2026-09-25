@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TablePagination, paginate } from "@/components/ui/table-pagination"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { DAY, formatDateTime, startOfToday } from "@/lib/dates"
@@ -38,7 +38,7 @@ const referenceFor = (movement) => {
 }
 
 export const MovementsScreen = ({ user }) => {
-  const allMovements = useDemoStore(({ movements }) => movements)
+  const allMovements = useLedgerStore(({ movements }) => movements)
   const scope = useShopScope(user)
   const movements = scope === ALL_SHOPS ? allMovements : allMovements.filter(({ shopId }) => shopId === scope)
   const { productById, variantById } = useCatalog()

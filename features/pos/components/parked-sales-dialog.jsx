@@ -1,10 +1,11 @@
 "use client"
 
 import { ClockIcon, PauseCircleIcon, PlayIcon, TrashIcon, UserIcon, WarningIcon } from "@phosphor-icons/react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { timeAgo } from "@/lib/dates"
 import { formatMoney } from "@/lib/money"
 import { fitToStock } from "../lib/cart-fit"
@@ -68,9 +69,10 @@ const ParkedCard = ({ parked, catalog, settings, stock, onResume, onDiscard }) =
 }
 
 export const ParkedSalesDialog = ({ heldCarts: parkedSales, onResume, onClose }) => {
-  const removeParkedSale = useDemoStore(({ discardHeldCart }) => discardHeldCart)
-  const stock = useDemoStore(({ stock }) => stock)
-  const settings = useDemoStore(({ settings }) => settings)
+  const discardHeldCart = useLedgerStore(({ discardHeldCart }) => discardHeldCart)
+  const removeParkedSale = (id) => discardHeldCart(id).catch((error) => toast.error(error.message))
+  const stock = useLedgerStore(({ stock }) => stock)
+  const settings = useLedgerStore(({ settings }) => settings)
   const catalog = useCatalog()
 
   return (

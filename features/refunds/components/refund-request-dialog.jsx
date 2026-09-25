@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Textarea } from "@/components/ui/textarea"
 import { openShiftFor, previewRefund, refundCapFor, refundMethodsFor, refundableQuantity } from "@/features/demo/lib/ledger"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { newId } from "@/lib/id"
 import { formatMoney } from "@/lib/money"
 import { refundReasons, refundRequestSchema } from "../schemas"
@@ -34,11 +34,11 @@ const Choice = ({ active, children, onClick }) => (
 )
 
 export const RefundRequestDialog = ({ sale, user, onClose }) => {
-  const sales = useDemoStore(({ sales }) => sales)
-  const refunds = useDemoStore(({ refunds }) => refunds)
-  const shifts = useDemoStore(({ shifts }) => shifts)
-  const requestRefund = useDemoStore(({ requestRefund }) => requestRefund)
-  const decideRefund = useDemoStore(({ decideRefund }) => decideRefund)
+  const sales = useLedgerStore(({ sales }) => sales)
+  const refunds = useLedgerStore(({ refunds }) => refunds)
+  const shifts = useLedgerStore(({ shifts }) => shifts)
+  const requestRefund = useLedgerStore(({ requestRefund }) => requestRefund)
+  const decideRefund = useLedgerStore(({ decideRefund }) => decideRefund)
   const state = { sales, refunds }
   const refundable = Object.fromEntries(sale.items.map(({ variantId }) => [variantId, refundableQuantity(state, sale.id, variantId)]))
   const selfApprove = user.role !== "cashier"
@@ -62,18 +62,16 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
   const openShift = openShiftFor({ shifts })
   const approveNow = selfApprove && (method !== "cash" || Boolean(openShift))
 
-  const handleSubmit = form.handleSubmit(({ lines: picked, reason: chosen, note, method }) => {
+  const handleSubmit = form.handleSubmit(async ({ lines: picked, reason: chosen, note, method }) => {
     try {
-      const refund = requestRefund({
+      const refund = await requestRefund({
         saleId: sale.id,
         lines: picked.filter(({ quantity }) => quantity > 0),
         reason: chosen === "Other" ? note : note ? `${chosen}: ${note}` : chosen,
         method,
-        requestedBy: user.id,
-        shiftId: openShift?.id ?? sale.shiftId,
         clientId,
       })
-      if (approveNow) decideRefund({ refundId: refund.id, approve: true, userId: user.id })
+      if (approveNow) await decideRefund({ refundId: refund.id, approve: true })
       toast.success(approveNow ? "Refund approved" : "Refund sent for approval", {
         description: approveNow || !selfApprove ? `${formatMoney(refund.total)} · ${sale.number}` : "No counter shift is open. Approve it in Returns once a cashier opens one.",
       })

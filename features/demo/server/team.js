@@ -2,6 +2,7 @@ import { SHOP_ID } from "@/features/catalog/lib/catalog"
 import { hashPin } from "@/features/auth/server/pins"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { DEMO_MANAGER_PIN, initialStaff } from "../lib/staff"
+import { loadDocuments, seedDocuments } from "../lib/seed-documents"
 
 const demoPeople = Object.values(initialStaff)
 
@@ -54,4 +55,11 @@ export const resetDemoTeam = async ({ auth, db, password, pinSecret, keepSignedI
   await users.updateOne({ _id: "u-manager" }, { $set: { pinHash: hashPin(pinSecret, "u-manager", DEMO_MANAGER_PIN) } })
   await db.collection(C.pinFailures).deleteMany({})
   return {}
+}
+
+const LEDGER = [C.shops, C.registers, C.settings, C.counters, C.products, C.variants, C.stock, C.movements, C.sales, C.refunds, C.shifts, C.purchases, C.heldCarts, C.auditLog]
+
+export const resetDemoData = async ({ db, now = Date.now() }) => {
+  for (const name of LEDGER) await db.collection(name).deleteMany({})
+  return loadDocuments(db, seedDocuments(now))
 }

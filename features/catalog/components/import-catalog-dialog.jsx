@@ -6,14 +6,14 @@ import { DownloadSimpleIcon, FileCsvIcon, WarningIcon } from "@phosphor-icons/re
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { downloadFile } from "@/lib/download"
 import { formatMoney } from "@/lib/money"
 import { importTemplateCsv, parseCatalogImport } from "../lib/catalog-csv"
 import { ColorDot } from "./color-dot"
 
 export const ImportCatalogDialog = ({ user, onClose }) => {
-  const importCatalog = useDemoStore(({ importCatalog }) => importCatalog)
+  const importCatalog = useLedgerStore(({ importCatalog }) => importCatalog)
   const [file, setFile] = useState(null)
   const [result, setResult] = useState(null)
 
@@ -24,9 +24,9 @@ export const ImportCatalogDialog = ({ user, onClose }) => {
     setResult(parseCatalogImport(await picked.text()))
   }
 
-  const handleApply = () => {
+  const handleApply = async () => {
     try {
-      const { created, updated, pairs } = importCatalog({ rows: result.rows, userId: user.id })
+      const { created, updated, pairs } = await importCatalog({ rows: result.rows })
       toast.success("Import complete", { description: `${created} new, ${updated} updated${pairs ? `, ${pairs} pairs added to stock` : ""}.` })
       onClose()
     } catch (error) {

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { shiftSummary } from "@/features/demo/lib/ledger"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { downloadFile } from "@/lib/download"
 import { formatMoney } from "@/lib/money"
 import { printNode } from "../lib/print-node"
@@ -26,9 +26,9 @@ const Line = ({ label, value, strong, className }) => (
 
 export const ShiftReportDialog = ({ shift, onClose }) => {
   const printRef = useRef(null)
-  const sales = useDemoStore(({ sales }) => sales)
-  const refunds = useDemoStore(({ refunds }) => refunds)
-  const staff = useDemoStore(({ staff }) => staff)
+  const sales = useLedgerStore(({ sales }) => sales)
+  const refunds = useLedgerStore(({ refunds }) => refunds)
+  const staff = useLedgerStore(({ staff }) => staff)
   const nameOf = useStaffName()
   const summary = shiftSummary({ sales, refunds }, shift)
   const { difference } = shift

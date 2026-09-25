@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { formatMoney, toPaisa } from "@/lib/money"
 import { hasFinePointer } from "@/lib/pointer"
 import { referenceError } from "../lib/card-reference"
@@ -298,7 +298,7 @@ const SplitForm = ({ total, onPay }) => {
 
 export const PaymentDialog = ({ total, count, onPay, onClose }) => {
   const [method, setMethod] = useState("cash")
-  const settings = useDemoStore(({ settings }) => settings)
+  const settings = useLedgerStore(({ settings }) => settings)
   const customerName = useCartStore(({ customerName }) => customerName)
   const customerPhone = useCartStore(({ customerPhone }) => customerPhone)
   const setCustomer = useCartStore(({ setCustomer }) => setCustomer)

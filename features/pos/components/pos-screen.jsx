@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useEffectEvent, useState } from "react"
-import { ArrowsClockwiseIcon, CloudSlashIcon, LockKeyIcon, ShoppingBagIcon, SidebarSimpleIcon } from "@phosphor-icons/react"
+import { CloudSlashIcon, LockKeyIcon, ShoppingBagIcon, SidebarSimpleIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -10,11 +10,10 @@ import { useMediaQuery } from "@/hooks/use-media-query"
 import { REGISTER_CODE } from "@/features/catalog/lib/catalog"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
-import { useSyncNow } from "@/features/demo/hooks/use-sync-now"
 import { openShiftFor } from "@/features/demo/lib/ledger"
 import { heldAt } from "../lib/held-carts"
 import { fitToStock } from "../lib/cart-fit"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { cartTotals } from "@/features/pricing/lib/pricing"
 import { newId } from "@/lib/id"
 import { formatMoney } from "@/lib/money"
@@ -46,19 +45,16 @@ const PosSkeleton = () => (
 )
 
 const PosWorkspace = ({ user, shift, onShiftClosed }) => {
-  const stock = useDemoStore(({ stock }) => stock)
-  const offline = useDemoStore(({ offline }) => offline)
-  const waiting = useDemoStore(({ outbox }) => outbox.length)
-  const settings = useDemoStore(({ settings }) => settings)
-  const recordSale = useDemoStore(({ recordSale }) => recordSale)
-  const allHeld = useDemoStore(({ heldCarts }) => heldCarts)
-  const holdCart = useDemoStore(({ holdCart }) => holdCart)
-  const takeHeldCart = useDemoStore(({ takeHeldCart }) => takeHeldCart)
-  const adoptHeld = useDemoStore(({ adoptHeldCarts }) => adoptHeldCarts)
+  const stock = useLedgerStore(({ stock }) => stock)
+  const offline = useLedgerStore(({ offline }) => offline)
+  const settings = useLedgerStore(({ settings }) => settings)
+  const recordSale = useLedgerStore(({ recordSale }) => recordSale)
+  const allHeld = useLedgerStore(({ heldCarts }) => heldCarts)
+  const holdCart = useLedgerStore(({ holdCart }) => holdCart)
+  const takeHeldCart = useLedgerStore(({ takeHeldCart }) => takeHeldCart)
   const catalog = useCatalog()
   const { productById, variantByBarcode, variants } = catalog
   const nameOf = useStaffName()
-  const syncNow = useSyncNow()
 
   const lines = useCartStore(({ lines }) => lines)
   const discountPct = useCartStore(({ discountPct }) => discountPct)
@@ -69,7 +65,6 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const add = useCartStore(({ add }) => add)
   const clear = useCartStore(({ clear }) => clear)
   const load = useCartStore(({ load }) => load)
-  const takeLegacyHeld = useCartStore(({ takeLegacyHeld }) => takeLegacyHeld)
   const prune = useCartStore(({ prune }) => prune)
   const heldCarts = heldAt(allHeld, shift.registerId)
 
@@ -89,10 +84,6 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
     prune(new Set(variants.map(({ id }) => id)))
   }, [variants, prune])
 
-  useEffect(() => {
-    const legacy = takeLegacyHeld()
-    if (legacy.length) adoptHeld(legacy)
-  }, [takeLegacyHeld, adoptHeld])
 
   const availableFor = (variantId) => (stock[variantId] ?? 0) - (lines.find((line) => line.variantId === variantId)?.quantity ?? 0)
 
@@ -117,18 +108,17 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
     handleAdd(variant, "scan")
   }
 
-  const handlePay = (payments) => {
-    const { rows } = cartTotals(lines, discountPct, catalog, settings)
+  const handlePay = async (payments) => {
     try {
-      const sale = recordSale({
+      const sale = await recordSale({
         clientId: checkoutId,
-        lines: rows.map(({ variantId, quantity, discount, productDiscount, entry }) => ({ variantId, quantity, discount, productDiscount, entry })),
-        payments,
-        cashierId: user.id,
         shiftId: shift.id,
-        approvedBy,
-        customerName,
-        customerPhone,
+        lines: lines.map(({ variantId, quantity, entry }) => ({ variantId, quantity, entry })),
+        discountPct,
+        approvalToken,
+        payments,
+        customerName: customerName || undefined,
+        customerPhone: customerPhone || undefined,
       })
       clear()
       setCheckoutId(newId())
@@ -150,11 +140,11 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
 
   const cart = { lines, discountPct, approvedBy, approvalToken, customerName, customerPhone }
 
-  const handleHold = (label) => {
+  const handleHold = async (label) => {
     setHoldOpen(false)
     if (!lines.length) return
     try {
-      const held = holdCart({ cart, label, registerId: shift.registerId })
+      const held = await holdCart({ cart, label, registerId: shift.registerId })
       clear()
       const count = heldCarts.length + 1
       toast.success("Sale on hold", { description: `${held.label}. ${count} ${count === 1 ? "cart is" : "carts are"} on hold.` })
@@ -163,11 +153,11 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
     }
   }
 
-  const handleResume = (heldId) => {
+  const handleResume = async (heldId) => {
     setParkedOpen(false)
     try {
-      const held = takeHeldCart(heldId)
-      if (lines.length) holdCart({ cart, registerId: shift.registerId })
+      const held = await takeHeldCart(heldId)
+      if (lines.length) await holdCart({ cart, registerId: shift.registerId })
       const { lines: fitted, adjusted } = fitToStock(held.lines, stock)
       load({ ...held, lines: fitted })
       if (adjusted.length) {
@@ -217,22 +207,8 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
         <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
           <CloudSlashIcon className="size-4 shrink-0" />
           <span className="min-w-0 flex-1">
-            <span className="font-semibold">Offline.</span> Keep selling: sales, refunds and shift changes are saved on this counter and sync automatically when the internet is back.
+            <span className="font-semibold">Offline.</span> Sales cannot be saved until the internet is back. Keep the cart; it is kept on this screen.
           </span>
-          {waiting > 0 && <span className="shrink-0 font-semibold tabular-nums">{waiting} waiting</span>}
-          <Button size="xs" variant="outline" className="shrink-0 border-warning/40" onClick={syncNow}>
-            <ArrowsClockwiseIcon />
-            {waiting > 0 ? "Sync now" : "Reconnect"}
-          </Button>
-        </div>
-      )}
-      {!offline && waiting > 0 && (
-        <div role="status" className="flex items-center gap-3 border border-info/40 bg-info/10 px-3 py-2 text-xs text-info">
-          <ArrowsClockwiseIcon className="size-4 shrink-0 animate-spin" />
-          <span>
-            <span className="font-semibold">Reconnected.</span> Syncing {waiting} offline {waiting === 1 ? "sale" : "sales"}…
-          </span>
-          <span className="ml-auto shrink-0 font-semibold tabular-nums">{waiting} syncing</span>
         </div>
       )}
       <div className="flex items-center gap-x-5 gap-y-1 border bg-card px-3 py-2 text-xs text-muted-foreground">
@@ -318,9 +294,9 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
 }
 
 export const PosScreen = ({ user }) => {
-  const hydrated = useDemoStore(({ hydrated }) => hydrated)
-  const shifts = useDemoStore(({ shifts }) => shifts)
-  const epoch = useDemoStore(({ epoch }) => epoch)
+  const hydrated = useLedgerStore(({ hydrated }) => hydrated)
+  const shifts = useLedgerStore(({ shifts }) => shifts)
+  const epoch = useLedgerStore(({ epoch }) => epoch)
   const [report, setReport] = useState(null)
   const shift = openShiftFor({ shifts })
 

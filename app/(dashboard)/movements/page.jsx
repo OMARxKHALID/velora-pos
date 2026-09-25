@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header"
 import { requireRole } from "@/features/auth/server/session"
-import { DemoReady } from "@/features/demo/components/demo-ready"
+import { LedgerReady } from "@/features/ledger/components/ledger-ready"
 import { MovementsScreen } from "@/features/inventory/components/movements-screen"
 
 const MovementsPage = async () => {
@@ -9,9 +9,9 @@ const MovementsPage = async () => {
   return (
     <>
       <PageHeader title="Stock history" description="Every pair in and out, with who did it and why." />
-      <DemoReady>
+      <LedgerReady>
         <MovementsScreen user={user} />
-      </DemoReady>
+      </LedgerReady>
     </>
   )
 }

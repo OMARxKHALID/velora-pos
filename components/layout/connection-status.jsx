@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect } from "react"
 import { ArrowsClockwiseIcon, CloudSlashIcon, WifiHighIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import {
@@ -12,83 +11,41 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { announceSynced, useSyncNow } from "@/features/demo/hooks/use-sync-now"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
-
-const SYNC_DELAY = 1400
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 
 export const ConnectionStatus = () => {
-  const hydrated = useDemoStore(({ hydrated }) => hydrated)
-  const offline = useDemoStore(({ offline }) => offline)
-  const waiting = useDemoStore(({ outbox }) => outbox.length)
-  const setOffline = useDemoStore(({ setOffline }) => setOffline)
-  const syncOutbox = useDemoStore(({ syncOutbox }) => syncOutbox)
-  const syncNow = useSyncNow()
-  const syncing = hydrated && !offline && waiting > 0
-
-  useEffect(() => {
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
-      setOffline(true)
-    }
-    const handleOffline = () => setOffline(true)
-    const handleOnline = () => setOffline(false)
-    window.addEventListener("offline", handleOffline)
-    window.addEventListener("online", handleOnline)
-    return () => {
-      window.removeEventListener("offline", handleOffline)
-      window.removeEventListener("online", handleOnline)
-    }
-  }, [setOffline])
-
-  useEffect(() => {
-    if (!syncing) return
-    const timer = setTimeout(() => announceSynced(syncOutbox()), SYNC_DELAY)
-    return () => clearTimeout(timer)
-  }, [syncing, syncOutbox])
-
-  const state = offline ? "offline" : syncing ? "syncing" : "online"
-  const Icon = { offline: CloudSlashIcon, syncing: ArrowsClockwiseIcon, online: WifiHighIcon }[state]
-  const label = { offline: waiting ? `Offline · ${waiting} waiting` : "Offline", syncing: `Syncing ${waiting}…`, online: "Online" }[state]
+  const offline = useLedgerStore(({ offline }) => offline)
+  const loadError = useLedgerStore(({ loadError }) => loadError)
+  const load = useLedgerStore(({ load }) => load)
+  const trouble = offline || Boolean(loadError)
+  const Icon = trouble ? CloudSlashIcon : WifiHighIcon
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
           "flex h-7 items-center gap-1.5 border px-2 pointer-coarse:h-10 pointer-coarse:px-3 text-xs font-semibold tracking-widest whitespace-nowrap uppercase transition-colors",
-          state === "online" && "border-success/30 bg-success/10 text-success",
-          state === "offline" && "border-warning/40 bg-warning/10 text-warning",
-          state === "syncing" && "border-info/40 bg-info/10 text-info"
+          trouble ? "border-warning/40 bg-warning/10 text-warning" : "border-success/30 bg-success/10 text-success"
         )}
       >
-        <Icon className={cn("size-3.5", state === "syncing" && "animate-spin")} />
-        {label}
+        <Icon className="size-3.5" />
+        {offline ? "Offline" : loadError ? "Not synced" : "Online"}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuGroup>
           <DropdownMenuLabel className="font-normal text-muted-foreground">
             {offline
-              ? "No internet. Sales, refunds, shifts and stock changes are saved on this counter and sync automatically when the connection returns. Each one syncs once."
-              : "Connected. Changes are saved as they are made. Demo build: data stays in this browser."}
+              ? "No internet. Nothing can be saved until the connection is back."
+              : loadError
+                ? `The latest data could not be loaded: ${loadError}`
+                : "Connected. Every change is saved on the server and shared with the other screens."}
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        {waiting > 0 && (
-          <DropdownMenuItem onClick={syncNow}>
-            <ArrowsClockwiseIcon />
-            Sync {waiting} pending {waiting === 1 ? "change" : "changes"} now
-          </DropdownMenuItem>
-        )}
-        {offline ? (
-          <DropdownMenuItem onClick={() => setOffline(false)}>
-            <WifiHighIcon />
-            Reconnect
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem onClick={() => setOffline(true)}>
-            <CloudSlashIcon />
-            Simulate internet drop
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem onClick={() => load()}>
+          <ArrowsClockwiseIcon />
+          Refresh now
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

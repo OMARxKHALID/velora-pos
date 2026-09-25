@@ -10,18 +10,18 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { Textarea } from "@/components/ui/textarea"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { toPaisa } from "@/lib/money"
 import { closeShiftSchema } from "../schemas"
 
 export const CloseShiftDialog = ({ shift, user, onClosed, onCancel }) => {
-  const closeShift = useDemoStore(({ closeShift }) => closeShift)
+  const closeShift = useLedgerStore(({ closeShift }) => closeShift)
   const nameOf = useStaffName()
   const form = useForm({ resolver: zodResolver(closeShiftSchema), defaultValues: { countedCash: "", note: "" } })
 
-  const handleSubmit = form.handleSubmit(({ countedCash, note }) => {
+  const handleSubmit = form.handleSubmit(async ({ countedCash, note }) => {
     try {
-      onClosed(closeShift({ shiftId: shift.id, countedCash: toPaisa(countedCash), closedBy: user.id, note }))
+      onClosed(await closeShift({ shiftId: shift.id, countedCash: toPaisa(countedCash), note }))
     } catch (error) {
       toast.error(error.message)
     }

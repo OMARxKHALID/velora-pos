@@ -8,7 +8,7 @@ import { Segmented } from "@/components/ui/segmented"
 import { StatStrip } from "@/components/ui/stat-strip"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS, scopeState, shops } from "@/features/shops/lib/shops"
 import { formatMoney, sumBy } from "@/lib/money"
@@ -114,16 +114,16 @@ const buildView = (full, scope, period, staff, lowThreshold) => {
 }
 
 export const DashboardScreen = ({ user }) => {
-  const products = useDemoStore(({ products }) => products)
-  const variants = useDemoStore(({ variants }) => variants)
-  const sales = useDemoStore(({ sales }) => sales)
-  const refunds = useDemoStore(({ refunds }) => refunds)
-  const shifts = useDemoStore(({ shifts }) => shifts)
-  const movements = useDemoStore(({ movements }) => movements)
-  const purchases = useDemoStore(({ purchases }) => purchases)
-  const stock = useDemoStore(({ stock }) => stock)
-  const staff = useDemoStore(({ staff }) => staff)
-  const lowThreshold = useDemoStore(({ settings }) => settings.lowStockThreshold)
+  const products = useLedgerStore(({ products }) => products)
+  const variants = useLedgerStore(({ variants }) => variants)
+  const sales = useLedgerStore(({ sales }) => sales)
+  const refunds = useLedgerStore(({ refunds }) => refunds)
+  const shifts = useLedgerStore(({ shifts }) => shifts)
+  const movements = useLedgerStore(({ movements }) => movements)
+  const purchases = useLedgerStore(({ purchases }) => purchases)
+  const stock = useLedgerStore(({ stock }) => stock)
+  const staff = useLedgerStore(({ staff }) => staff)
+  const lowThreshold = useLedgerStore(({ settings }) => settings.lowStockThreshold)
   const nameOf = useStaffName()
   const scope = useShopScope(user)
   const [range, setRange] = useState("7d")

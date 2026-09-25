@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sheet"
 import { refundableQuantity } from "@/features/demo/lib/ledger"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { printNode } from "@/features/pos/lib/print-node"
 import { Receipt } from "@/features/pos/components/receipt"
 import { RefundRequestDialog } from "@/features/refunds/components/refund-request-dialog"
@@ -42,8 +42,8 @@ const refundTone = {
 }
 
 export const SaleDetailSheet = ({ saleId, user, onClose }) => {
-  const sales = useDemoStore(({ sales }) => sales)
-  const refunds = useDemoStore(({ refunds }) => refunds)
+  const sales = useLedgerStore(({ sales }) => sales)
+  const refunds = useLedgerStore(({ refunds }) => refunds)
   const [refunding, setRefunding] = useState(false)
   const receipt = useRef(null)
   const nameOf = useStaffName()

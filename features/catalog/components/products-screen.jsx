@@ -27,7 +27,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TablePagination, paginate } from "@/components/ui/table-pagination"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { StatusBadge } from "@/features/sales/components/sale-status-badges"
 import { downloadFile } from "@/lib/download"
 import { formatMoney, sumBy } from "@/lib/money"
@@ -65,10 +65,10 @@ const DeleteDialog = ({ product, onConfirm, onClose }) => (
 )
 
 export const ProductsScreen = ({ user }) => {
-  const stock = useDemoStore(({ stock }) => stock)
-  const movements = useDemoStore(({ movements }) => movements)
-  const setProductStatus = useDemoStore(({ setProductStatus }) => setProductStatus)
-  const deleteProduct = useDemoStore(({ deleteProduct }) => deleteProduct)
+  const stock = useLedgerStore(({ stock }) => stock)
+  const movements = useLedgerStore(({ movements }) => movements)
+  const setProductStatus = useLedgerStore(({ setProductStatus }) => setProductStatus)
+  const deleteProduct = useLedgerStore(({ deleteProduct }) => deleteProduct)
   const { products, variants, variantsByProduct } = useCatalog()
   const [status, setStatus] = useState("active")
   const [query, setQuery] = useState("")
@@ -99,16 +99,20 @@ export const ProductsScreen = ({ user }) => {
     toast.success("Export ready", { description: `${variants.length} rows with stock, prices and barcodes.` })
   }
 
-  const handleStatus = (product, next) => {
-    setProductStatus({ productId: product.id, status: next })
-    toast.success(next === "archived" ? "Archived" : "Restored", {
-      description: next === "archived" ? `${product.name} is hidden from the POS. History is kept.` : `${product.name} is back on sale.`,
-    })
+  const handleStatus = async (product, next) => {
+    try {
+      await setProductStatus({ productId: product.id, status: next })
+      toast.success(next === "archived" ? "Archived" : "Restored", {
+        description: next === "archived" ? `${product.name} is hidden from the POS. History is kept.` : `${product.name} is back on sale.`,
+      })
+    } catch (error) {
+      toast.error(error.message)
+    }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     try {
-      deleteProduct({ productId: deleting.id })
+      await deleteProduct({ productId: deleting.id })
       toast.success("Deleted", { description: deleting.name })
     } catch (error) {
       toast.error(error.message)

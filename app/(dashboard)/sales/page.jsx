@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header"
 import { SHOP_NAME } from "@/features/shops/lib/constants"
 import { requireRole } from "@/features/auth/server/session"
-import { DemoReady } from "@/features/demo/components/demo-ready"
+import { LedgerReady } from "@/features/ledger/components/ledger-ready"
 import { SalesScreen } from "@/features/sales/components/sales-screen"
 
 const SalesPage = async () => {
@@ -13,9 +13,9 @@ const SalesPage = async () => {
         title="Sales"
         description={user.role === "cashier" ? "Your sales. Finished sales cannot be changed." : `Every sale at the ${SHOP_NAME}. Finished sales cannot be changed.`}
       />
-      <DemoReady>
+      <LedgerReady>
         <SalesScreen user={user} />
-      </DemoReady>
+      </LedgerReady>
     </>
   )
 }

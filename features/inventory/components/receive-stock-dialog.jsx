@@ -12,17 +12,17 @@ import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { beep } from "@/features/pos/lib/beep"
 import { formatMoney, sumBy } from "@/lib/money"
 import { purchaseSchema } from "../schemas"
 
 export const ReceiveStockDialog = ({ user, onClose }) => {
-  const stock = useDemoStore(({ stock }) => stock)
+  const stock = useLedgerStore(({ stock }) => stock)
   const { productById, variantByBarcode, variantById, variants: allVariants } = useCatalog()
   const variants = allVariants.filter(({ active }) => active)
-  const receivePurchase = useDemoStore(({ receivePurchase }) => receivePurchase)
-  const lowLimit = useDemoStore(({ settings }) => settings.lowStockThreshold)
+  const receivePurchase = useLedgerStore(({ receivePurchase }) => receivePurchase)
+  const lowLimit = useLedgerStore(({ settings }) => settings.lowStockThreshold)
   const [code, setCode] = useState("")
   const form = useForm({ resolver: zodResolver(purchaseSchema), defaultValues: { supplier: "Velora Warehouse", lines: [] } })
   const { fields, append, update, remove, replace } = useFieldArray({ control: form.control, name: "lines" })
@@ -59,15 +59,11 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
     form.clearErrors("lines")
   }
 
-  const handleSubmit = form.handleSubmit(({ supplier, lines: received }) => {
+  const handleSubmit = form.handleSubmit(async ({ supplier, lines: received }) => {
     try {
-      const purchase = receivePurchase({
-        supplier,
-        receivedBy: user.id,
-        lines: received.map(({ variantId, quantity }) => ({ variantId, quantity, unitCost: variantById[variantId].cost })),
-      })
+      const purchase = await receivePurchase({ supplier, lines: received.map(({ variantId, quantity }) => ({ variantId, quantity: Number(quantity) })) })
       toast.success("Delivery received", {
-        description: `${sumBy(purchase.items, ({ quantity }) => quantity)} pairs from ${supplier} · ${formatMoney(purchase.total)} at cost`,
+        description: `${purchase.pairs} pairs from ${supplier} · ${formatMoney(purchase.total)} at cost`,
       })
       onClose()
     } catch (error) {

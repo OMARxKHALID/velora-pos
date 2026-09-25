@@ -1,8 +1,8 @@
 import { useCallback } from "react"
 import { staffName } from "../lib/staff"
-import { useDemoStore } from "../store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 
 export const useStaffName = () => {
-  const staff = useDemoStore(({ staff }) => staff)
+  const staff = useLedgerStore(({ staff }) => staff)
   return useCallback((id) => staffName(id, staff), [staff])
 }

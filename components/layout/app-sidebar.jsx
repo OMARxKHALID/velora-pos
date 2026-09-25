@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ArrowCounterClockwiseIcon, CaretUpDownIcon, CheckIcon, PlusIcon, SignOutIcon, StorefrontIcon } from "@phosphor-icons/react"
+import { ArrowCounterClockwiseIcon, CaretUpDownIcon, CheckIcon, SignOutIcon, StorefrontIcon } from "@phosphor-icons/react"
 import {
   Sidebar,
   SidebarContent,
@@ -32,7 +32,7 @@ import { signOut } from "@/features/auth/actions"
 import { roleLabels } from "@/features/auth/lib/roles"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS, shopName, shops } from "@/features/shops/lib/shops"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { navItems } from "./nav-items"
 import { ResetDemoDialog } from "./reset-demo-dialog"
 import { ThemeToggle } from "./theme-toggle"
@@ -42,7 +42,7 @@ const initials = (name) => name.split(" ").filter(Boolean).slice(0, 2).map((part
 
 const ShopSwitcher = ({ user }) => {
   const scope = useShopScope(user)
-  const setShopScope = useDemoStore(({ setShopScope }) => setShopScope)
+  const setShopScope = useLedgerStore(({ setShopScope }) => setShopScope)
   const canSwitch = user.role === "admin"
   const options = [{ id: ALL_SHOPS, name: "All shops" }, ...shops]
 
@@ -75,7 +75,7 @@ const ShopSwitcher = ({ user }) => {
 export const AppSidebar = ({ user, demoMode = false }) => {
   const pathname = usePathname()
   const items = navItems.filter(({ roles }) => roles.includes(user.role))
-  const pendingRefunds = useDemoStore(({ refunds }) => refunds.filter(({ status }) => status === "pending").length)
+  const pendingRefunds = useLedgerStore(({ refunds }) => refunds.filter(({ status }) => status === "pending").length)
   const badges = { "/refunds": pendingRefunds }
 
   const [resetOpen, setResetOpen] = useState(false)

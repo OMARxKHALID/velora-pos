@@ -2,11 +2,11 @@
 
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { MAX_REFERENCE, findSaleByReference, referenceError } from "../lib/card-reference"
 
 export const CardReferenceField = ({ id, value, onChange, onHide }) => {
-  const sales = useDemoStore(({ sales }) => sales)
+  const sales = useLedgerStore(({ sales }) => sales)
   const error = referenceError(value)
   const repeat = error ? null : findSaleByReference(sales, value)
 

@@ -11,7 +11,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/
 import { MAX_CASHIER_DISCOUNT } from "@/features/demo/lib/ledger"
 import { supervisorsOf } from "@/features/demo/lib/staff"
 import { setSupervisorPinAction } from "@/features/staff/actions"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { Panel } from "@/features/analytics/components/panel"
 
 const Toggle = ({ on, onChange, label, description }) => (
@@ -100,7 +100,7 @@ const PinRow = ({ person, hasPin }) => {
 }
 
 const SupervisorPins = () => {
-  const staff = useDemoStore(({ staff }) => staff)
+  const staff = useLedgerStore(({ staff }) => staff)
   const supervisors = supervisorsOf(staff)
 
   return (
@@ -123,16 +123,17 @@ const SupervisorPins = () => {
 }
 
 export const SettingsScreen = ({ demoMode = false }) => {
-  const settings = useDemoStore(({ settings }) => settings)
-  const setSettings = useDemoStore(({ setSettings }) => setSettings)
+  const settings = useLedgerStore(({ settings }) => settings)
+  const setSettings = useLedgerStore(({ setSettings }) => setSettings)
   const [resetOpen, setResetOpen] = useState(false)
   const [rateDraft, setRateDraft] = useSyncedDraft(settings.taxRate ? String(settings.taxRate) : "")
   const [thresholdDraft, setThresholdDraft] = useSyncedDraft(String(settings.lowStockThreshold))
 
-  const update = (patch, message) => {
-    setSettings(patch)
-    if (message) toast.success(message)
-  }
+  const update = (patch, message) =>
+    setSettings(patch).then(
+      () => message && toast.success(message),
+      (error) => toast.error(error.message)
+    )
 
   const handleThreshold = (next) => {
     const clean = digitsOnly(next, 2)

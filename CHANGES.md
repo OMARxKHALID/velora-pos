@@ -1,3 +1,14 @@
+# Backend phase 4: returns on the server, and every screen on the server
+
+Lint clean; 135 tests pass with a MongoDB replica set; production build succeeds. Checked in Chromium with the cashier, the supervisor and the owner each in their own browser: a sale at the till lowered the stock the supervisor sees (6 to 5) with a receipt number from the server; the cashier's refund request reached the supervisor, whose approval put the pair back (5 to 6); a newly opened browser saw both; a product added with opening stock appeared at the till without its cost price; the owner turned tax on at 15% and the till's next sale charged exactly Rs 1,875 on Rs 12,500.
+
+- **One shop for everyone.** The browser demo store is gone. Screens load the shop from `GET /api/ledger` and every change goes through a server action; there is nothing left in local storage except the cart being rung up.
+- **Returns on the server**: requests (cashiers only for their own sales, same checkout id stored once), approvals (only supervisors; two approving at once, one wins), cash refunds only while a drawer is open, stock back at the cost it was sold at.
+- **Settings on the server**, owner only, validated and audited. **Demo reset** now resets the database's sales, stock and settings as well as the team.
+- **What each role receives**: cashiers get their own sales and no cost prices, stock history or deliveries; supervisors their shop; the owner every shop.
+- A new product and its opening stock are saved together in one transaction.
+- **Removed for now**: the simulated "internet drop" and its sync queue. It only ever saved in the browser; real offline selling is phase 6. While offline the header says so and nothing is saved.
+
 # Backend phase 3: selling on the server
 
 Lint clean; 136 tests pass with a MongoDB replica set; production build succeeds; `GET /api/pos` checked over HTTP.

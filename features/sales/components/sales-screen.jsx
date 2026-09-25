@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TablePagination, paginate, resetsPage } from "@/components/ui/table-pagination"
 import { cashierIdsFor } from "@/features/analytics/lib/analytics"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { useBarcodeScanner } from "@/features/pos/hooks/use-barcode-scanner"
@@ -36,12 +36,12 @@ const rupees = (paisa) => (paisa / 100).toFixed(2)
 const MAX_REPORT_SHIFTS = 10
 
 export const SalesScreen = ({ user }) => {
-  const allSales = useDemoStore(({ sales }) => sales)
-  const shifts = useDemoStore(({ shifts }) => shifts)
+  const allSales = useLedgerStore(({ sales }) => sales)
+  const shifts = useLedgerStore(({ shifts }) => shifts)
   const scope = useShopScope(user)
   const sales = scope === ALL_SHOPS ? allSales : allSales.filter(({ shopId }) => shopId === scope)
-  const refunds = useDemoStore(({ refunds }) => refunds)
-  const staff = useDemoStore(({ staff }) => staff)
+  const refunds = useLedgerStore(({ refunds }) => refunds)
+  const staff = useLedgerStore(({ staff }) => staff)
   const nameOf = useStaffName()
   const closedShifts = shifts
     .filter(({ status, shopId, cashierId }) => status === "closed" && (scope === ALL_SHOPS || shopId === scope) && (user.role !== "cashier" || cashierId === user.id))

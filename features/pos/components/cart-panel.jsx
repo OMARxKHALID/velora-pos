@@ -9,7 +9,7 @@ import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { MAX_CASHIER_DISCOUNT } from "@/features/demo/lib/ledger"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { cartTotals } from "@/features/pricing/lib/pricing"
 import { formatMoney } from "@/lib/money"
 import { useCartStore } from "../store/cart-store-provider"
@@ -91,8 +91,8 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onH
   const setQuantity = useCartStore(({ setQuantity }) => setQuantity)
   const setDiscount = useCartStore(({ setDiscount }) => setDiscount)
   const clear = useCartStore(({ clear }) => clear)
-  const heldCount = useDemoStore(({ heldCarts }) => heldAt(heldCarts).length)
-  const settings = useDemoStore(({ settings }) => settings)
+  const heldCount = useLedgerStore(({ heldCarts }) => heldAt(heldCarts).length)
+  const settings = useLedgerStore(({ settings }) => settings)
   const [pendingDiscount, setPendingDiscount] = useState(null)
   const catalog = useCatalog()
   const { rows, count, subtotal, discountTotal, taxRate, taxLabel, taxTotal, total } = cartTotals(lines, discountPct, catalog, settings)

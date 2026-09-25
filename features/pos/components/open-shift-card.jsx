@@ -11,19 +11,19 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { REGISTER_CODE } from "@/features/catalog/lib/catalog"
-import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { newId } from "@/lib/id"
 import { toPaisa } from "@/lib/money"
 import { openShiftSchema } from "../schemas"
 
 export const OpenShiftCard = ({ user }) => {
-  const openShift = useDemoStore(({ openShift }) => openShift)
+  const openShift = useLedgerStore(({ openShift }) => openShift)
   const form = useForm({ resolver: zodResolver(openShiftSchema), defaultValues: { openingCash: "10000" } })
   const [clientId] = useState(newId)
 
-  const handleSubmit = form.handleSubmit(({ openingCash }) => {
+  const handleSubmit = form.handleSubmit(async ({ openingCash }) => {
     try {
-      openShift({ cashierId: user.id, openingCash: toPaisa(openingCash), clientId })
+      await openShift({ openingCash: toPaisa(openingCash), clientId })
       toast.success("Shift opened", { description: `Counter ${REGISTER_CODE} is ready to sell.` })
     } catch (error) {
       toast.error(error.message)

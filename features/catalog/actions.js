@@ -1,6 +1,5 @@
 "use server"
 
-import { refresh } from "next/cache"
 import { actionResult, authorize } from "@/features/auth/server/session"
 import { getDb, getMongoClient } from "@/lib/db/client"
 import { deleteProduct, importCatalog, saveProduct, setProductStatus } from "./server/service"
@@ -9,8 +8,7 @@ const asSupervisor = (work) =>
   actionResult(async () => {
     const user = await authorize("manager")
     const result = await work({ db: getDb(), client: getMongoClient(), user, shopId: user.shopId })
-    refresh()
-    return result
+    return { record: result }
   })
 
 export const saveProductAction = async (request) => asSupervisor((deps) => saveProduct(deps, request))
