@@ -12,6 +12,10 @@ import { RefundsScreen } from "@/features/refunds/components/refunds-screen"
 import { SalesScreen } from "@/features/sales/components/sales-screen"
 import { SettingsScreen } from "@/features/settings/components/settings-screen"
 import { StaffScreen } from "@/features/staff/components/staff-screen"
+import { StockCountScreen } from "@/features/inventory/components/stock-count-screen"
+import { PaymentsSettings } from "@/features/settings/components/payments-settings"
+import { ReceiptDesigner } from "@/features/settings/components/receipt-designer"
+import { ShopsSettings } from "@/features/shops/components/shops-settings"
 import { toSessionUser } from "@/features/auth/lib/roles"
 import { SAMPLE_TEAM } from "@/features/sample-data/lib/team"
 import { applyCloseShift, applyOpenShift, applySale, shiftSummary } from "@/features/ledger/lib/rules"
@@ -33,8 +37,12 @@ const users = {
 
 const seededStore = ({ openShift = false, settings = {} } = {}) => {
   const { shop, register } = firstShopDocuments()
-  const counters = { shops: [{ id: shop._id, name: shop.name, code: shop.code }], registers: [{ id: register._id, shopId: register.shopId, code: register.code }] }
-  let state = { ...createSeed(), ...counters, heldCarts: [], settings: { ...defaultPricingSettings(), ...settings } }
+  const shopSettings = { ...defaultPricingSettings(), ...settings }
+  const counters = {
+    shops: [{ id: shop._id, name: shop.name, code: shop.code, address: "", city: "Lahore", phone: "", ntn: "", strn: "", active: true, settings: shopSettings }],
+    registers: [{ id: register._id, shopId: register.shopId, code: register.code, name: register.name, fbrPosId: "", autoPrint: false, copies: 1, drawerOnCash: true, manualDrawer: true }],
+  }
+  let state = { ...createSeed(), ...counters, heldCarts: [], settings: shopSettings }
   if (openShift) state = applyOpenShift(state, { cashierId: "u-cashier", openingCash: 1000000, at: Date.now() }).state
   const store = createLedgerStore({ directory: { ...SAMPLE_TEAM } })
   store.setState({ ...state, hydrated: true })
@@ -77,8 +85,8 @@ describe("screens render against seeded data", () => {
     expect(render(store, <SalesScreen user={users.admin} />, [salesFor(store, users.admin)])).toContain("Z-reports")
     expect(render(store, <StockScreen user={users.admin} />)).toContain("Stock by size")
     expect(render(store, <MovementsScreen user={users.admin} />)).toContain("History cannot be edited")
-    expect(render(store, <StaffScreen />)).toContain("Hamza Ali")
-    expect(render(store, <SettingsScreen />)).toContain("Supervisor approval PIN")
+    expect(render(store, <StaffScreen user={users.admin} />)).toContain("Hamza Ali")
+    expect(render(store, <SettingsScreen user={users.admin} />)).toContain("Discounts &amp; PIN")
   })
 
   test("supervisor: sales, returns, products, stock", () => {
@@ -116,10 +124,19 @@ describe("screens render against seeded data", () => {
     })
     store.getState().setDirectory({ ...SAMPLE_TEAM, "u-zain": { id: "u-zain", name: "Zain Malik", role: "cashier", username: "zain", shop: "Velora Shoes", disabled: true } })
     expect(render(store, <SalesScreen user={users.admin} />, [salesFor(store, users.admin)])).toContain(sale.number)
-    const staffPage = render(store, <StaffScreen />)
+    const staffPage = render(store, <StaffScreen user={users.admin} />)
     expect(staffPage).toContain("Zain Malik")
     expect(staffPage).toContain("Disabled")
     expect(render(store, <DashboardScreen user={users.admin} />, [dashboardFor(store)])).toContain("Zain Malik")
+  })
+
+  test("the tabs and screens added for shops, payments, receipts and stock counts render", () => {
+    const store = seededStore()
+    const settings = store.getState().settings
+    expect(render(store, <ReceiptDesigner settings={settings} update={() => {}} shopId={null} />)).toContain("Receipt design")
+    expect(render(store, <PaymentsSettings settings={settings} update={() => {}} />)).toContain("JazzCash")
+    expect(render(store, <ShopsSettings scope="all" />)).toContain("Velora Shoes")
+    expect(render(store, <StockCountScreen user={{ ...users.manager, shopId: store.getState().shops[0].id }} />)).toContain("Stock count")
   })
 
   test("the cart, the receipt and the Z-report print carry no compliance claims and show tax", () => {
@@ -133,7 +150,8 @@ describe("screens render against seeded data", () => {
 
     const cart = render(store, <CartStoreProvider><CartPanel availableFor={() => 5} onScan={() => {}} onCharge={() => {}} onHold={() => {}} onOpenHeld={() => {}} /></CartStoreProvider>)
     expect(cart).toContain("Current sale")
-    expect(cart).toContain("Held")
+    expect(cart).toContain("No held carts")
+    expect(cart.match(/Remove every item from this sale/g)).toHaveLength(1)
 
     const receipt = render(store, <Receipt sale={sale} />)
     expect(receipt).toContain("NOT A TAX INVOICE")

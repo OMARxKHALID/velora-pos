@@ -52,7 +52,7 @@ export const resetSampleTeam = async ({ auth, db, password, pinSecret, keepSigne
   return {}
 }
 
-const LEDGER = [C.shops, C.registers, C.settings, C.counters, C.products, C.variants, C.stock, C.movements, C.sales, C.refunds, C.shifts, C.purchases, C.heldCarts, C.auditLog]
+const LEDGER = [C.shops, C.registers, C.settings, C.counters, C.products, C.variants, C.stock, C.movements, C.sales, C.refunds, C.shifts, C.purchases, C.heldCarts, C.auditLog, C.categories, C.exchanges, C.drawerEvents]
 
 export const resetSampleData = async ({ db, now = Date.now() }) => {
   for (const name of LEDGER) await db.collection(name).deleteMany({})

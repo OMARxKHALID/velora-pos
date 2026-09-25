@@ -151,26 +151,6 @@ export const CartPanel = ({ shopId, lastAdded, availableFor, onScan, onCharge, o
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5 pt-0.5">
-          <HeldCartsButton count={heldCount} onClick={onOpenHeld} />
-          <Button type="button" size="sm" variant="outline" disabled={!rows.length} onClick={onHold} title="Hold this sale to serve another customer" className="w-full px-2">
-            <PauseIcon className="text-gold" />
-            Hold
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!rows.length}
-            onClick={clear}
-            title="Remove every item from this sale"
-            className="w-full px-2 text-muted-foreground hover:border-destructive/40 hover:text-destructive"
-          >
-            <TrashIcon />
-            Clear
-          </Button>
-        </div>
-
         <ScanField onScan={onScan} autoFocus={focusScan} />
       </div>
 
