@@ -18,6 +18,7 @@ test("the owner, people who left and the last supervisor are protected", () => {
   expect(checkStaffChange(people, "u-cashier", { role: "admin" })).toMatch("Supervisor or Cashier")
   expect(checkStaffChange(people, "u-cashier", { role: "manager" })).toBeNull()
   expect(checkStaffChange([...people, { id: "u-manager-2", role: "manager" }], "u-manager", { role: "cashier" })).toBeNull()
+  expect(checkStaffChange([...people, { id: "u-manager-off", role: "manager", banned: true }], "u-manager", {})).toBe(LAST_SUPERVISOR)
 })
 
 test("initials come from the first two words", () => {

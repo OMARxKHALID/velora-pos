@@ -9,6 +9,22 @@ test("a wrong password is refused", async ({ page }) => {
   await expect(page.getByText("Wrong username or password")).toBeVisible()
 })
 
+test("guessing passwords locks the username out for a while", async ({ page }) => {
+  await page.goto("/")
+  const guess = async () => {
+    await page.getByLabel("Username").fill("intruder")
+    await page.getByLabel("Password").fill("guess-guess")
+    await page.getByRole("button", { name: /^Sign in$/ }).click()
+  }
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await guess()
+    await expect(page.getByText("Wrong username or password")).toBeVisible()
+    await page.reload()
+  }
+  await guess()
+  await expect(page.getByText(/Too many attempts/)).toBeVisible()
+})
+
 test("each role lands on its own screen and cannot open the owner's", async ({ browser }) => {
   const cashier = await signIn(browser, "cashier")
   await expect(cashier.page).toHaveURL(/\/pos$/)

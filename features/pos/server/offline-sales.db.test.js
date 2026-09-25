@@ -3,6 +3,7 @@ import { hasTestDatabase, useTestDatabase } from "@/test/db"
 import { issueApproval } from "@/features/auth/server/approval-token"
 import { loadDocuments, seedDocuments } from "@/features/sample-data/lib/seed-documents"
 import { ledgerSnapshot } from "@/features/ledger/server/snapshot"
+import { writeAudit } from "@/lib/db/audit"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { newId } from "@/lib/id"
 import { OFFLINE_BLOCK, offlineNumbers } from "../lib/receipts"
@@ -84,14 +85,29 @@ describe.skipIf(!hasTestDatabase)("sales made offline and uploaded later", () =>
     expect(sale.number).toMatch(/^SH1-R1-\d{6}$/)
   })
 
-  test("the price the customer paid stands even if it changed since, and the sale is marked for a look", async () => {
+  test("the price the customer paid stands if it changed during the shift, and the sale is marked for a look", async () => {
     const variant = await pick()
-    await context.db.collection(C.variants).updateOne({ _id: variant._id }, { $set: { price: variant.price + 100000 } })
+    const raised = variant.price + 100000
+    await context.db.collection(C.variants).updateOne({ _id: variant._id }, { $set: { price: raised } })
+    await context.db.collection(C.products).updateOne({ _id: variant.productId }, { $set: { price: raised } })
+    await writeAudit(context.db, undefined, { shopId: SHOP, userId: "u-manager", kind: "product.update", target: variant.productId, changes: { price: { from: variant.price, to: raised } } })
     const sale = await syncOfflineSale(as("u-cashier"), offlineSale(variant))
     expect(sale.total).toBe(variant.price)
     expect(sale.items[0].unitPrice).toBe(variant.price)
     expect(sale.flags).toEqual(["price_mismatch"])
     await context.db.collection(C.variants).updateOne({ _id: variant._id }, { $set: { price: variant.price } })
+    await context.db.collection(C.products).updateOne({ _id: variant.productId }, { $set: { price: variant.price } })
+  })
+
+  test("a price or tax setting the shop never used is refused, so a till cannot make up its own prices", async () => {
+    const variant = await pick()
+    const cheap = offlineSale(variant, { lines: [{ variantId: variant._id, quantity: 1, unitPrice: 100, productDiscountPct: 0 }], payments: [{ method: "card", amount: 100 }], total: 100 })
+    await expect(syncOfflineSale(as("u-cashier"), cheap)).rejects.toThrow("not ones the shop used")
+    const discounted = offlineSale(variant, { lines: [{ variantId: variant._id, quantity: 1, unitPrice: variant.price, productDiscountPct: 50 }] })
+    await expect(syncOfflineSale(as("u-cashier"), discounted)).rejects.toThrow("not ones the shop used")
+    const unusedSetting = offlineSale(variant, { pricing: { ...pricing, cartDiscountEnabled: false } })
+    await expect(syncOfflineSale(as("u-cashier"), unusedSetting)).rejects.toThrow("not ones the shop used")
+    expect(await context.db.collection(C.sales).countDocuments({ clientId: { $in: [cheap.clientId, discounted.clientId, unusedSetting.clientId] } })).toBe(0)
   })
 
   test("selling what the server thinks is gone is kept and flagged, not lost", async () => {
@@ -149,11 +165,11 @@ describe.skipIf(!hasTestDatabase)("sales made offline and uploaded later", () =>
     await expect(syncOfflineSale(as("u-cashier"), offlineSale(variant, { lines: [{ variantId: "nope", quantity: 1, unitPrice: 100, productDiscountPct: 0 }] }))).rejects.toThrow("Unknown item")
   })
 
-  test("sales that reach the server after the shift was closed are accepted and marked", async () => {
+  test("sales that reach the server after the shift was closed are accepted and marked, since its Z-report did not count them", async () => {
     const variant = await pick()
     const closed = await closeShift(as("u-cashier"), { shiftId: shift.id, countedCash: 0 })
     const before = await syncOfflineSale(as("u-cashier"), offlineSale(variant, { soldAt: closed.closedAt.getTime() - MINUTE }))
-    expect(before.flags).toEqual([])
+    expect(before.flags).toEqual(["after_close"])
     const after = await syncOfflineSale(as("u-cashier"), offlineSale(variant, { soldAt: closed.closedAt.getTime() + MINUTE }))
     expect(after.flags).toEqual(["after_close"])
     await expect(reserveReceipts(as("u-cashier"), { shiftId: shift.id })).rejects.toThrow("not open")

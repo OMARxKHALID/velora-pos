@@ -2,6 +2,7 @@
 
 import { actionResult, authorize } from "@/features/auth/server/session"
 import { getDb, getMongoClient } from "@/lib/db/client"
+import { withoutCosts } from "@/features/sales/lib/for-viewer"
 import { authEnv } from "@/lib/env"
 import { discardHeldCart, holdCart, takeHeldCart } from "./server/held-carts"
 import { recordSale } from "./server/sales"
@@ -20,7 +21,7 @@ export const closeShiftAction = async (input) => asCashier((deps) => closeShift(
 
 export const reserveReceiptsAction = async (input) => asCashier((deps) => reserveReceipts(deps, input))
 
-export const recordSaleAction = async (input) => asCashier((deps) => recordSale(deps, input))
+export const recordSaleAction = async (input) => asCashier(async (deps) => withoutCosts(await recordSale(deps, input)))
 
 export const holdCartAction = async (input) => asCashier((deps) => holdCart(deps, input))
 

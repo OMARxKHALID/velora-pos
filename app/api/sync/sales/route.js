@@ -1,12 +1,18 @@
 import { getSession } from "@/features/auth/server/session"
 import { syncOfflineSale } from "@/features/pos/server/sales"
+import { withoutCosts } from "@/features/sales/lib/for-viewer"
 import { denied, noStore } from "@/features/sales/server/request"
 import { getDb, getMongoClient } from "@/lib/db/client"
 import { authEnv } from "@/lib/env"
 
 const sameOrigin = (request) => {
   const origin = request.headers.get("origin")
-  return !origin || new URL(origin).host === new URL(request.url).host
+  if (!origin) return true
+  try {
+    return new URL(origin).host === new URL(request.url).host
+  } catch {
+    return false
+  }
 }
 
 export const POST = async (request) => {
@@ -19,7 +25,7 @@ export const POST = async (request) => {
   if (!body) return denied(400, "Send JSON")
   try {
     const sale = await syncOfflineSale({ db: getDb(), client: getMongoClient(), user, shopId: user.shopId, approvalSecret: authEnv().BETTER_AUTH_SECRET }, body)
-    return Response.json({ sale }, { headers: noStore })
+    return Response.json({ sale: withoutCosts(sale) }, { headers: noStore })
   } catch (error) {
     if (error?.expose) return denied(422, error.message)
     throw error

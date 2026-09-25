@@ -213,9 +213,11 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
     ? "Finish or clear the current sale first"
     : heldCarts.length
       ? "Resume or discard held carts first"
-      : waiting.length
-        ? "Wait for the sales saved on this till to upload"
-        : undefined
+      : waiting.some(({ status }) => status === "failed")
+        ? "Review the sales that could not be uploaded first"
+        : waiting.length
+          ? "Wait for the sales saved on this till to upload"
+          : undefined
 
   return (
     <div className={`flex flex-col gap-3 ${screenHeight}`}>

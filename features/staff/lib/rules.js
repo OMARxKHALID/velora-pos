@@ -2,7 +2,7 @@ import { STAFF_ROLES } from "@/features/auth/lib/roles"
 
 export const LAST_SUPERVISOR = "Keep at least one supervisor so discounts and returns can still be approved."
 
-const activeSupervisors = (people) => people.filter(({ role, removedAt }) => role === "manager" && !removedAt)
+const activeSupervisors = (people) => people.filter(({ role, removedAt, banned }) => role === "manager" && !removedAt && !banned)
 
 export const checkStaffChange = (people, id, { role } = {}) => {
   const person = people.find((entry) => entry.id === id)

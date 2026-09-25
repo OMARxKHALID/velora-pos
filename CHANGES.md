@@ -1,3 +1,16 @@
+# Review of phases 0 to 7
+
+A full pass over every change on the branch (11 commits, 233 files), server first. Lint clean; 160 tests pass with a MongoDB replica set; production build succeeds; 7 Playwright browser tests pass.
+
+- **Fixed: passwords could be guessed without limit.** Better Auth only rate-limits requests through its own HTTP route, and the sign-in form calls it directly. Sign-in now counts wrong passwords in the database: 10 per username or 50 per address in 15 minutes, then "Too many attempts". A correct password clears the count.
+- **Fixed: an offline upload could name its own prices.** The server kept whatever price the till sent and only marked it. It now accepts a price, a shop offer or a tax or discount setting only if it is the current one or was in use since shortly before the shift opened (from the audit log). Anything else is refused and stays on the till for a supervisor. Sales uploaded after their shift was closed are now always marked, because that Z-report did not count them.
+- **Fixed: cashiers received cost prices** in the reply to every sale they rang up (online and uploaded). Costs are now removed before the reply, as they already were in the sales list.
+- **Fixed: the owner could turn off the last working supervisor.** Supervisors whose access is off no longer count towards "keep at least one supervisor".
+- **Fixed: a cashier's ledger included other cashiers' closed shifts** and their cash counts. Cashiers now get open shifts and their own.
+- CSV import rows are checked on the server too, and a bad row is named ("Row 2: price is not valid") instead of "Something went wrong".
+- The upload endpoint no longer fails with a server error on a malformed `Origin` header.
+- A shift with a sale that could not be uploaded now says to review it, rather than to wait.
+
 # Phase 7: a real POS that can load sample data
 
 Lint clean; 155 tests pass with a MongoDB replica set; production build succeeds; 6 Playwright browser tests pass against the built app.

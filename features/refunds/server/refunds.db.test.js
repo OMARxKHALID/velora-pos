@@ -73,14 +73,18 @@ describe.skipIf(!hasTestDatabase)("returns, settings and what each role can read
   })
 
   test("each role reads only what it should", async () => {
+    await context.db.collection(C.shifts).insertOne({ _id: "shift-other", shopId: SHOP, registerId: "reg-1", cashierId: "u-cashier-2", status: "closed", openedAt: new Date(), closedAt: new Date(), openingCash: 0, countedCash: 0, difference: -5000 })
     const cashier = await ledgerSnapshot(context.db, { user: { id: "u-cashier", role: "cashier", shopId: SHOP } })
     expect(cashier.variants.every((item) => !("cost" in item))).toBe(true)
     expect(cashier.usedVariantIds).toEqual([])
     expect(cashier.refunds.every(({ requestedBy }) => requestedBy === "u-cashier")).toBe(true)
     expect("sales" in cashier || "movements" in cashier || "purchases" in cashier).toBe(false)
+    expect(cashier.shifts.some(({ id }) => id === "shift-other")).toBe(false)
+    expect(cashier.shifts.some(({ cashierId }) => cashierId === "u-cashier")).toBe(true)
     const supervisor = await ledgerSnapshot(context.db, { user: { id: "u-manager", role: "manager", shopId: SHOP } })
     expect(supervisor.usedVariantIds.length).toBeGreaterThan(0)
     expect(supervisor.heldCarts).toEqual([])
+    expect(supervisor.shifts.some(({ id }) => id === "shift-other")).toBe(true)
     const owner = await ledgerSnapshot(context.db, { user: { id: "u-admin", role: "admin", shopId: null } })
     expect(owner.settings.taxRate).toBe(17.5)
     expect(owner.variants[0].cost).toBeGreaterThan(0)

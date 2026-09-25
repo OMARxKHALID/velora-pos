@@ -10,6 +10,8 @@ import { inBlocks, receiptNumber } from "../lib/receipts"
 import { registerFor, shopSettings } from "./register"
 
 const CLOCK_SLACK = 5 * 60 * 1000
+const PRICE_HISTORY_SLACK = 24 * 60 * 60 * 1000
+const TILL_SETTINGS = ["taxEnabled", "taxRate", "productDiscountEnabled", "cartDiscountEnabled"]
 
 const lineSchema = z.object({
   variantId: z.string().min(1).max(80),
@@ -178,6 +180,34 @@ const pricingChanged = (catalog, lines, current, till) => {
   return priceMoved || effectiveRate(current) !== effectiveRate(till)
 }
 
+const pricesInUse = async (db, session, { shopId, since, catalog, current }) => {
+  const history = await db
+    .collection(C.auditLog)
+    .find({ shopId, at: { $gte: since }, $or: [{ kind: "product.update", target: { $in: catalog.products.map(({ id }) => id) } }, { kind: "settings.update" }] }, { session })
+    .toArray()
+  const seen = (values, field, entries) => new Set([...values, ...entries.filter(({ changes }) => changes?.[field]).map(({ changes }) => changes[field].from)])
+  const products = Object.fromEntries(
+    catalog.products.map((product) => {
+      const entries = history.filter(({ target }) => target === product.id)
+      return [product.id, { price: seen([product.price], "price", entries), discountPct: seen([product.discountPct ?? 0], "discountPct", entries) }]
+    })
+  )
+  const settingsEntries = history.filter(({ kind }) => kind === "settings.update")
+  const settings = Object.fromEntries(TILL_SETTINGS.map((field) => [field, seen([current[field]], field, settingsEntries)]))
+  return { products, settings }
+}
+
+const checkTillPrices = (catalog, lines, pricing, inUse) => {
+  const { variantById } = indexOf(catalog)
+  const unknown = lines.some(({ variantId, unitPrice, productDiscountPct }) => {
+    const allowed = inUse.products[variantById[variantId].productId]
+    return !allowed.price.has(unitPrice) || !allowed.discountPct.has(productDiscountPct)
+  })
+  if (unknown || TILL_SETTINGS.some((field) => !inUse.settings[field].has(pricing[field]))) {
+    throw new UserError("The prices on this sale are not ones the shop used during this shift. Show it to a supervisor.")
+  }
+}
+
 const syncInSession = async (db, session, { user, shopId, now, approvalSecret }, input) => {
   const existing = await existingSale(db, session, input.clientId)
   if (existing) return fromDoc(existing)
@@ -200,8 +230,11 @@ const syncInSession = async (db, session, { user, shopId, now, approvalSecret },
     soldAt = shift.openedAt.getTime()
     flags.add("clock")
   }
-  if (shift.status !== "open" && soldAt > shift.closedAt.getTime()) flags.add("after_close")
+  if (shift.status !== "open") flags.add("after_close")
   const at = new Date(soldAt)
+
+  const inUse = await pricesInUse(db, session, { shopId, since: new Date(shift.openedAt.getTime() - PRICE_HISTORY_SLACK), catalog, current })
+  checkTillPrices(catalog, lines, input.pricing, inUse)
 
   const settings = { ...current, ...input.pricing, taxLabel: input.pricing.taxLabel ?? current.taxLabel }
   if (pricingChanged(catalog, lines, current, settings)) flags.add("price_mismatch")

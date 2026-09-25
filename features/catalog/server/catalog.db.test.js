@@ -121,6 +121,8 @@ describe.skipIf(!hasTestDatabase)("products and stock on the server", () => {
     const before = await context.db.collection(C.products).countDocuments()
     await expect(importCatalog(deps(), { rows: [{ ...rows[0], product: "Never Saved" }, { ...rows[1], product: "Never Saved Too", barcode: "8901234567890" }] })).rejects.toThrow()
     expect(await context.db.collection(C.products).countDocuments()).toBe(before)
+    await expect(importCatalog(deps(), { rows: [rows[0], { ...rows[1], price: "free" }] })).rejects.toThrow("Row 2: price is not valid")
+    await expect(importCatalog(deps(), { rows: [{ ...rows[0], product: null }] })).rejects.toThrow("Row 1: product is not valid")
   })
 
   test("reads: cashiers get no cost prices; history pages newest first", async () => {

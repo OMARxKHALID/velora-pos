@@ -1,4 +1,5 @@
 import { COLLECTIONS as C, fromDoc } from "@/lib/db/collections"
+import { saleForViewer } from "../lib/for-viewer"
 import { SHOP_TIME_ZONE, startOfDayIn } from "@/lib/zoned"
 
 const DAY = 24 * 60 * 60 * 1000
@@ -6,9 +7,6 @@ export const SALE_RANGES = { today: 1, "7d": 7, "30d": 30, all: null }
 export const PAGE_SIZE = 25
 
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-
-const forViewer = (viewer) => (sale) =>
-  viewer.role === "cashier" ? { ...sale, items: sale.items.map(({ unitCost: _unitCost, ...item }) => item) } : sale
 
 export const saleFilter = ({ shopIds, viewer, range = "7d", cashierId = null, q = "", timeZone = SHOP_TIME_ZONE, now = Date.now() }) => {
   const days = SALE_RANGES[range]
@@ -39,7 +37,7 @@ export const salesPage = async (db, { page = 1, pageSize = PAGE_SIZE, ...filters
     page: current,
     pageSize: size,
     total,
-    rows: rows.map(fromDoc).map(forViewer(filters.viewer)),
+    rows: rows.map(fromDoc).map(saleForViewer(filters.viewer)),
     refunds: refunds.map(fromDoc),
   }
 }
@@ -51,7 +49,7 @@ export const saleDetail = async (db, { saleId, shopIds, viewer }) => {
   const sale = await db.collection(C.sales).findOne({ _id: saleId, shopId: { $in: shopIds }, ...(viewer.role === "cashier" ? { cashierId: viewer.id } : {}) })
   if (!sale) return null
   const refunds = await db.collection(C.refunds).find({ saleId }, { sort: { createdAt: 1 } }).toArray()
-  return { sale: forViewer(viewer)(fromDoc(sale)), refunds: refunds.map(fromDoc) }
+  return { sale: saleForViewer(viewer)(fromDoc(sale)), refunds: refunds.map(fromDoc) }
 }
 
 export const findSale = async (db, { shopIds, viewer, number = null, reference = null }) => {

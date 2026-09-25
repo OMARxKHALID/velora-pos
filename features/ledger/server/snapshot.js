@@ -28,7 +28,7 @@ export const ledgerSnapshot = async (db, { user, now = new Date() }) => {
     all(C.products),
     all(C.variants),
     all(C.stock),
-    all(C.shifts, { $or: [{ openedAt: { $gte: since } }, { status: "open" }] }, { openedAt: 1 }),
+    all(C.shifts, cashier ? { $or: [{ status: "open" }, { cashierId: user.id, openedAt: { $gte: since } }] } : { $or: [{ openedAt: { $gte: since } }, { status: "open" }] }, { openedAt: 1 }),
     db.collection(C.settings).findOne({ _id: shopIds[0] }),
     all(C.refunds, { $or: [{ status: "pending" }, { createdAt: { $gte: since } }], ...(cashier ? { requestedBy: user.id } : {}) }, { createdAt: 1 }),
     cashier ? [] : db.collection(C.movements).distinct("variantId", inShops),

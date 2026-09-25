@@ -176,16 +176,37 @@ export const deleteProduct = async ({ db, client, user, shopId, at = new Date() 
     return { id: productId }
   })
 
+const importRowSchema = z.object({
+  product: z.string().trim().min(2).max(60),
+  brand: z.string().trim().min(1).max(30),
+  category: z.string().trim().min(1).max(40),
+  audience: z.enum(["men", "women", "kids", "unisex"]),
+  color: z.string().trim().min(1).max(40),
+  size: z.string().trim().regex(/^\d{2}$/),
+  price: z.number().int().positive(),
+  cost: z.number().int().min(0),
+  barcode: z.string().trim().regex(/^(\d{8,14})?$/).default(""),
+  stock: z.number().int().min(0).max(10000).default(0),
+})
+
+const parseRows = (rows) =>
+  rows.map((row, index) => {
+    const result = importRowSchema.safeParse(row)
+    if (!result.success) throw new UserError(`Row ${index + 1}: ${result.error.issues[0].path.join(".")} is not valid`)
+    return result.data
+  })
+
 const groupRows = (rows) => Object.values(Object.groupBy(rows, ({ product, brand }) => `${product.trim().toLowerCase()}|${brand.trim().toLowerCase()}`))
 
 export const importCatalog = async ({ db, client, user, shopId, at = new Date() }, { rows }) => {
   if (!Array.isArray(rows) || !rows.length) throw new UserError("The file has no rows to import")
   if (rows.length > 2000) throw new UserError("Import at most 2000 rows at a time")
+  const valid = parseRows(rows)
   const type = productTypeFor("footwear")
   try {
     return await withTransaction(client, async (session) => {
       const totals = { created: 0, updated: 0, pairs: 0 }
-      for (const group of groupRows(rows)) {
+      for (const group of groupRows(valid)) {
         const [first] = group
         const existing = await db.collection(C.products).findOne({ shopId, brand: first.brand.trim(), name: first.product.trim() }, { session, collation: caseInsensitive })
         const known = existing ? type.fieldsOf(existing) : { colors: [], sizes: [] }
