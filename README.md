@@ -21,20 +21,20 @@ Pick someone on the start page. The list is the team, so people you add in **Sta
 | Supervisor | Sales, Returns, Products, Stock, Stock history (their own shop only). Approves returns and discounts. Does not sell |
 | Cashier | Sell, and their own sales |
 
-Supervisor PIN for discounts above 5%: `1234`. It is not shown on screen. The owner can change it in Settings.
+Discounts above 5% need a supervisor PIN. Each supervisor has their own, and the approval is recorded against whoever typed it. Bilal Ahmed starts with `1234`; the owner sets or changes PINs in Settings. PINs are hashed and checked on the server (in an httpOnly cookie), so they are never readable in the browser, and five wrong tries lock that supervisor for five minutes.
 
 ## What is in the demo
 
 - **POS**: barcode scanning (USB scanner or "Test scan"), size and colour picker, discounts with supervisor approval, cash, card and split payment, 80mm receipt with barcode, `F2` to charge
-- **Held sales**: hold a sale (optionally named), serve someone else, resume later. Held carts survive a refresh and are trimmed to available stock on resume. A shift cannot be closed while carts are held
+- **Held sales**: hold a sale (optionally named), serve someone else, resume later. Held carts belong to the counter, so every tab sees the same list and each cart can be resumed only once. They survive a refresh and are trimmed to available stock on resume. A shift cannot be closed while carts are held
 - **Shifts**: open with a cash float, close with a blind count, shortage and overage report. A second cashier can take over a busy counter by counting and closing the first shift
 - **Sales and refunds**: finished sales are locked. Refunds are requested by cashiers and approved by supervisors. They include the tax that was charged, go back the way the sale was paid, and cash refunds leave the drawer that is open when they are approved, so a cash refund waits until a cashier has a shift open
 - **Z-reports**: any of the last closed shifts, printable and exportable to CSV
 - **Products**: add, edit, archive, CSV import and export, barcode labels
 - **Stock**: per size and colour, receive deliveries, adjustments with reasons, append-only movement history
-- **Settings** (owner): sales tax, discounts, supervisor PIN, low-stock threshold, customer details at checkout
+- **Settings** (owner): sales tax, discounts, a PIN per supervisor, low-stock threshold, customer details at checkout
 - **Dashboard**: sales, profit, busiest hours, top and slow sellers, low stock, cashier watch. Charts add up to the headline numbers
-- **Offline (simulated)**: turn on "Simulate internet drop" in the header. Sales are queued and synced once when you reconnect. There is no server behind the demo, so a real browser reload while offline will not work
+- **Offline (simulated)**: turn on "Simulate internet drop" in the header. Sales, refund requests and decisions, shift openings and closings, deliveries and stock adjustments are queued and each syncs once when you reconnect. Discount approvals need the connection, because PINs are checked on the server. There is no server behind the demo, so a real browser reload while offline will not work
 - Dark and light mode, responsive down to phone width
 
 ## Stack
@@ -71,6 +71,8 @@ Business rules (sales, refunds, shifts, stock movements, catalog, analytics) are
 ## Deploy on Vercel
 
 Import the repository in Vercel. It detects Next.js and Bun automatically; no environment variables are needed for the demo. Commit your lockfile so installs are repeatable.
+
+Set `PIN_SECRET` to a long random string. Without it the supervisor PIN hashes use a built-in demo key, which is fine for a demo but lets someone holding the cookie guess a PIN offline.
 
 ## Production roadmap
 

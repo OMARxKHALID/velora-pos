@@ -86,7 +86,7 @@ export const applyDeleteProduct = (state, { productId }) => {
   }
 }
 
-export const applyImportCatalog = (state, { rows, userId, at }) => {
+export const applyImportCatalog = (state, { rows, userId, at, offline = false }) => {
   const groups = Object.values(Object.groupBy(rows, ({ product, brand }) => `${product.toLowerCase()}|${brand.toLowerCase()}`))
   let next = state
   let created = 0
@@ -130,7 +130,7 @@ export const applyImportCatalog = (state, { rows, userId, at }) => {
       return { variantId, quantity: row.stock, unitCost: product.cost }
     })
 
-  if (stockLines.length) next = applyPurchase(next, { lines: stockLines, supplier: "CSV import", receivedBy: userId, at }).state
+  if (stockLines.length) next = applyPurchase(next, { lines: stockLines, supplier: "CSV import", receivedBy: userId, at, offline }).state
 
   return { state: next, record: { created, updated, pairs: stockLines.reduce((sum, { quantity }) => sum + quantity, 0) } }
 }

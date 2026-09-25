@@ -39,6 +39,17 @@ describe("demo store in a browser", () => {
     expect(second.getState().shifts.filter(({ status }) => status === "open")).toHaveLength(1)
   })
 
+  test("a held cart is shared by every tab and can be resumed only once", () => {
+    const first = openStore()
+    const second = openStore()
+    const state = first.getState()
+    const variant = state.variants.find(({ active }) => active)
+    const held = first.getState().holdCart({ cart: { lines: [{ variantId: variant.id, quantity: 1 }] } })
+    expect(second.getState().takeHeldCart(held.id).id).toBe(held.id)
+    expect(() => first.getState().takeHeldCart(held.id)).toThrow("already resumed")
+    expect(first.getState().heldCarts).toEqual([])
+  })
+
   test("a failed save is reported instead of silently lost", () => {
     const store = openStore()
     let failures = 0

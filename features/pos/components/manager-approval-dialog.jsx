@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ShieldCheckIcon } from "@phosphor-icons/react"
@@ -7,17 +8,33 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { useApprover } from "@/features/demo/hooks/use-directory"
+import { Segmented } from "@/components/ui/segmented"
+import { verifySupervisorPin } from "@/features/auth/actions"
+import { useSupervisors } from "@/features/demo/hooks/use-directory"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
-import { DEFAULT_MANAGER_PIN } from "@/features/pricing/lib/pricing"
 import { managerPinSchema } from "../schemas"
 
 export const ManagerApprovalDialog = ({ reason, onApprove, onClose }) => {
-  const settings = useDemoStore(({ settings }) => settings)
-  const approver = useApprover()
-  const form = useForm({ resolver: zodResolver(managerPinSchema(settings?.managerPin || DEFAULT_MANAGER_PIN)), defaultValues: { pin: "" } })
+  const supervisors = useSupervisors()
+  const offline = useDemoStore(({ offline }) => offline)
+  const [chosen, setChosen] = useState(null)
+  const approver = supervisors.find(({ id }) => id === chosen) ?? supervisors[0] ?? null
+  const form = useForm({ resolver: zodResolver(managerPinSchema), defaultValues: { pin: "" } })
+  const { isSubmitting } = form.formState
 
-  const handleSubmit = form.handleSubmit(() => approver && onApprove(approver.id))
+  const handleSubmit = form.handleSubmit(async ({ pin }) => {
+    if (!approver) return
+    const result = await verifySupervisorPin(approver.id, pin).catch(() => ({ error: "Could not reach the server to check the PIN." }))
+    if (result.ok) return onApprove(approver.id)
+    form.setError("pin", { message: result.error })
+    form.setValue("pin", "")
+  })
+
+  const hint = offline
+    ? "Supervisor PINs are checked by the server, so this needs the internet. Reconnect to approve."
+    : approver
+      ? `Recorded against ${approver.name}.`
+      : "There is no active supervisor, so this cannot be approved. Add one in Staff."
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -30,12 +47,27 @@ export const ManagerApprovalDialog = ({ reason, onApprove, onClose }) => {
             <DialogTitle>Supervisor approval</DialogTitle>
             <DialogDescription>{reason}</DialogDescription>
           </DialogHeader>
+          {supervisors.length > 1 && (
+            <Field>
+              <FieldLabel>Approving supervisor</FieldLabel>
+              <Segmented
+                label="Approving supervisor"
+                className="flex-wrap"
+                options={supervisors.map(({ id, name }) => ({ key: id, label: name }))}
+                value={approver?.id}
+                onChange={(id) => {
+                  setChosen(id)
+                  form.clearErrors("pin")
+                }}
+              />
+            </Field>
+          )}
           <Controller
             name="pin"
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor={field.name}>Supervisor PIN</FieldLabel>
+                <FieldLabel htmlFor={field.name}>{approver ? `${approver.name}'s PIN` : "Supervisor PIN"}</FieldLabel>
                 <Input
                   {...field}
                   id={field.name}
@@ -47,9 +79,7 @@ export const ManagerApprovalDialog = ({ reason, onApprove, onClose }) => {
                   className="h-12 text-center text-2xl tracking-[0.6em]"
                   aria-invalid={fieldState.invalid}
                 />
-                <FieldDescription>
-                  {approver ? `Logged against ${approver.name}.` : "There is no active supervisor, so this cannot be approved. Add one in Staff."}
-                </FieldDescription>
+                <FieldDescription>{hint}</FieldDescription>
                 {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
               </Field>
             )}
@@ -58,8 +88,8 @@ export const ManagerApprovalDialog = ({ reason, onApprove, onClose }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!approver}>
-              Approve
+            <Button type="submit" disabled={!approver || offline || isSubmitting}>
+              {isSubmitting ? "Checking…" : "Approve"}
             </Button>
           </DialogFooter>
         </form>

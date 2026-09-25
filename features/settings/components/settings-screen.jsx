@@ -9,6 +9,8 @@ import { ResetDemoDialog } from "@/components/layout/reset-demo-dialog"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { MAX_CASHIER_DISCOUNT } from "@/features/demo/lib/ledger"
+import { setSupervisorPin } from "@/features/auth/actions"
+import { activeStaff } from "@/features/demo/lib/staff"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { Panel } from "@/features/analytics/components/panel"
 
@@ -41,28 +43,27 @@ const useSyncedDraft = (saved) => {
 
 const digitsOnly = (value, length) => value.replace(/\D/g, "").slice(0, length)
 
-const PinForm = ({ currentPin, onChange }) => {
-  const [current, setCurrent] = useState("")
+const PinRow = ({ person, hasPin, onSaved }) => {
   const [next, setNext] = useState("")
   const [confirm, setConfirm] = useState("")
+  const [saving, setSaving] = useState(false)
+  const mismatch = confirm.length === 4 && confirm !== next
+  const ready = next.length === 4 && confirm === next && !saving
 
-  const errors = {
-    current: current.length === 4 && current !== currentPin ? "That is not the current PIN" : null,
-    next: next.length === 4 && next === currentPin ? "Choose a different PIN" : null,
-    confirm: confirm.length === 4 && confirm !== next ? "The PINs do not match" : null,
-  }
-  const ready = current === currentPin && next.length === 4 && next !== currentPin && confirm === next
-
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     if (!ready) return
-    onChange(next)
-    setCurrent("")
+    setSaving(true)
+    const result = await setSupervisorPin(person.id, next).catch(() => ({ error: "Could not reach the server. Check the connection." }))
+    setSaving(false)
+    if (result.error) return toast.error(result.error)
     setNext("")
     setConfirm("")
+    onSaved(result.pinHolders)
+    toast.success(`PIN ${hasPin ? "changed" : "set"} for ${person.name}`)
   }
 
-  const field = (id, label, value, setValue, error) => (
+  const input = (id, label, value, setValue, error) => (
     <Field data-invalid={Boolean(error)}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <InputGroup>
@@ -83,25 +84,47 @@ const PinForm = ({ currentPin, onChange }) => {
   )
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="flex items-center gap-2">
-        <LockKeyIcon className="size-4 text-gold" />
-        <p className="text-sm font-medium">Supervisor approval PIN</p>
+    <form onSubmit={handleSubmit} className="space-y-3 border p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium">{person.name}</p>
+        <span className={hasPin ? "text-xs text-success" : "text-xs text-warning"}>{hasPin ? "PIN set" : "No PIN yet, cannot approve"}</span>
       </div>
-      <div className="grid gap-3 @lg:grid-cols-3">
-        {field("pin-current", "Current PIN", current, setCurrent, errors.current)}
-        {field("pin-next", "New PIN", next, setNext, errors.next)}
-        {field("pin-confirm", "Repeat new PIN", confirm, setConfirm, errors.confirm)}
+      <div className="grid gap-3 @lg:grid-cols-[1fr_1fr_auto] @lg:items-end">
+        {input(`pin-${person.id}`, hasPin ? "New PIN" : "PIN", next, setNext, null)}
+        {input(`pin-${person.id}-repeat`, "Repeat PIN", confirm, setConfirm, mismatch ? "The PINs do not match" : null)}
+        <Button type="submit" size="sm" variant="outline" disabled={!ready}>
+          {hasPin ? "Change PIN" : "Set PIN"}
+        </Button>
       </div>
-      <FieldDescription>Needed whenever a cashier gives a discount above {MAX_CASHIER_DISCOUNT * 100}%. Four digits.</FieldDescription>
-      <Button type="submit" size="sm" variant="outline" disabled={!ready}>
-        Change PIN
-      </Button>
     </form>
   )
 }
 
-export const SettingsScreen = () => {
+const SupervisorPins = ({ initialHolders }) => {
+  const staff = useDemoStore(({ staff }) => staff)
+  const [holders, setHolders] = useState(initialHolders)
+  const supervisors = activeStaff(staff).filter(({ role }) => role === "manager")
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <LockKeyIcon className="size-4 text-gold" />
+        <p className="text-sm font-medium">Supervisor approval PINs</p>
+      </div>
+      {supervisors.length ? (
+        supervisors.map((person) => <PinRow key={person.id} person={person} hasPin={holders.includes(person.id)} onSaved={setHolders} />)
+      ) : (
+        <p className="text-xs text-muted-foreground">There is no supervisor yet. Add one in Staff.</p>
+      )}
+      <FieldDescription>
+        Each supervisor has their own four-digit PIN, needed whenever a cashier gives a discount above {MAX_CASHIER_DISCOUNT * 100}%. The approval is
+        recorded against the supervisor whose PIN was used. PINs are checked on the server and never stored in this browser.
+      </FieldDescription>
+    </div>
+  )
+}
+
+export const SettingsScreen = ({ pinHolders = [] }) => {
   const settings = useDemoStore(({ settings }) => settings)
   const setSettings = useDemoStore(({ setSettings }) => setSettings)
   const [resetOpen, setResetOpen] = useState(false)
@@ -194,7 +217,7 @@ export const SettingsScreen = () => {
             description="The % off chips on the cart screen. Discounts above the cashier limit still need a supervisor."
           />
           <div className="border-t" />
-          <PinForm currentPin={settings.managerPin} onChange={(managerPin) => update({ managerPin }, "Supervisor PIN changed")} />
+          <SupervisorPins initialHolders={pinHolders} />
           <FieldDescription>
             Every discount is saved with the sale and appears on the receipt, in sales history and in the owner&apos;s reports.
           </FieldDescription>

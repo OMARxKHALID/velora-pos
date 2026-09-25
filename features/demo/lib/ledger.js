@@ -10,6 +10,11 @@ const pricingDefaults = { taxEnabled: false, taxRate: 0, productDiscountEnabled:
 
 const isMoney = (amount) => Number.isInteger(amount) && amount >= 0
 
+export const OUTBOX_KINDS = { sale: "sales", refund: "refunds", shift: "shifts", purchase: "purchases", movement: "movements" }
+
+const queue = (outbox, kind, id, offline) =>
+  offline && !outbox.some((entry) => entry.kind === kind && entry.id === id) ? [...outbox, { kind, id }] : outbox
+
 const variantOrThrow = (state, variantId) => {
   const variant = indexCatalog(state).variantById[variantId]
   if (!variant) throw new Error("Unknown item")
@@ -176,7 +181,7 @@ export const applySale = (
     state: {
       ...next,
       sales: [...next.sales, sale],
-      outbox: offline ? [...next.outbox, sale.id] : next.outbox,
+      outbox: queue(next.outbox, "sale", sale.id, offline),
     },
     record: sale,
   }
@@ -243,7 +248,7 @@ export const previewRefund = (state, saleId, lines) => {
   return { sale, items, amount, taxTotal, total: amount + taxTotal }
 }
 
-export const applyRefundRequest = (state, { saleId, lines, reason, method, requestedBy, shiftId, at, clientId = newId() }) => {
+export const applyRefundRequest = (state, { saleId, lines, reason, method, requestedBy, shiftId, at, clientId = newId(), offline = false }) => {
   const existing = state.refunds.find((refund) => refund.clientId === clientId)
   if (existing) return { state, record: existing }
 
@@ -275,12 +280,13 @@ export const applyRefundRequest = (state, { saleId, lines, reason, method, reque
     decidedAt: null,
     payoutShiftId: null,
     createdAt: at,
+    syncedAt: offline ? null : at,
   }
 
-  return { state: { ...state, refunds: [...state.refunds, refund] }, record: refund }
+  return { state: { ...state, refunds: [...state.refunds, refund], outbox: queue(state.outbox, "refund", refund.id, offline) }, record: refund }
 }
 
-export const applyRefundDecision = (state, { refundId, approve, userId, at }) => {
+export const applyRefundDecision = (state, { refundId, approve, userId, at, offline = false }) => {
   const refund = state.refunds.find(({ id }) => id === refundId)
   if (!refund) throw new Error("Refund not found")
   if (refund.status !== "pending") throw new Error("Refund already decided")
@@ -289,8 +295,16 @@ export const applyRefundDecision = (state, { refundId, approve, userId, at }) =>
   const openShiftId = approve ? (openShiftFor(state, sale?.registerId)?.id ?? null) : null
   const payoutShiftId = refund.method === "cash" ? openShiftId : null
   if (approve && refund.method === "cash" && !payoutShiftId) throw new Error("Open a counter shift first. Cash refunds are paid from the drawer.")
-  const decided = { ...refund, status: approve ? "approved" : "rejected", decidedBy: userId, decidedAt: at, payoutShiftId, approvedInShiftId: openShiftId }
-  let next = { ...state, refunds: state.refunds.map((item) => (item.id === refundId ? decided : item)) }
+  const decided = {
+    ...refund,
+    status: approve ? "approved" : "rejected",
+    decidedBy: userId,
+    decidedAt: at,
+    payoutShiftId,
+    approvedInShiftId: openShiftId,
+    syncedAt: offline ? null : refund.syncedAt === null ? null : at,
+  }
+  let next = { ...state, refunds: state.refunds.map((item) => (item.id === refundId ? decided : item)), outbox: queue(state.outbox, "refund", refundId, offline) }
 
   if (approve) {
     for (const item of refund.items.filter(({ restock }) => restock)) {
@@ -311,7 +325,7 @@ export const applyRefundDecision = (state, { refundId, approve, userId, at }) =>
   return { state: next, record: decided }
 }
 
-export const applyOpenShift = (state, { cashierId, openingCash, at, clientId = newId(), shopId = SHOP_ID, registerId = REGISTER_ID }) => {
+export const applyOpenShift = (state, { cashierId, openingCash, at, clientId = newId(), offline = false, shopId = SHOP_ID, registerId = REGISTER_ID }) => {
   const existing = state.shifts.find((shift) => shift.clientId === clientId)
   if (existing) return { state, record: existing }
   if (openShiftFor(state, registerId)) throw new Error("A shift is already open on this counter")
@@ -331,9 +345,10 @@ export const applyOpenShift = (state, { cashierId, openingCash, at, clientId = n
     countedCash: null,
     expectedCash: null,
     difference: null,
+    syncedAt: offline ? null : at,
   }
 
-  return { state: { ...state, shifts: [...state.shifts, shift] }, record: shift }
+  return { state: { ...state, shifts: [...state.shifts, shift], outbox: queue(state.outbox, "shift", shift.id, offline) }, record: shift }
 }
 
 const cashSalesFor = (state, shift) =>
@@ -376,7 +391,7 @@ export const liveSummary = (state, shift) => {
 
 export const shiftSummary = (state, shift) => (shift.status === "closed" && shift.summary ? shift.summary : liveSummary(state, shift))
 
-export const applyCloseShift = (state, { shiftId, countedCash, closedBy, note = null, at }) => {
+export const applyCloseShift = (state, { shiftId, countedCash, closedBy, note = null, at, offline = false }) => {
   const shift = state.shifts.find(({ id }) => id === shiftId)
   if (!shift || shift.status !== "open") throw new Error("Shift is not open")
   if (!isMoney(countedCash)) throw new Error("Counted cash must be a whole amount, not negative")
@@ -393,12 +408,16 @@ export const applyCloseShift = (state, { shiftId, countedCash, closedBy, note = 
     difference: countedCash - expected,
     closeNote: note?.trim() || null,
     summary,
+    syncedAt: offline || shift.syncedAt === null ? null : at,
   }
 
-  return { state: { ...state, shifts: state.shifts.map((item) => (item.id === shiftId ? closed : item)) }, record: closed }
+  return {
+    state: { ...state, shifts: state.shifts.map((item) => (item.id === shiftId ? closed : item)), outbox: queue(state.outbox, "shift", shiftId, offline) },
+    record: closed,
+  }
 }
 
-export const applyPurchase = (state, { lines, supplier, receivedBy, at, shopId = SHOP_ID }) => {
+export const applyPurchase = (state, { lines, supplier, receivedBy, at, offline = false, shopId = SHOP_ID }) => {
   if (!lines.length) throw new Error("Add at least one item")
   for (const { variantId, quantity, unitCost } of lines) {
     variantOrThrow(state, variantId)
@@ -413,9 +432,10 @@ export const applyPurchase = (state, { lines, supplier, receivedBy, at, shopId =
     total: sumBy(lines, ({ quantity, unitCost }) => quantity * unitCost),
     receivedBy,
     receivedAt: at,
+    syncedAt: offline ? null : at,
   }
 
-  let next = { ...state, purchases: [...state.purchases, purchase] }
+  let next = { ...state, purchases: [...state.purchases, purchase], outbox: queue(state.outbox, "purchase", purchase.id, offline) }
   for (const { variantId, quantity, unitCost } of lines) {
     next = moveStock(next, { variantId, quantity, type: "purchase", unitCost, ref: { kind: "Purchase", id: purchase.id, number: supplier }, userId: receivedBy, at, shopId })
   }
@@ -423,22 +443,21 @@ export const applyPurchase = (state, { lines, supplier, receivedBy, at, shopId =
   return { state: next, record: purchase }
 }
 
-export const applyAdjustment = (state, { variantId, quantity, reason, note, userId, at, shopId = SHOP_ID }) => {
+export const applyAdjustment = (state, { variantId, quantity, reason, note, userId, at, offline = false, shopId = SHOP_ID }) => {
   if (!reason) throw new Error("A reason is required")
   if (!Number.isInteger(quantity) || !quantity) throw new Error("Quantity must be a whole number and not zero")
   const variant = variantOrThrow(state, variantId)
-  const next = moveStock(state, { variantId, quantity, type: "adjustment", unitCost: variant.cost, reason, note, ref: null, userId, at, shopId })
-  return { state: next, record: next.movements.at(-1) }
+  const moved = moveStock(state, { variantId, quantity, type: "adjustment", unitCost: variant.cost, reason, note, ref: null, userId, at, shopId })
+  const movement = { ...moved.movements.at(-1), syncedAt: offline ? null : at }
+  const next = { ...moved, movements: [...moved.movements.slice(0, -1), movement], outbox: queue(moved.outbox, "movement", movement.id, offline) }
+  return { state: next, record: movement }
 }
 
 export const applySync = (state, { at }) => {
-  const waiting = new Set(state.outbox)
-  return {
-    state: {
-      ...state,
-      outbox: [],
-      sales: state.sales.map((sale) => (waiting.has(sale.id) ? { ...sale, syncedAt: at } : sale)),
-    },
-    record: waiting.size,
+  const next = { ...state, outbox: [] }
+  for (const [kind, key] of Object.entries(OUTBOX_KINDS)) {
+    const waiting = new Set(state.outbox.filter((entry) => entry.kind === kind).map(({ id }) => id))
+    if (waiting.size) next[key] = state[key].map((record) => (waiting.has(record.id) ? { ...record, syncedAt: at } : record))
   }
+  return { state: next, record: state.outbox.length }
 }

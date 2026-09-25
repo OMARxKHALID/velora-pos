@@ -67,15 +67,15 @@ export const ConnectionStatus = () => {
         <DropdownMenuGroup>
           <DropdownMenuLabel className="font-normal text-muted-foreground">
             {offline
-              ? "No internet. Sales are saved on this counter and sync automatically when the connection returns. Each sale syncs once."
-              : "Connected. Sales are saved as they are made. Demo build: data stays in this browser."}
+              ? "No internet. Sales, refunds, shifts and stock changes are saved on this counter and sync automatically when the connection returns. Each one syncs once."
+              : "Connected. Changes are saved as they are made. Demo build: data stays in this browser."}
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         {waiting > 0 && (
           <DropdownMenuItem onClick={syncNow}>
             <ArrowsClockwiseIcon />
-            Sync {waiting} pending {waiting === 1 ? "sale" : "sales"} now
+            Sync {waiting} pending {waiting === 1 ? "change" : "changes"} now
           </DropdownMenuItem>
         )}
         {offline ? (

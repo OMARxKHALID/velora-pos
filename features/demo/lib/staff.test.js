@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { activeStaff, applyAddStaff, applyRemoveStaff, applyTransferRole, approverFor, initialStaff, staffName } from "./staff"
+import { activeStaff, applyAddStaff, applyRemoveStaff, applyTransferRole, canApprove, canSell, initialStaff, staffName } from "./staff"
 
 test("added staff get an id, role and a name that history can resolve", () => {
   const { staff, member } = applyAddStaff(initialStaff, { name: "  sana   malik ", role: "cashier" })
@@ -28,9 +28,13 @@ test("the owner and the last supervisor are protected", () => {
   expect(applyTransferRole(staff, "u-manager", "cashier")["u-manager"].role).toBe("cashier")
 })
 
-test("approver is the first active supervisor", () => {
-  expect(approverFor(initialStaff).id).toBe("u-manager")
+test("any active supervisor can approve, and only active cashiers can sell", () => {
   const { staff, member } = applyAddStaff(initialStaff, { name: "New Boss", role: "manager" })
-  const swapped = applyRemoveStaff(staff, "u-manager")
-  expect(approverFor(swapped).id).toBe(member.id)
+  expect(canApprove(staff, "u-manager")).toBe(true)
+  expect(canApprove(staff, member.id)).toBe(true)
+  expect(canApprove(staff, "u-cashier")).toBe(false)
+  expect(canApprove(applyRemoveStaff(staff, member.id), member.id)).toBe(false)
+  expect(canSell(staff, "u-cashier")).toBe(true)
+  expect(canSell(staff, "u-manager")).toBe(false)
+  expect(canSell(staff, "u-nobody")).toBe(false)
 })

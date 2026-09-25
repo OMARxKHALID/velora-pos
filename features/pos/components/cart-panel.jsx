@@ -14,6 +14,7 @@ import { cartTotals } from "@/features/pricing/lib/pricing"
 import { formatMoney } from "@/lib/money"
 import { useCartStore } from "../store/cart-store-provider"
 import { HeldCartsButton } from "./held-carts-button"
+import { heldAt } from "../lib/held-carts"
 import { ManagerApprovalDialog } from "./manager-approval-dialog"
 
 const discountSteps = [0, 5, 10, 15, 20]
@@ -90,7 +91,7 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onH
   const setQuantity = useCartStore(({ setQuantity }) => setQuantity)
   const setDiscount = useCartStore(({ setDiscount }) => setDiscount)
   const clear = useCartStore(({ clear }) => clear)
-  const heldCount = useCartStore(({ parkedSales }) => parkedSales.length)
+  const heldCount = useDemoStore(({ heldCarts }) => heldAt(heldCarts).length)
   const settings = useDemoStore(({ settings }) => settings)
   const [pendingDiscount, setPendingDiscount] = useState(null)
   const catalog = useCatalog()

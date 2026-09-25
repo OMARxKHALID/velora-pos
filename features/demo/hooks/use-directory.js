@@ -1,5 +1,5 @@
-import { useCallback } from "react"
-import { approverFor, staffName } from "../lib/staff"
+import { useCallback, useMemo } from "react"
+import { activeStaff, staffName } from "../lib/staff"
 import { useDemoStore } from "../store/demo-store-provider"
 
 export const useStaffName = () => {
@@ -7,4 +7,7 @@ export const useStaffName = () => {
   return useCallback((id) => staffName(id, staff), [staff])
 }
 
-export const useApprover = () => approverFor(useDemoStore(({ staff }) => staff))
+export const useSupervisors = () => {
+  const staff = useDemoStore(({ staff }) => staff)
+  return useMemo(() => activeStaff(staff).filter(({ role }) => role === "manager"), [staff])
+}

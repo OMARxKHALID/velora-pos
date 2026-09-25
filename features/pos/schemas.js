@@ -1,5 +1,4 @@
 import { z } from "zod"
-import { DEFAULT_MANAGER_PIN } from "@/features/pricing/lib/pricing"
 import { formatMoney } from "@/lib/money"
 
 const cashAmount = (error) => z.string().trim().min(1, { error }).pipe(z.coerce.number({ error }))
@@ -10,13 +9,9 @@ export const openShiftSchema = z.object({
   ),
 })
 
-export const managerPinSchema = (expectedPin = DEFAULT_MANAGER_PIN) =>
-  z.object({
-    pin: z
-      .string()
-      .regex(/^\d{4}$/, { error: "Enter the 4-digit supervisor PIN" })
-      .refine((pin) => pin === expectedPin, { error: "Wrong PIN" }),
-  })
+export const managerPinSchema = z.object({
+  pin: z.string().regex(/^\d{4}$/, { error: "Enter the 4-digit supervisor PIN" }),
+})
 
 export const cashTenderSchema = (total) =>
   z.object({

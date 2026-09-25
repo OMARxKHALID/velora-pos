@@ -40,7 +40,19 @@ const fromV6 = (state) => {
   }
 }
 
+const fromV7 = (state) => {
+  const { managerPin: _managerPin, ...settings } = state.settings ?? {}
+  return {
+    ...state,
+    settings,
+    heldCarts: state.heldCarts ?? [],
+    outbox: (state.outbox ?? []).map((entry) => (typeof entry === "string" ? { kind: "sale", id: entry } : entry)),
+  }
+}
+
 export const migrateDemoState = (state, version) => {
-  if (version === 6 && state) return fromV6(state)
+  if (!state) return {}
+  if (version === 6) return fromV7(fromV6(state))
+  if (version === 7) return fromV7(state)
   return {}
 }

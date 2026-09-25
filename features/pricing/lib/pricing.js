@@ -1,7 +1,5 @@
 import { roundToRupee, sumBy } from "@/lib/money"
 
-export const DEFAULT_MANAGER_PIN = "1234"
-
 export const defaultPricingSettings = () => ({
   taxEnabled: false,
   taxLabel: "Sales tax",
@@ -9,7 +7,6 @@ export const defaultPricingSettings = () => ({
   productDiscountEnabled: true,
   cartDiscountEnabled: true,
   customerInfoEnabled: true,
-  managerPin: DEFAULT_MANAGER_PIN,
   lowStockThreshold: 2,
 })
 

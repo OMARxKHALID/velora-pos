@@ -45,6 +45,7 @@ const RefundCard = ({ refund, drawerOpen, onOpenSale, onDecide }) => {
           <StatusBadge tone={refund.method === "cash" ? "gold" : "info"}>
             {refund.method}
           </StatusBadge>
+          {refund.syncedAt === null && <StatusBadge tone="info">Not synced</StatusBadge>}
         </div>
         <ul className="space-y-0.5 text-sm">
           {refund.items.map(({ variantId, quantity, restock }) => {

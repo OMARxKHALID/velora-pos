@@ -42,8 +42,6 @@ export const canApprove = (staff, id) => Boolean(staff?.[id]) && !staff[id].remo
 
 export const canSell = (staff, id) => Boolean(staff?.[id]) && !staff[id].removed && staff[id].role === "cashier"
 
-export const approverFor = (staff) => activeStaff(staff).find((person) => person.role === "manager") ?? null
-
 const initialsOf = (name) =>
   name
     .split(" ")

@@ -17,9 +17,10 @@ import { applyAddStaff, applyRemoveStaff, applyTransferRole, canApprove, canSell
 import { CART_STORAGE_KEY, SAVE_FAILED_EVENT, STORAGE_KEY } from "@/features/demo/lib/storage"
 import { applyDeleteProduct, applyImportCatalog, applySaveProduct, applySetProductStatus } from "@/features/catalog/lib/catalog-ledger"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
+import { adoptHeldCarts, applyHoldCart, applyTakeHeldCart } from "@/features/pos/lib/held-carts"
 
 const ledgerKeys = Object.keys(emptyLedger())
-const persistedKeys = [...ledgerKeys, "shopScope", "settings", "staff"]
+const persistedKeys = [...ledgerKeys, "shopScope", "settings", "staff", "heldCarts"]
 
 const hasWindow = () => typeof window !== "undefined"
 
@@ -70,7 +71,8 @@ export const createDemoStore = () => {
         }
 
         const run = (reducer) => (input) => {
-          const { state, record } = reducer(latest(), { at: Date.now(), ...input })
+          const current = latest()
+          const { state, record } = reducer(current, { at: Date.now(), offline: current.offline, ...input })
           set(Object.fromEntries(ledgerKeys.map((key) => [key, state[key]])))
           return record
         }
@@ -83,6 +85,19 @@ export const createDemoStore = () => {
           shopScope: "all",
           staff: initialStaff,
           settings: defaultPricingSettings(),
+          heldCarts: [],
+          holdCart: (input) => {
+            const { heldCarts, record } = applyHoldCart(latest().heldCarts, { at: Date.now(), ...input })
+            set({ heldCarts })
+            return record
+          },
+          takeHeldCart: (id) => {
+            const { heldCarts, record } = applyTakeHeldCart(latest().heldCarts, id)
+            set({ heldCarts })
+            return record
+          },
+          discardHeldCart: (id) => set({ heldCarts: latest().heldCarts.filter((held) => held.id !== id) }),
+          adoptHeldCarts: (carts) => set({ heldCarts: adoptHeldCarts(latest().heldCarts, carts) }),
           recordSale: (input) => {
             const { staff, settings, offline } = latest()
             if (!canSell(staff, input.cashierId)) throw new Error("Only an active cashier can sell.")
@@ -123,6 +138,7 @@ export const createDemoStore = () => {
               shopScope: "all",
               settings: defaultPricingSettings(),
               staff: initialStaff,
+              heldCarts: [],
               epoch: get().epoch + 1,
             })
           },
@@ -130,7 +146,7 @@ export const createDemoStore = () => {
       },
       {
         name: STORAGE_KEY,
-        version: 7,
+        version: 8,
         migrate: migrateDemoState,
         skipHydration: true,
         storage: createJSONStorage(() => storage),

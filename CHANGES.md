@@ -1,3 +1,14 @@
+# Offline queue, shared held carts, per-supervisor PINs
+
+Lint clean, all 99 tests pass, production build succeeds. Checked in Chromium: the owner sets a second supervisor's PIN; a cashier's 10% discount is rejected with the wrong PIN and credited to the chosen supervisor with the right one; a cart held in one tab is resumed in another; a sale and a shift close made offline sync after reconnecting.
+
+- **Offline queue covers every change to money or stock**: sales, refund requests and decisions, shift openings and closings, deliveries (including CSV import stock) and adjustments. Each record carries `syncedAt` and syncs once. Refunds show "Not synced" while they wait.
+- **Held carts are shared by the counter.** They live with the rest of the counter's data instead of in one tab, so every tab sees them, the close-shift check sees them all, and a cart can be resumed only once. Carts held in the old per-tab storage are moved over the first time the Sell screen opens.
+- **Each supervisor has their own PIN**, and a discount approval is recorded against the supervisor who typed it. The cashier picks the approving supervisor when there is more than one. A supervisor without a PIN cannot approve until the owner sets one in Settings.
+- **PINs are no longer readable in the browser.** They are stored as salted scrypt hashes in an httpOnly cookie and checked by a server action. Five wrong tries lock that supervisor for five minutes. Set `PIN_SECRET` when deploying. Reset demo data restores the default PIN.
+- Discount approval needs the connection, since the server checks the PIN.
+- Stored data moves to version 8: waiting offline sales stay queued, and the old shop-wide PIN is removed from browser storage.
+
 # Correctness and hardening pass
 
 Lint clean, all 88 tests pass, production build succeeds. Checked in Chromium: a cashier sale, closing a shift from a second tab, and upgrading data saved by the previous version.

@@ -9,7 +9,6 @@ import { timeAgo } from "@/lib/dates"
 import { formatMoney } from "@/lib/money"
 import { fitToStock } from "../lib/cart-fit"
 import { cartTotals } from "@/features/pricing/lib/pricing"
-import { useCartStore } from "../store/cart-store-provider"
 
 const ParkedCard = ({ parked, catalog, settings, stock, onResume, onDiscard }) => {
   const { count, total } = cartTotals(parked.lines, parked.discountPct, catalog, settings)
@@ -68,9 +67,8 @@ const ParkedCard = ({ parked, catalog, settings, stock, onResume, onDiscard }) =
   )
 }
 
-export const ParkedSalesDialog = ({ onResume, onClose }) => {
-  const parkedSales = useCartStore(({ parkedSales }) => parkedSales)
-  const removeParkedSale = useCartStore(({ removeParkedSale }) => removeParkedSale)
+export const ParkedSalesDialog = ({ heldCarts: parkedSales, onResume, onClose }) => {
+  const removeParkedSale = useDemoStore(({ discardHeldCart }) => discardHeldCart)
   const stock = useDemoStore(({ stock }) => stock)
   const settings = useDemoStore(({ settings }) => settings)
   const catalog = useCatalog()
@@ -83,7 +81,7 @@ export const ParkedSalesDialog = ({ onResume, onClose }) => {
             <PauseCircleIcon className="size-5 text-gold" />
             <DialogTitle>Held sales ({parkedSales.length})</DialogTitle>
           </div>
-          <DialogDescription>Resume a sale at any time. If the current cart has items, it is held for you first.</DialogDescription>
+          <DialogDescription>Held sales are shared by every screen on this counter. Resume one at any time; if the current cart has items, it is held for you first.</DialogDescription>
         </DialogHeader>
 
         {parkedSales.length === 0 ? (

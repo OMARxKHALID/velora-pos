@@ -1,26 +1,17 @@
 import { createStore } from "zustand/vanilla"
 import { createJSONStorage, persist } from "zustand/middleware"
 import { CART_STORAGE_KEY } from "@/features/demo/lib/storage"
-import { newId } from "@/lib/id"
-import { fitToStock } from "../lib/cart-fit"
 
 const blank = { lines: [], discountPct: 0, approvedBy: null, customerName: "", customerPhone: "" }
 
-const currentCart = ({ lines, discountPct, approvedBy, customerName, customerPhone }) => ({ lines, discountPct, approvedBy, customerName, customerPhone })
-
-const holdOf = (cart, label, position) => ({
-  id: newId(),
-  ...currentCart(cart),
-  parkedAt: Date.now(),
-  label: label || cart.customerName || `Order #${position}`,
-})
+export const currentCart = ({ lines, discountPct, approvedBy, customerName, customerPhone }) => ({ lines, discountPct, approvedBy, customerName, customerPhone })
 
 export const createCartStore = () =>
   createStore()(
     persist(
       (set, get) => ({
         ...blank,
-        parkedSales: [],
+        legacyHeld: [],
         add: (variantId, entry = "scan") =>
           set(({ lines }) => ({
             lines: lines.some((line) => line.variantId === variantId)
@@ -40,38 +31,21 @@ export const createCartStore = () =>
             customerName: name !== undefined ? name : state.customerName,
             customerPhone: phone !== undefined ? phone : state.customerPhone,
           })),
-        parkSale: (label = "") => {
-          const state = get()
-          if (!state.lines.length) return null
-          const parked = holdOf(state, label.trim(), state.parkedSales.length + 1)
-          set({ ...blank, parkedSales: [parked, ...state.parkedSales] })
-          return parked
+        load: (cart) => set({ ...blank, ...currentCart({ ...blank, ...cart }) }),
+        takeLegacyHeld: () => {
+          const { legacyHeld } = get()
+          if (legacyHeld.length) set({ legacyHeld: [] })
+          return legacyHeld
         },
-        resumeSale: (parkedId, stock = null) => {
-          const state = get()
-          const parked = state.parkedSales.find(({ id }) => id === parkedId)
-          if (!parked) return null
-          const rest = state.parkedSales.filter(({ id }) => id !== parkedId)
-          const parkedSales = state.lines.length ? [holdOf(state, "", rest.length + 1), ...rest] : rest
-          const { lines, adjusted } = stock ? fitToStock(parked.lines, stock) : { lines: parked.lines, adjusted: [] }
-          set({ ...currentCart(parked), lines, parkedSales })
-          return { adjusted }
-        },
-        removeParkedSale: (parkedId) => set((state) => ({ parkedSales: state.parkedSales.filter(({ id }) => id !== parkedId) })),
-        prune: (variantIds) =>
-          set(({ lines, parkedSales }) => ({
-            lines: lines.filter(({ variantId }) => variantIds.has(variantId)),
-            parkedSales: parkedSales
-              .map((parked) => ({ ...parked, lines: parked.lines.filter(({ variantId }) => variantIds.has(variantId)) }))
-              .filter(({ lines: kept }) => kept.length),
-          })),
+        prune: (variantIds) => set(({ lines }) => ({ lines: lines.filter(({ variantId }) => variantIds.has(variantId)) })),
         clear: () => set(blank),
       }),
       {
         name: CART_STORAGE_KEY,
-        version: 1,
+        version: 2,
+        migrate: (saved, version) => (version === 1 && saved ? { ...currentCart({ ...blank, ...saved }), legacyHeld: saved.parkedSales ?? [] } : {}),
         storage: createJSONStorage(() => sessionStorage),
-        partialize: (state) => ({ ...currentCart(state), parkedSales: state.parkedSales }),
+        partialize: (state) => ({ ...currentCart(state), legacyHeld: state.legacyHeld }),
       }
     )
   )

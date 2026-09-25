@@ -37,6 +37,15 @@ describe("stored demo data from the previous version", () => {
     expect(migrated.shifts.map(({ summary }) => summary)).toEqual(seeded.shifts.map(({ summary }) => summary))
   })
 
+  test("offline sales waiting from the previous version stay queued, and the PIN leaves the browser", () => {
+    const saved = { ...seeded, outbox: [seeded.sales[0].id], settings: { taxRate: 0, managerPin: "1234" } }
+    const upgraded = migrateDemoState(saved, 7)
+    expect(upgraded.outbox).toEqual([{ kind: "sale", id: seeded.sales[0].id }])
+    expect(upgraded.settings).toEqual({ taxRate: 0 })
+    expect(upgraded.heldCarts).toEqual([])
+    expect(migrateDemoState(asVersion6(saved), 6).settings).toEqual({ taxRate: 0 })
+  })
+
   test("anything older starts again from fresh demo data", () => {
     expect(migrateDemoState({ sales: [] }, 5)).toEqual({})
   })

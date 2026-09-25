@@ -4,7 +4,7 @@ import { useDemoStore } from "../store/demo-store-provider"
 
 export const announceSynced = (count) => {
   if (count < 1) return
-  toast.success(`${count} offline ${count === 1 ? "sale" : "sales"} synced`, { description: "Stock, reports and the dashboard are up to date." })
+  toast.success(`${count} offline ${count === 1 ? "change" : "changes"} synced`, { description: "Sales, refunds, shifts and stock are up to date." })
 }
 
 export const useSyncNow = () => {

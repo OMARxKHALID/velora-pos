@@ -3,9 +3,16 @@ import { cache } from "react"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { decodeSession, parseDisabled } from "./session-cookie"
+import { parsePins } from "./supervisor-pins"
 
 export const SESSION_COOKIE = "velora_demo_session"
 export const DISABLED_COOKIE = "velora_disabled_staff"
+export const PINS_COOKIE = "velora_supervisor_pins"
+
+export const getSupervisorPins = cache(async () => {
+  const cookieStore = await cookies()
+  return parsePins(cookieStore.get(PINS_COOKIE)?.value)
+})
 
 export const getDisabledStaff = cache(async () => {
   const cookieStore = await cookies()

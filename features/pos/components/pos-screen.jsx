@@ -12,6 +12,8 @@ import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { useSyncNow } from "@/features/demo/hooks/use-sync-now"
 import { openShiftFor } from "@/features/demo/lib/ledger"
+import { heldAt } from "../lib/held-carts"
+import { fitToStock } from "../lib/cart-fit"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { cartTotals } from "@/features/pricing/lib/pricing"
 import { newId } from "@/lib/id"
@@ -49,6 +51,10 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const waiting = useDemoStore(({ outbox }) => outbox.length)
   const settings = useDemoStore(({ settings }) => settings)
   const recordSale = useDemoStore(({ recordSale }) => recordSale)
+  const allHeld = useDemoStore(({ heldCarts }) => heldCarts)
+  const holdCart = useDemoStore(({ holdCart }) => holdCart)
+  const takeHeldCart = useDemoStore(({ takeHeldCart }) => takeHeldCart)
+  const adoptHeld = useDemoStore(({ adoptHeldCarts }) => adoptHeldCarts)
   const catalog = useCatalog()
   const { productById, variantByBarcode, variants } = catalog
   const nameOf = useStaffName()
@@ -59,12 +65,12 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const approvedBy = useCartStore(({ approvedBy }) => approvedBy)
   const customerName = useCartStore(({ customerName }) => customerName)
   const customerPhone = useCartStore(({ customerPhone }) => customerPhone)
-  const parkedSales = useCartStore(({ parkedSales }) => parkedSales)
   const add = useCartStore(({ add }) => add)
   const clear = useCartStore(({ clear }) => clear)
-  const parkSale = useCartStore(({ parkSale }) => parkSale)
-  const resumeSale = useCartStore(({ resumeSale }) => resumeSale)
+  const load = useCartStore(({ load }) => load)
+  const takeLegacyHeld = useCartStore(({ takeLegacyHeld }) => takeLegacyHeld)
   const prune = useCartStore(({ prune }) => prune)
+  const heldCarts = heldAt(allHeld, shift.registerId)
 
   const [picking, setPicking] = useState(null)
   const [paying, setPaying] = useState(false)
@@ -81,6 +87,11 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   useEffect(() => {
     prune(new Set(variants.map(({ id }) => id)))
   }, [variants, prune])
+
+  useEffect(() => {
+    const legacy = takeLegacyHeld()
+    if (legacy.length) adoptHeld(legacy)
+  }, [takeLegacyHeld, adoptHeld])
 
   const availableFor = (variantId) => (stock[variantId] ?? 0) - (lines.find((line) => line.variantId === variantId)?.quantity ?? 0)
 
@@ -136,18 +147,33 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
     setPaying(true)
   }
 
+  const cart = { lines, discountPct, approvedBy, customerName, customerPhone }
+
   const handleHold = (label) => {
-    const parked = parkSale(label)
     setHoldOpen(false)
-    if (!parked) return
-    toast.success("Sale on hold", { description: `${parked.label}. ${parkedSales.length + 1} ${parkedSales.length === 0 ? "cart is" : "carts are"} on hold.` })
+    if (!lines.length) return
+    try {
+      const held = holdCart({ cart, label, registerId: shift.registerId })
+      clear()
+      const count = heldCarts.length + 1
+      toast.success("Sale on hold", { description: `${held.label}. ${count} ${count === 1 ? "cart is" : "carts are"} on hold.` })
+    } catch (error) {
+      toast.error(error.message)
+    }
   }
 
-  const handleResume = (parkedId) => {
-    const result = resumeSale(parkedId, stock)
+  const handleResume = (heldId) => {
     setParkedOpen(false)
-    if (result?.adjusted.length) {
-      toast.warning("Some items were trimmed", { description: "Stock changed while this sale was on hold, so quantities were reduced to what is left." })
+    try {
+      const held = takeHeldCart(heldId)
+      if (lines.length) holdCart({ cart, registerId: shift.registerId })
+      const { lines: fitted, adjusted } = fitToStock(held.lines, stock)
+      load({ ...held, lines: fitted })
+      if (adjusted.length) {
+        toast.warning("Some items were trimmed", { description: "Stock changed while this sale was on hold, so quantities were reduced to what is left." })
+      }
+    } catch (error) {
+      toast.error(error.message)
     }
   }
 
@@ -182,7 +208,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
     />
   )
 
-  const closeBlockedReason = lines.length ? "Finish or clear the current sale first" : parkedSales.length ? "Resume or discard held carts first" : undefined
+  const closeBlockedReason = lines.length ? "Finish or clear the current sale first" : heldCarts.length ? "Resume or discard held carts first" : undefined
 
   return (
     <div className={`flex flex-col gap-3 ${screenHeight}`}>
@@ -190,7 +216,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
         <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
           <CloudSlashIcon className="size-4 shrink-0" />
           <span className="min-w-0 flex-1">
-            <span className="font-semibold">Offline.</span> Keep selling: sales are saved on this counter and sync automatically when the internet is back.
+            <span className="font-semibold">Offline.</span> Keep selling: sales, refunds and shift changes are saved on this counter and sync automatically when the internet is back.
           </span>
           {waiting > 0 && <span className="shrink-0 font-semibold tabular-nums">{waiting} waiting</span>}
           <Button size="xs" variant="outline" className="shrink-0 border-warning/40" onClick={syncNow}>
@@ -223,7 +249,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
           <LockKeyIcon />
           <span className="hidden sm:inline">Close shift</span>
         </Button>
-        {wide && !cartOpen && parkedSales.length > 0 && <HeldCartsButton variant="bar" count={parkedSales.length} onClick={() => setParkedOpen(true)} />}
+        {wide && !cartOpen && heldCarts.length > 0 && <HeldCartsButton variant="bar" count={heldCarts.length} onClick={() => setParkedOpen(true)} />}
         {wide && (
           <Button size="sm" variant={cartOpen ? "outline" : "default"} className="shrink-0" onClick={handleToggleCart}>
             {cartOpen ? <SidebarSimpleIcon className="-scale-x-100" /> : <ShoppingBagIcon />}
@@ -239,7 +265,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
 
       {!wide && (
         <div className="flex shrink-0 items-center gap-2 border bg-card p-2">
-          {parkedSales.length > 0 && <HeldCartsButton variant="mobile" count={parkedSales.length} onClick={() => setParkedOpen(true)} />}
+          {heldCarts.length > 0 && <HeldCartsButton variant="mobile" count={heldCarts.length} onClick={() => setParkedOpen(true)} />}
           <button type="button" onClick={() => setCartSheetOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 px-2 py-1 text-left">
             <span className="relative flex size-10 shrink-0 items-center justify-center border border-primary/40 text-gold">
               <ShoppingBagIcon className="size-5" />
@@ -284,8 +310,8 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
       {paying && <PaymentDialog total={total} count={count} onPay={handlePay} onClose={() => setPaying(false)} />}
       {completed && <ReceiptDialog sale={completed} onClose={() => setCompleted(null)} />}
       {closing && <CloseShiftDialog shift={shift} user={user} onCancel={() => setClosing(false)} onClosed={onShiftClosed} />}
-      {parkedOpen && <ParkedSalesDialog onResume={handleResume} onClose={() => setParkedOpen(false)} />}
-      {holdOpen && <HoldSaleDialog suggestion={customerName || `Order #${parkedSales.length + 1}`} onHold={handleHold} onClose={() => setHoldOpen(false)} />}
+      {parkedOpen && <ParkedSalesDialog heldCarts={heldCarts} onResume={handleResume} onClose={() => setParkedOpen(false)} />}
+      {holdOpen && <HoldSaleDialog suggestion={customerName || `Order #${heldCarts.length + 1}`} onHold={handleHold} onClose={() => setHoldOpen(false)} />}
     </div>
   )
 }

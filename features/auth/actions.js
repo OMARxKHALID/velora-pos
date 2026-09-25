@@ -4,7 +4,11 @@ import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { homeFor } from "./lib/demo-users"
 import { USER_ID_PATTERN, cleanIdentity, encodeSession, serializeDisabled } from "./lib/session-cookie"
-import { DISABLED_COOKIE, SESSION_COOKIE, getDisabledStaff, requireRole } from "./lib/session"
+import { DISABLED_COOKIE, PINS_COOKIE, SESSION_COOKIE, getDisabledStaff, getSupervisorPins, requireRole } from "./lib/session"
+import { createAttemptLimiter } from "./lib/pin-attempts"
+import { PIN_PATTERN, checkPin, hashPin, hasPin, pinHolders, serializePins } from "./lib/supervisor-pins"
+
+const pinAttempts = createAttemptLimiter()
 
 const cookieOptions = async () => ({
   httpOnly: true,
@@ -45,4 +49,31 @@ export const resetStaffAccess = async () => {
   await requireRole("admin")
   const cookieStore = await cookies()
   cookieStore.delete(DISABLED_COOKIE)
+  cookieStore.delete(PINS_COOKIE)
+}
+
+export const verifySupervisorPin = async (supervisorId, pin) => {
+  await requireRole()
+  if (typeof supervisorId !== "string" || !USER_ID_PATTERN.test(supervisorId)) return { error: "Choose a supervisor" }
+  if (typeof pin !== "string" || !PIN_PATTERN.test(pin)) return { error: "Enter the 4-digit supervisor PIN" }
+  if (pinAttempts.blocked(supervisorId)) return { error: "Too many wrong PINs. Try again in a few minutes." }
+  const pins = await getSupervisorPins()
+  if (!hasPin(pins, supervisorId)) return { error: "This supervisor has no PIN yet. The owner can set one in Settings." }
+  if (!checkPin(pins, supervisorId, pin)) {
+    pinAttempts.fail(supervisorId)
+    return { error: "Wrong PIN" }
+  }
+  pinAttempts.clear(supervisorId)
+  return { ok: true }
+}
+
+export const setSupervisorPin = async (supervisorId, pin) => {
+  await requireRole("admin")
+  if (typeof supervisorId !== "string" || !USER_ID_PATTERN.test(supervisorId)) return { error: "Choose a supervisor" }
+  if (typeof pin !== "string" || !PIN_PATTERN.test(pin)) return { error: "The PIN must be 4 digits" }
+  const pins = { ...(await getSupervisorPins()), [supervisorId]: hashPin(supervisorId, pin) }
+  const cookieStore = await cookies()
+  cookieStore.set(PINS_COOKIE, serializePins(pins), { ...(await cookieOptions()), maxAge: 60 * 60 * 24 * 365 })
+  pinAttempts.clear(supervisorId)
+  return { ok: true, pinHolders: pinHolders(pins) }
 }
