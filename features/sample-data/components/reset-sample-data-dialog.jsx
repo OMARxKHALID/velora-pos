@@ -22,7 +22,7 @@ export const ResetSampleDataDialog = ({ open, onOpenChange }) => {
         <DialogHeader>
           <DialogTitle>Reset sample data?</DialogTitle>
           <DialogDescription>
-            Sales, stock, shifts, refunds and settings go back to a fresh 30-day sample. Staff you added are deleted, and everyone else goes back to the sample password and PIN. You stay signed in.
+            Sales, stock, shifts, returns and settings go back to a fresh 30-day sample. Staff you added are deleted, and everyone else goes back to the sample password and PIN. You stay signed in.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

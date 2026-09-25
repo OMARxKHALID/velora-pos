@@ -70,7 +70,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
         clientId,
       })
       if (approveNow) await decideRefund({ refundId: refund.id, approve: true })
-      toast.success(approveNow ? "Refund approved" : "Refund sent for approval", {
+      toast.success(approveNow ? "Return approved" : "Return sent for approval", {
         description: approveNow || !selfApprove ? `${formatMoney(refund.total)} · ${sale.number}` : "No counter shift is open. Approve it in Returns once a cashier opens one.",
       })
       onClose()
@@ -84,16 +84,16 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
-            <DialogTitle>Request refund</DialogTitle>
+            <DialogTitle>Request return</DialogTitle>
             <DialogDescription>
-              {sale.number}. The original sale stays unchanged; this creates a separate refund record
+              {sale.number}. The original sale stays unchanged; this creates a separate return record
               {approveNow ? " approved by you." : selfApprove ? ". No counter shift is open, so cash waits in Returns until one is." : " for a supervisor to approve."}
             </DialogDescription>
           </DialogHeader>
 
           <FieldGroup>
             <Field data-invalid={!!form.formState.errors.lines}>
-              <FieldLabel>Items to refund</FieldLabel>
+              <FieldLabel>Items to return</FieldLabel>
               <ul className="divide-y border">
                 {sale.items.map((item, index) => {
                   const max = refundable[item.variantId]
@@ -103,7 +103,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{item.productName}</p>
                           <p className="text-xs text-muted-foreground">
-                            {item.attributes.color} · EU {item.attributes.size} · {max ? `${max} refundable` : "already refunded"}
+                            {item.attributes.color} · EU {item.attributes.size} · {max ? `${max} can be returned` : "already returned"}
                           </p>
                         </div>
                         <Controller
@@ -209,7 +209,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
               Cancel
             </Button>
             <Button type="submit" disabled={overCap}>
-              {approveNow ? "Refund now" : "Send for approval"}
+              {approveNow ? "Approve return" : "Send for approval"}
             </Button>
           </DialogFooter>
         </form>

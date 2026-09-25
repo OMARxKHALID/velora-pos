@@ -114,10 +114,10 @@ const SupervisorPins = () => {
       ) : (
         <p className="text-xs text-muted-foreground">There is no supervisor yet. Add one in Staff.</p>
       )}
-      <FieldDescription>
+      <p className="text-xs text-muted-foreground">
         Each supervisor has their own four-digit PIN, needed whenever a cashier gives a discount above {MAX_CASHIER_DISCOUNT * 100}%. The approval is
         recorded against the supervisor whose PIN was used. PINs are checked on the server and never stored in this browser.
-      </FieldDescription>
+      </p>
     </div>
   )
 }
@@ -152,49 +152,109 @@ export const SettingsScreen = ({ sampleData = false }) => {
   const rateValid = rateDraft === "" || (Number.isFinite(Number(rateDraft)) && Number(rateDraft) >= 0 && Number(rateDraft) <= 100)
 
   return (
-    <div className="grid gap-4 @4xl:grid-cols-2">
-      <Panel title="Sales tax" description="Add a tax to every sale, shown on the cart and the receipt.">
-        <div className="space-y-5 p-4">
-          <Toggle
-            on={settings.taxEnabled}
-            onChange={(taxEnabled) => update({ taxEnabled }, taxEnabled ? "Sales tax turned on" : "Sales tax turned off")}
-            label="Charge sales tax"
-            description="When off, no tax is added to any sale."
-          />
-          {settings.taxEnabled && (
-            <div className="space-y-4 border-t pt-4">
+    <div className="grid items-start gap-4 @4xl:grid-cols-2">
+      <div className="grid gap-4">
+        <Panel title="Sales tax" description="Add a tax to every sale, shown on the cart and the receipt.">
+          <div className="space-y-5 p-4">
+            <Toggle
+              on={settings.taxEnabled}
+              onChange={(taxEnabled) => update({ taxEnabled }, taxEnabled ? "Sales tax turned on" : "Sales tax turned off")}
+              label="Charge sales tax"
+              description="When off, no tax is added to any sale."
+            />
+            {settings.taxEnabled && (
+              <div className="space-y-4 border-t pt-4">
+                <Field>
+                  <FieldLabel>Tax name</FieldLabel>
+                  <InputGroup>
+                    <InputGroupInput
+                      value={settings.taxLabel || ""}
+                      onChange={(event) => update({ taxLabel: event.target.value })}
+                      placeholder="e.g. Sales tax, GST, VAT"
+                      aria-label="Tax name"
+                    />
+                  </InputGroup>
+                </Field>
+                <Field data-invalid={!rateValid}>
+                  <FieldLabel>Tax rate</FieldLabel>
+                  <InputGroup>
+                    <InputGroupInput
+                      value={rateDraft}
+                      onChange={(event) => handleRate(event.target.value)}
+                      inputMode="decimal"
+                      aria-label="Tax rate percent"
+                      aria-invalid={!rateValid}
+                    />
+                    <InputGroupAddon align="inline-end">
+                      <InputGroupText>%</InputGroupText>
+                    </InputGroupAddon>
+                  </InputGroup>
+                  {!rateValid && <FieldError errors={[{ message: "Enter a number between 0 and 100" }]} />}
+                </Field>
+                <FieldDescription>Tax is added on top of the total after discounts, on every new sale. Past sales keep their recorded figures.</FieldDescription>
+              </div>
+            )}
+          </div>
+        </Panel>
+
+        <Panel title="Checkout & counter" description="Customer details, low-stock warnings and sample data.">
+          <div className="space-y-5 p-4">
+            <Toggle
+              on={settings.customerInfoEnabled !== false}
+              onChange={(customerInfoEnabled) =>
+                update({ customerInfoEnabled }, customerInfoEnabled ? "Customer details enabled" : "Customer details disabled")
+              }
+              label="Customer details at checkout"
+              description="Collect optional customer name and phone number during checkout for receipt printing and returns."
+            />
+            <div className="border-t" />
+            <div className="space-y-2">
               <Field>
-                <FieldLabel>Tax name</FieldLabel>
-                <InputGroup>
+                <div className="flex items-center justify-between">
+                  <FieldLabel htmlFor="lowStockThreshold">Low-stock warning threshold</FieldLabel>
+                  <span className="text-2xs tracking-wider text-muted-foreground uppercase">Pairs</span>
+                </div>
+                <InputGroup className="max-w-xs">
                   <InputGroupInput
-                    value={settings.taxLabel || ""}
-                    onChange={(event) => update({ taxLabel: event.target.value })}
-                    placeholder="e.g. Sales tax, GST, VAT"
-                    aria-label="Tax name"
-                  />
-                </InputGroup>
-              </Field>
-              <Field data-invalid={!rateValid}>
-                <FieldLabel>Tax rate</FieldLabel>
-                <InputGroup>
-                  <InputGroupInput
-                    value={rateDraft}
-                    onChange={(event) => handleRate(event.target.value)}
-                    inputMode="decimal"
-                    aria-label="Tax rate percent"
-                    aria-invalid={!rateValid}
+                    id="lowStockThreshold"
+                    value={thresholdDraft}
+                    onChange={(event) => handleThreshold(event.target.value)}
+                    inputMode="numeric"
+                    maxLength={2}
+                    placeholder="2"
+                    className="font-mono text-sm"
+                    aria-label="Low-stock threshold in pairs"
                   />
                   <InputGroupAddon align="inline-end">
-                    <InputGroupText>%</InputGroupText>
+                    <InputGroupText>pairs</InputGroupText>
                   </InputGroupAddon>
                 </InputGroup>
-                {!rateValid && <FieldError errors={[{ message: "Enter a number between 0 and 100" }]} />}
+                <FieldDescription className="text-xs">
+                  Sizes at or below this many pairs are flagged as running low in Stock, on the dashboard and when receiving a delivery.
+                </FieldDescription>
               </Field>
-              <FieldDescription>Tax is added on top of the total after discounts, on every new sale. Past sales keep their recorded figures.</FieldDescription>
             </div>
-          )}
-        </div>
-      </Panel>
+            {sampleData && (
+              <>
+                <div className="border-t" />
+                <div className="flex flex-col gap-3 @lg:flex-row @lg:items-start @lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">Reset sample data</p>
+                    <p className="text-xs text-muted-foreground">Restore 30 days of sample sales, stock, shifts, the sample team and these settings.</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setResetOpen(true)}>
+                    <ArrowCounterClockwiseIcon />
+                    Reset data
+                  </Button>
+                </div>
+              </>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Changes take effect immediately at the sales counter and on printed receipts.
+            </p>
+          </div>
+        </Panel>
+      </div>
 
       <Panel title="Discounts" description="Choose which kinds of discount the counter can give.">
         <div className="space-y-5 p-4">
@@ -217,65 +277,9 @@ export const SettingsScreen = ({ sampleData = false }) => {
           />
           <div className="border-t" />
           <SupervisorPins />
-          <FieldDescription>
+          <p className="text-xs text-muted-foreground">
             Every discount is saved with the sale and appears on the receipt, in sales history and in the owner&apos;s reports.
-          </FieldDescription>
-        </div>
-      </Panel>
-
-      <Panel title="Checkout & counter" description="Configure counter behavior, receipt details, and sample data.">
-        <div className="space-y-5 p-4">
-          <Toggle
-            on={settings.customerInfoEnabled !== false}
-            onChange={(customerInfoEnabled) =>
-              update({ customerInfoEnabled }, customerInfoEnabled ? "Customer details enabled" : "Customer details disabled")
-            }
-            label="Customer details at checkout"
-            description="Collect optional customer name and phone number during checkout for receipt printing and returns."
-          />
-          <div className="border-t" />
-          <div className="space-y-2">
-            <Field>
-              <div className="flex items-center justify-between">
-                <FieldLabel htmlFor="lowStockThreshold">Low-stock warning threshold</FieldLabel>
-                <span className="text-2xs tracking-wider text-muted-foreground uppercase">Pairs</span>
-              </div>
-              <InputGroup className="max-w-xs">
-                <InputGroupInput
-                  id="lowStockThreshold"
-                  value={thresholdDraft}
-                  onChange={(event) => handleThreshold(event.target.value)}
-                  inputMode="numeric"
-                  maxLength={2}
-                  placeholder="2"
-                  className="font-mono text-sm"
-                  aria-label="Low-stock threshold in pairs"
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupText>pairs</InputGroupText>
-                </InputGroupAddon>
-              </InputGroup>
-              <FieldDescription>
-                Sizes at or below this many pairs are flagged as running low in Stock, on the dashboard and when receiving a delivery.
-              </FieldDescription>
-            </Field>
-          </div>
-          {sampleData && <div className="border-t" />}
-          {sampleData && <div className="flex flex-col gap-3 @lg:flex-row @lg:items-start @lg:justify-between">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">Reset sample data</p>
-              <p className="text-xs text-muted-foreground">
-                Restore 30 days of sample sales, stock, shifts, the sample team and these settings.
-              </p>
-            </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => setResetOpen(true)}>
-              <ArrowCounterClockwiseIcon />
-              Reset data
-            </Button>
-          </div>}
-          <FieldDescription>
-            Changes take effect immediately at the sales counter and on printed receipts.
-          </FieldDescription>
+          </p>
         </div>
       </Panel>
 

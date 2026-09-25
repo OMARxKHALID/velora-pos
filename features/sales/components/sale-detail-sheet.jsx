@@ -57,7 +57,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
       <Sheet open onOpenChange={(open) => !open && !refunding && onClose()}>
         <SheetContent
           side="right"
-          className="flex h-full w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+          className="flex h-full flex-col gap-0 overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-lg"
         >
           <SheetHeader className="shrink-0 border-b p-4 pr-12 sm:p-6 sm:pr-14">
             <SheetTitle className="font-mono text-base tracking-normal normal-case">
@@ -78,11 +78,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
               <Meta label="Customer">{sale.customerName || "Walk-in"}</Meta>
               <Meta label="Phone">{sale.customerPhone || "—"}</Meta>
               <Meta label="Payment">
-                {sale.payments
-                  .map(
-                    ({ method, amount }) => `${method} ${formatMoney(amount)}`
-                  )
-                  .join(" + ")}
+                {sale.payments.map(({ method, amount }) => `${method === "card" ? "Card" : "Cash"} ${formatMoney(amount)}`).join(" + ")}
               </Meta>
               <Meta label="Discount approved by">
                 {sale.manualDiscountBy ? nameOf(sale.manualDiscountBy) : "—"}
@@ -154,7 +150,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
 
             <div className="space-y-2">
               <h3 className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">
-                Refunds
+                Returns
               </h3>
               {saleRefunds.length ? (
                 <ul className="divide-y border">
@@ -179,14 +175,14 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
                 </ul>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No refunds on this sale.
+                  No returns on this sale.
                 </p>
               )}
             </div>
 
             <p className="flex items-center gap-2 text-xs text-muted-foreground">
               <LockSimpleIcon className="size-3.5 text-gold" />
-              Finished sales are locked. Corrections happen through refunds, so
+              Finished sales are locked. Corrections happen through returns, so
               every change is traceable.
             </p>
           </div>
@@ -207,7 +203,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
                 onClick={() => setRefunding(true)}
               >
                 <ArrowUUpLeftIcon />
-                Request refund
+                Request return
               </Button>
             </SheetFooter>
           )}

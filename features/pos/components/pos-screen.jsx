@@ -300,7 +300,7 @@ const PosWorkspace = ({ shift, onShiftClosed }) => {
 
       {!wide && (
         <Sheet open={cartSheetOpen} onOpenChange={setCartSheetOpen}>
-          <SheetContent side="right" showCloseButton={false} className="w-full gap-0 p-0 sm:max-w-md">
+          <SheetContent side="right" showCloseButton={false} className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md">
             <SheetHeader className="sr-only">
               <SheetTitle>Cart</SheetTitle>
               <SheetDescription>Items in the current sale</SheetDescription>

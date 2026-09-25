@@ -50,10 +50,10 @@ export const requestRefund = async ({ db, client, user, shopId, at = new Date() 
 }
 
 export const decideRefund = async ({ db, client, user, shopId, at = new Date() }, { refundId, approve }) => {
-  if (typeof refundId !== "string" || !refundId) throw new UserError("Refund not found")
+  if (typeof refundId !== "string" || !refundId) throw new UserError("Return not found")
   return withTransaction(client, async (session) => {
     const refund = await db.collection(C.refunds).findOne({ _id: refundId, shopId }, { session })
-    if (!refund) throw new UserError("Refund not found")
+    if (!refund) throw new UserError("Return not found")
     const sale = await db.collection(C.sales).findOne({ _id: refund.saleId }, { session })
     const openShift = await db.collection(C.shifts).findOne({ registerId: sale.registerId, status: "open" }, { session })
     let decided
@@ -66,7 +66,7 @@ export const decideRefund = async ({ db, client, user, shopId, at = new Date() }
       throw new UserError(error.message)
     }
     const updated = await db.collection(C.refunds).replaceOne({ _id: refundId, status: "pending" }, toDoc({ ...decided, syncedAt: at }), { session })
-    if (!updated.matchedCount) throw new UserError("Refund already decided")
+    if (!updated.matchedCount) throw new UserError("This return was already decided")
     if (approve) {
       for (const item of refund.items.filter(({ restock }) => restock)) {
         const unitCost = sale.items.find(({ variantId }) => variantId === item.variantId)?.unitCost ?? 0

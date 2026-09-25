@@ -35,7 +35,10 @@ export const Receipt = ({ sale, ref }) => {
         {sale.items.map((item) => (
           <div key={item.variantId}>
             <p className="font-bold">{item.productName}</p>
-            <PrintRow label={`${item.attributes.color} / EU ${item.attributes.size}  ${item.quantity} × ${formatMoney(item.unitPrice)}`} value={formatMoney(item.unitPrice * item.quantity)} />
+            <p className="truncate">
+              {item.attributes.color} · EU {item.attributes.size}
+            </p>
+            <PrintRow label={`${item.quantity} × ${formatMoney(item.unitPrice)}`} value={formatMoney(item.unitPrice * item.quantity)} />
             {item.productDiscount > 0 && <PrintRow label="  Offer" value={`-${formatMoney(item.productDiscount)}`} />}
             {item.discount > 0 && <PrintRow label="  Discount" value={`-${formatMoney(item.discount)}`} />}
           </div>

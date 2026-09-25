@@ -215,7 +215,7 @@ export const previewRefund = (state, saleId, lines) => {
       const item = sale.items.find((saleItem) => saleItem.variantId === variantId)
       if (!item) throw new Error("Item is not on this sale")
       const remaining = refundableQuantity(state, saleId, variantId)
-      if (!Number.isInteger(quantity) || quantity < 1 || quantity > remaining) throw new Error("Refund quantity is more than what was sold")
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > remaining) throw new Error("You cannot return more than was sold")
       const alreadyRefunded = sumBy(
         prior.flatMap((refund) => refund.items.filter((entry) => entry.variantId === variantId)),
         ({ amount }) => amount
@@ -281,8 +281,8 @@ export const applyRefundRequest = (state, { saleId, lines, reason, method, reque
 
 export const applyRefundDecision = (state, { refundId, approve, userId, at }) => {
   const refund = state.refunds.find(({ id }) => id === refundId)
-  if (!refund) throw new Error("Refund not found")
-  if (refund.status !== "pending") throw new Error("Refund already decided")
+  if (!refund) throw new Error("Return not found")
+  if (refund.status !== "pending") throw new Error("This return was already decided")
 
   const sale = state.sales.find(({ id }) => id === refund.saleId)
   const openShiftId = approve ? (openShiftFor(state, sale?.registerId)?.id ?? null) : null

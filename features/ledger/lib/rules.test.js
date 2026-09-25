@@ -74,7 +74,7 @@ describe("ledger", () => {
     const request = { saleId: sale.id, lines: [{ variantId: shoe.id, quantity: 1 }], reason: "Wrong size", method: "cash", requestedBy: "u-cashier", shiftId: shift.id, at }
     const { state: requested, record: refund } = applyRefundRequest(sold, request)
     expect(requested.stock[shoe.id]).toBe(4)
-    expect(() => applyRefundRequest(requested, request)).toThrow("more than what was sold")
+    expect(() => applyRefundRequest(requested, request)).toThrow("more than was sold")
     const { state: approved } = applyRefundDecision(requested, { refundId: refund.id, approve: true, userId: "u-manager", at })
     expect(approved.stock[shoe.id]).toBe(5)
     expect(() => applyRefundDecision(approved, { refundId: refund.id, approve: true, userId: "u-manager", at })).toThrow("already decided")

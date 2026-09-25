@@ -34,7 +34,7 @@ describe.skipIf(!hasTestDatabase)("returns, settings and what each role can read
     const [refund, again] = await Promise.all([requestRefund(as("u-cashier"), request), requestRefund(as("u-cashier"), request)])
     expect(again.id).toBe(refund.id)
     expect(refund).toMatchObject({ status: "pending", total: variant.price, requestedBy: "u-cashier", shiftId: shift.id })
-    await expect(requestRefund(as("u-cashier"), { ...request, clientId: newId(), lines: [{ variantId: variant._id, quantity: 2 }] })).rejects.toThrow("more than what was sold")
+    await expect(requestRefund(as("u-cashier"), { ...request, clientId: newId(), lines: [{ variantId: variant._id, quantity: 2 }] })).rejects.toThrow("more than was sold")
 
     const results = await Promise.allSettled([decideRefund(as("u-manager", "manager"), { refundId: refund.id, approve: true }), decideRefund(as("u-manager", "manager"), { refundId: refund.id, approve: true })])
     expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(1)

@@ -17,11 +17,11 @@ const LoginPage = async () => {
 
   return (
     <main className="grid min-h-svh w-full overflow-x-hidden lg:grid-cols-2">
-      <section className="dark relative hidden flex-col justify-between overflow-hidden border-r border-[#d4af37]/30 bg-[radial-gradient(ellipse_at_85%_10%,#d4af3733,transparent_55%),radial-gradient(ellipse_at_10%_95%,#8a6a1f40,transparent_50%),linear-gradient(160deg,#1f1a0f_0%,#0c0b09_55%,#17130b_100%)] p-12 text-[#f5f1e6] lg:flex">
-        <span className="pointer-events-none absolute -right-16 -bottom-32 font-heading text-[34rem] leading-none font-bold text-[#d4af37]/[0.06] select-none">
+      <section className="dark relative hidden flex-col justify-between overflow-hidden border-r border-primary/30 bg-background bg-[radial-gradient(ellipse_at_85%_10%,color-mix(in_oklab,var(--primary)_20%,transparent),transparent_55%)] p-12 text-foreground lg:flex">
+        <span className="pointer-events-none absolute -right-16 -bottom-32 font-heading text-[34rem] leading-none font-bold text-primary/[0.06] select-none">
           V
         </span>
-        <div className="pointer-events-none absolute inset-6 border border-[#d4af37]/15" />
+        <div className="pointer-events-none absolute inset-6 border border-primary/15" />
         <VeloraLogo className="relative" />
         <div className="relative space-y-6">
           <p className="bg-linear-to-b from-[#f5d77a] via-[#d4af37] to-[#8a6a1f] bg-clip-text font-heading text-5xl leading-tight font-bold tracking-wider text-transparent">
@@ -32,12 +32,12 @@ const LoginPage = async () => {
             accounted for.
           </p>
           <div className="flex max-w-md items-center gap-4">
-            <span className="h-px flex-1 bg-linear-to-r from-transparent to-[#d4af37]/60" />
-            <p className="text-xs tracking-[0.35em] text-[#e6c766] uppercase">Fashion · Footwear · Lifestyle</p>
-            <span className="h-px flex-1 bg-linear-to-l from-transparent to-[#d4af37]/60" />
+            <span className="h-px flex-1 bg-linear-to-r from-transparent to-primary/60" />
+            <p className="text-xs tracking-[0.35em] text-gold uppercase">Fashion · Footwear · Lifestyle</p>
+            <span className="h-px flex-1 bg-linear-to-l from-transparent to-primary/60" />
           </div>
         </div>
-        <p className="relative text-xs text-[#a8a091]">Velora Group © 2026</p>
+        <p className="relative text-xs text-muted-foreground">Velora Group © 2026</p>
       </section>
 
       <section className="flex min-w-0 w-full items-center justify-center bg-[radial-gradient(ellipse_at_top,var(--accent),transparent_60%)] px-4 py-8 sm:p-8 md:p-12">

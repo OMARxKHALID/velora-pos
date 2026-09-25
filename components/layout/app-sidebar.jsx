@@ -79,6 +79,7 @@ export const AppSidebar = ({ user, sampleData = false }) => {
   const items = navItems.filter(({ roles }) => roles.includes(user.role))
   const pendingRefunds = useLedgerStore(({ refunds }) => refunds.filter(({ status }) => status === "pending").length)
   const badges = { "/refunds": pendingRefunds }
+  const shops = useLedgerStore(({ shops }) => shops)
 
   const [resetOpen, setResetOpen] = useState(false)
 
