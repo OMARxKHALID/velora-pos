@@ -1,3 +1,14 @@
+# Backend phase 3: selling on the server
+
+Lint clean; 136 tests pass with a MongoDB replica set; production build succeeds; `GET /api/pos` checked over HTTP.
+
+- **Sales are priced by the server.** The till only sends which items, how many, the discount percentage and the payments; prices, costs, shop offers, tax and totals come from the database and the existing, tested sale rules. The receipt number, stock change, stock history entry and the sale are saved in one transaction.
+- **Pay pressed twice sells once**, even when the requests arrive together (the checkout id is unique in the database). **Two counters selling the last pair**: one sale goes through, the other is told how many are left. Online sales never take stock below zero.
+- **Discounts above 5% need the signed supervisor approval** from phase 1, checked here: it must be for this cashier and this exact discount, less than five minutes old, and from a supervisor who is still active.
+- **Shifts**: one open shift per counter (enforced by the database, so a double tap opens one), opening and counted cash validated, and the Z-report frozen at close from what the server recorded. A second cashier can still take over and close a busy counter.
+- **Held carts** are stored per counter, at most 20; taking one is a single atomic step, so two screens can never resume the same cart.
+- Server actions for all of this and `GET /api/pos` (the counter's open shift, held carts and settings, cashiers only). The till screen switches to them together with the other screens after phase 4.
+
 # Backend phase 2: products and stock on the server
 
 Lint clean; 127 tests pass with a MongoDB replica set, including races; production build succeeds. The new read endpoints were checked over HTTP with real sessions, and the phase 1 browser run still passes.
