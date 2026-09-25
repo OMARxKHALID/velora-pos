@@ -10,8 +10,6 @@ const CountBadge = ({ count, className }) => (
   <span className={cn("flex size-5 items-center justify-center bg-primary text-2xs font-bold text-primary-foreground tabular-nums", className)}>{count}</span>
 )
 
-// One control for held carts. "panel" sits in the cart's action row, "bar" in the sell-screen header when the
-// cart is hidden, and "mobile" in the bottom bar. Only the one that fits the current layout is rendered.
 export const HeldCartsButton = ({ count, onClick, variant = "panel", className }) => {
   const active = count > 0
 
@@ -49,16 +47,16 @@ export const HeldCartsButton = ({ count, onClick, variant = "panel", className }
   return (
     <Button
       type="button"
-      size="sm"
+      size="icon-sm"
       variant="outline"
       disabled={!active}
       onClick={onClick}
+      aria-label={active ? `${heldLabel(count)} waiting` : "No held carts"}
       title={active ? `${heldLabel(count)} waiting` : "No held carts"}
-      className={cn("w-full px-2", active && "border-gold/50 bg-gold/10 text-gold hover:bg-gold/20", className)}
+      className={cn("relative", active && "border-gold/50 bg-gold/10 text-gold hover:bg-gold/20", className)}
     >
-      <PauseCircleIcon />
-      Held
-      {active && <CountBadge count={count} />}
+      <PauseCircleIcon className="size-4" />
+      {active && <CountBadge count={count} className="absolute -top-1.5 -right-1.5" />}
     </Button>
   )
 }

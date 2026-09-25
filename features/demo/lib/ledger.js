@@ -1,14 +1,22 @@
-import { REGISTER_CODE, REGISTER_ID, SHOP_ID, indexCatalog } from "@/features/catalog/lib/catalog"
-import { effectiveRate, lineDiscount, netRevenue, taxFor } from "@/features/pricing/lib/pricing"
+import { REGISTER_CODE, REGISTER_ID, SHOP_ID, indexCatalog, pctCodeFor } from "@/features/catalog/lib/catalog"
+import { FBR_INVOICE_TYPE, POSID_PATTERN, simulatedFiscalNumber } from "@/features/fbr/lib/fbr"
+import { effectiveRate, lineDiscount, lineTax, netRevenue, serviceFeeFor } from "@/features/pricing/lib/pricing"
 import { newId } from "@/lib/id"
 import { roundToRupee, sumBy } from "@/lib/money"
 
 export const MAX_CASHIER_DISCOUNT = 0.05
-export const PAYMENT_METHODS = ["cash", "card"]
+export const PAYMENT_METHODS = ["cash", "card", "jazzcash", "easypaisa", "bank"]
 
-const pricingDefaults = { taxEnabled: false, taxRate: 0, productDiscountEnabled: true, cartDiscountEnabled: true }
+export const REFERENCE_REQUIRED = ["jazzcash", "easypaisa", "bank"]
+
+export const cashRoundingFor = (total, rupees = 1) => (rupees > 1 ? -(total % (rupees * 100)) : 0)
+
+const pricingDefaults = { taxEnabled: false, taxRate: 0, productDiscountEnabled: true, cartDiscountEnabled: true, pricesIncludeTax: false, fbrEnabled: false }
 
 export const emptyLedger = () => ({
+  shops: [],
+  registers: [],
+  categories: [],
   products: [],
   variants: [],
   barcodeSeq: 0,
@@ -17,11 +25,31 @@ export const emptyLedger = () => ({
   movements: [],
   sales: [],
   refunds: [],
+  exchanges: [],
   shifts: [],
   purchases: [],
   outbox: [],
   receiptSeq: 0,
+  receiptSeqs: {},
+  fbrSeq: 0,
+  drawerEvents: [],
 })
+
+const shopOfVariant = (state, variantId) => {
+  const { productById, variantById } = indexCatalog(state)
+  return productById[variantById[variantId]?.productId]?.shopId ?? SHOP_ID
+}
+
+const fbrRecord = (state, { posId, usin, at, offline, invoiceType, refUsin = null }) => {
+  if (offline) return { state, fbr: { posId, usin, invoiceType, refUsin, status: "pending", invoiceNumber: null, reportedAt: null } }
+  const fbrSeq = state.fbrSeq + 1
+  return {
+    state: { ...state, fbrSeq },
+    fbr: { posId, usin, invoiceType, refUsin, status: "reported", invoiceNumber: simulatedFiscalNumber(posId, at, fbrSeq), reportedAt: at },
+  }
+}
+
+const reportIfPending = (state, fbr, at) => (fbr?.status === "pending" ? fbrRecord(state, { ...fbr, at, offline: false }) : { state, fbr })
 
 const moveStock = (
   state,
@@ -59,19 +87,25 @@ export const applySale = (
     shopId = SHOP_ID,
     registerId = REGISTER_ID,
     registerCode = REGISTER_CODE,
+    fbrPosId = settings.fbrPosId,
+    ntn = settings.ntn,
+    strn = settings.strn,
   }
 ) => {
-  // The same checkout submitted twice (double tap, retry after a sync) must not sell twice.
   const existing = state.sales.find((sale) => sale.clientId === clientId)
   if (existing) return { state, record: existing }
 
   if (!lines.length) throw new Error("Cart is empty")
-  if (!shiftId) throw new Error("Open a shift before selling")
+  if (state.shifts.find(({ id }) => id === shiftId)?.status !== "open") throw new Error("Open a shift before selling")
   if (!payments?.length) throw new Error("Add a payment")
   if (payments.some(({ method, amount }) => !PAYMENT_METHODS.includes(method) || !Number.isInteger(amount) || amount <= 0)) {
     throw new Error("Invalid payment")
   }
+  if (payments.some(({ method, reference }) => REFERENCE_REQUIRED.includes(method) && !reference?.trim())) throw new Error("Enter the transaction ID for wallet and bank payments")
 
+  const taxRate = effectiveRate(settings)
+  const taxInclusive = Boolean(settings.pricesIncludeTax) && taxRate > 0
+  if (settings.fbrEnabled && !POSID_PATTERN.test(fbrPosId ?? "")) throw new Error("Set this counter's FBR POSID in Settings, Shops, before selling")
   const { productById, variantById } = indexCatalog(state)
   const items = lines.map(({ variantId, quantity, discount = 0, productDiscount = 0, entry = "scan" }) => {
     const variant = variantById[variantId]
@@ -83,9 +117,12 @@ export const applySale = (
     if (discount && !settings.cartDiscountEnabled) throw new Error("Cart discounts are turned off")
     const listedDiscount = settings.productDiscountEnabled ? lineDiscount(gross, productById[variant.productId].discountPct ?? 0) : 0
     if (productDiscount !== listedDiscount || productDiscount > gross - discount) throw new Error("Invalid product discount")
+    const total = gross - discount - productDiscount
+    const taxCharged = lineTax(total, taxRate, taxInclusive)
     return {
       variantId,
       productName: productById[variant.productId].name,
+      pctCode: productById[variant.productId].pctCode ?? pctCodeFor(state.categories, productById[variant.productId].category),
       sku: variant.sku,
       attributes: variant.attributes,
       quantity,
@@ -93,7 +130,9 @@ export const applySale = (
       unitCost: variant.cost,
       productDiscount,
       discount,
-      total: gross - discount - productDiscount,
+      total,
+      saleValue: taxInclusive ? total - taxCharged : total,
+      taxCharged,
       entry,
     }
   })
@@ -101,26 +140,32 @@ export const applySale = (
   const subtotal = sumBy(items, ({ unitPrice, quantity }) => unitPrice * quantity)
   const cartDiscount = sumBy(items, ({ discount }) => discount)
   const discountTotal = cartDiscount + sumBy(items, ({ productDiscount }) => productDiscount)
-  const taxRate = effectiveRate(settings)
   const taxLabel = settings.taxLabel || "Tax"
-  const taxTotal = taxFor(subtotal - discountTotal, taxRate)
-  const total = subtotal - discountTotal + taxTotal
+  const taxTotal = sumBy(items, ({ taxCharged }) => taxCharged)
+  const serviceFee = serviceFeeFor(settings)
+  const total = subtotal - discountTotal + (taxInclusive ? 0 : taxTotal) + serviceFee
   const paid = sumBy(payments, ({ amount }) => amount)
   const cashPaid = sumBy(payments.filter(({ method }) => method === "cash"), ({ amount }) => amount)
-  const change = paid - total
+  const cashRounding = payments.every(({ method }) => method === "cash") ? cashRoundingFor(total, settings.cashRounding) : 0
+  const change = paid - (total + cashRounding)
 
   if (change < 0) throw new Error("Payment is short")
   if (change > cashPaid) throw new Error("Change can only be given from cash")
   if (cartDiscount > subtotal * MAX_CASHIER_DISCOUNT && !approvedBy) throw new Error("Supervisor approval needed for this discount")
 
   const receiptSeq = state.receiptSeq + 1
+  const counterSeq = (state.receiptSeqs?.[registerId] ?? (registerId === REGISTER_ID ? state.receiptSeq : 0)) + 1
+  const number = `${registerCode}-${String(counterSeq).padStart(6, "0")}`
+  const stamped = settings.fbrEnabled
+    ? fbrRecord(state, { posId: fbrPosId, usin: number, at, offline, invoiceType: FBR_INVOICE_TYPE.sale })
+    : { state, fbr: null }
   const cleanCustomerName = customerName?.trim()
   const cleanCustomerPhone = customerPhone?.trim()
 
   const sale = {
     id: newId(),
     clientId,
-    number: `${registerCode}-${String(receiptSeq).padStart(6, "0")}`,
+    number,
     shopId,
     registerId,
     shiftId,
@@ -132,7 +177,10 @@ export const applySale = (
     taxRate,
     taxLabel: taxTotal > 0 ? taxLabel : null,
     taxTotal,
+    taxInclusive,
+    serviceFee,
     total,
+    cashRounding,
     payments,
     change,
     manualDiscountBy: approvedBy,
@@ -140,11 +188,12 @@ export const applySale = (
     syncedAt: offline ? null : at,
     offline,
     flags: [],
+    fbr: stamped.fbr && { ...stamped.fbr, ntn: ntn || null, strn: strn || null },
     ...(cleanCustomerName ? { customerName: cleanCustomerName } : null),
     ...(cleanCustomerPhone ? { customerPhone: cleanCustomerPhone } : null),
   }
 
-  let next = { ...state, receiptSeq }
+  let next = { ...stamped.state, receiptSeq, receiptSeqs: { ...state.receiptSeqs, [registerId]: counterSeq } }
   for (const item of items) {
     next = moveStock(next, {
       variantId: item.variantId,
@@ -174,32 +223,33 @@ export const applySale = (
 
 const liveRefunds = (state, saleId) => state.refunds.filter((refund) => refund.saleId === saleId && refund.status !== "rejected")
 
+const saleExchanges = (state, saleId) => state.exchanges.filter((exchange) => exchange.saleId === saleId)
+
+const exchangedQuantity = (state, saleId, variantId) =>
+  sumBy(saleExchanges(state, saleId).filter((exchange) => exchange.fromVariantId === variantId), ({ quantity }) => quantity)
+
 export const refundableQuantity = (state, saleId, variantId) => {
   const sale = state.sales.find(({ id }) => id === saleId)
   const sold = sale?.items.find((item) => item.variantId === variantId)?.quantity ?? 0
   const claimed = sumBy(liveRefunds(state, saleId), (refund) =>
     sumBy(refund.items.filter((item) => item.variantId === variantId), ({ quantity }) => quantity)
   )
-  return sold - claimed
+  return sold - claimed - exchangedQuantity(state, saleId, variantId)
 }
 
-// What the customer actually handed over per method (change comes out of the cash).
-export const paidByMethod = (sale) => ({
-  cash: sumBy(sale.payments.filter(({ method }) => method === "cash"), ({ amount }) => amount) - sale.change,
-  card: sumBy(sale.payments.filter(({ method }) => method === "card"), ({ amount }) => amount),
-})
+export const paidByMethod = (sale) =>
+  Object.fromEntries(
+    PAYMENT_METHODS.map((method) => [method, sumBy(sale.payments.filter((payment) => payment.method === method), ({ amount }) => amount) - (method === "cash" ? sale.change : 0)])
+  )
 
 export const refundMethodsFor = (sale) => {
   const paid = paidByMethod(sale)
   return PAYMENT_METHODS.filter((method) => paid[method] > 0)
 }
 
-// How much can still go back through one method: what was paid that way, minus refunds already asked for.
 export const refundCapFor = (state, sale, method) =>
   paidByMethod(sale)[method] - sumBy(liveRefunds(state, sale.id).filter((refund) => refund.method === method), ({ total }) => total)
 
-// Single source of truth for refund maths. The refund dialog previews with it and the ledger books with it,
-// so the customer is quoted exactly what is recorded. Tax goes back in proportion to the goods returned.
 export const previewRefund = (state, saleId, lines) => {
   const sale = state.sales.find(({ id }) => id === saleId)
   if (!sale) throw new Error("Sale not found")
@@ -216,7 +266,8 @@ export const previewRefund = (state, saleId, lines) => {
         prior.flatMap((refund) => refund.items.filter((entry) => entry.variantId === variantId)),
         ({ amount }) => amount
       )
-      const left = item.total - alreadyRefunded
+      const exchangedValue = roundToRupee((item.total / item.quantity) * exchangedQuantity(state, saleId, variantId))
+      const left = item.total - alreadyRefunded - exchangedValue
       const amount = quantity === remaining ? left : Math.min(roundToRupee((item.total / item.quantity) * quantity), left)
       return { variantId, quantity, restock, amount }
     })
@@ -224,7 +275,7 @@ export const previewRefund = (state, saleId, lines) => {
   const amount = sumBy(items, (entry) => entry.amount)
   const netSale = sale.subtotal - sale.discountTotal
   const taxLeft = (sale.taxTotal ?? 0) - sumBy(prior, (refund) => refund.taxTotal ?? 0)
-  const completesSale = sale.items.every(
+  const completesSale = !saleExchanges(state, saleId).length && sale.items.every(
     (item) => refundableQuantity(state, saleId, item.variantId) === (items.find((entry) => entry.variantId === item.variantId)?.quantity ?? 0)
   )
   const taxTotal =
@@ -234,7 +285,8 @@ export const previewRefund = (state, saleId, lines) => {
         : Math.min(taxLeft, roundToRupee((sale.taxTotal * amount) / netSale))
       : 0
 
-  return { sale, items, amount, taxTotal, total: amount + taxTotal }
+  const rounding = completesSale ? (sale.cashRounding ?? 0) : 0
+  return { sale, items, amount, taxTotal, total: (sale.taxInclusive ? amount : amount + taxTotal) + rounding }
 }
 
 export const applyRefundRequest = (state, { saleId, lines, reason, method, requestedBy, shiftId, at, clientId = newId() }) => {
@@ -267,7 +319,6 @@ export const applyRefundRequest = (state, { saleId, lines, reason, method, reque
     status: "pending",
     decidedBy: null,
     decidedAt: null,
-    // The drawer that physically pays a cash refund is the one open when it is approved.
     payoutShiftId: null,
     createdAt: at,
   }
@@ -275,16 +326,25 @@ export const applyRefundRequest = (state, { saleId, lines, reason, method, reque
   return { state: { ...state, refunds: [...state.refunds, refund] }, record: refund }
 }
 
-export const applyRefundDecision = (state, { refundId, approve, userId, at }) => {
+export const applyRefundDecision = (state, { refundId, approve, userId, at, offline = false }) => {
   const refund = state.refunds.find(({ id }) => id === refundId)
   if (!refund) throw new Error("Refund not found")
   if (refund.status !== "pending") throw new Error("Refund already decided")
 
   const sale = state.sales.find(({ id }) => id === refund.saleId)
-  const payoutShiftId = approve && refund.method === "cash" ? (openShiftFor(state, sale?.registerId)?.id ?? null) : null
+  const payoutShiftId = approve ? (openShiftFor(state, sale?.registerId)?.id ?? null) : null
   if (approve && refund.method === "cash" && !payoutShiftId) throw new Error("Open a counter shift first. Cash refunds are paid from the drawer.")
-  const decided = { ...refund, status: approve ? "approved" : "rejected", decidedBy: userId, decidedAt: at, payoutShiftId }
-  let next = { ...state, refunds: state.refunds.map((item) => (item.id === refundId ? decided : item)) }
+  const creditNotes = state.refunds.filter((item) => item.saleId === refund.saleId && item.fbr).length
+  const stamped =
+    approve && sale?.fbr
+      ? fbrRecord(state, { posId: sale.fbr.posId, usin: `${sale.number}-R${creditNotes + 1}`, at, offline, invoiceType: FBR_INVOICE_TYPE.credit, refUsin: sale.number })
+      : { state, fbr: null }
+  const decided = { ...refund, status: approve ? "approved" : "rejected", decidedBy: userId, decidedAt: at, payoutShiftId, fbr: stamped.fbr }
+  let next = {
+    ...stamped.state,
+    refunds: state.refunds.map((item) => (item.id === refundId ? decided : item)),
+    outbox: decided.fbr?.status === "pending" ? [...state.outbox, decided.id] : state.outbox,
+  }
 
   if (approve) {
     const { variantById } = indexCatalog(state)
@@ -334,14 +394,20 @@ const cashSalesFor = (state, shift) =>
     ({ payments, change }) => sumBy(payments.filter(({ method }) => method === "cash"), ({ amount }) => amount) - change
   )
 
-// Cash refunds leave the drawer of the shift that paid them out, not the shift that asked for them.
-const cashRefundsFor = (state, shift) => sumBy(state.refunds.filter(({ payoutShiftId }) => payoutShiftId === shift.id), ({ total }) => total)
+const refundsPaidIn = (state, shift, method) =>
+  sumBy(state.refunds.filter((refund) => refund.payoutShiftId === shift.id && refund.method === method), ({ total }) => total)
+
+const cashRefundsFor = (state, shift) => refundsPaidIn(state, shift, "cash")
+
+export const fbrPending = (state) =>
+  state.sales.filter(({ fbr }) => fbr?.status === "pending").length +
+  state.refunds.filter(({ fbr }) => fbr?.status === "pending").length +
+  (state.exchanges ?? []).filter(({ fbr }) => fbr?.credit.status === "pending").length
 
 export const expectedCash = (state, shift) => shift.openingCash + cashSalesFor(state, shift) - cashRefundsFor(state, shift)
 
 export const shiftSummary = (state, shift) => {
   const sales = state.sales.filter(({ shiftId }) => shiftId === shift.id)
-  const cardRefunds = state.refunds.filter(({ shiftId, status, method }) => shiftId === shift.id && status === "approved" && method === "card")
   const paidBy = (method) =>
     sumBy(sales, ({ payments }) => sumBy(payments.filter((payment) => payment.method === method), ({ amount }) => amount))
 
@@ -355,10 +421,17 @@ export const shiftSummary = (state, shift) => {
     revenue: sumBy(sales, ({ total }) => total),
     cashSales: cashSalesFor(state, shift),
     cardSales: paidBy("card"),
+    otherSales: Object.fromEntries(REFERENCE_REQUIRED.map((method) => [method, paidBy(method)])),
+    otherRefunds: Object.fromEntries(REFERENCE_REQUIRED.map((method) => [method, refundsPaidIn(state, shift, method)])),
+    cashRounding: sumBy(sales, ({ cashRounding }) => cashRounding ?? 0),
+    noSaleOpens: (state.drawerEvents ?? []).filter(({ shiftId, reason }) => shiftId === shift.id && reason === "no-sale").length,
     cashRefunds: cashRefundsFor(state, shift),
-    cardRefunds: sumBy(cardRefunds, ({ total }) => total),
+    cardRefunds: refundsPaidIn(state, shift, "card"),
     openingCash: shift.openingCash,
     expectedCash: expectedCash(state, shift),
+    serviceFees: sumBy(sales, ({ serviceFee }) => serviceFee ?? 0),
+    fbrReported: sales.filter(({ fbr }) => fbr?.status === "reported").length,
+    fbrPending: sales.filter(({ fbr }) => fbr?.status === "pending").length,
   }
 }
 
@@ -373,8 +446,18 @@ export const applyCloseShift = (state, { shiftId, countedCash, closedBy, note = 
   return { state: { ...state, shifts: state.shifts.map((item) => (item.id === shiftId ? closed : item)) }, record: closed }
 }
 
-export const applyPurchase = (state, { lines, supplier, receivedBy, at, shopId = SHOP_ID }) => {
+const pairCount = (quantity) => Number.isInteger(quantity) && quantity >= 1
+
+export const applyPurchase = (state, { lines, supplier, receivedBy, at }) => {
   if (!lines.length) throw new Error("Add at least one item")
+  const shopId = shopOfVariant(state, lines[0].variantId)
+  if (lines.some(({ variantId }) => shopOfVariant(state, variantId) !== shopId)) throw new Error("A delivery can only be for one shop")
+  const { variantById } = indexCatalog(state)
+  for (const { variantId, quantity, unitCost } of lines) {
+    if (!variantById[variantId]) throw new Error("Unknown item")
+    if (!pairCount(quantity)) throw new Error("Quantity must be at least 1")
+    if (!Number.isInteger(unitCost) || unitCost < 0) throw new Error("Invalid cost")
+  }
   const purchase = {
     id: newId(),
     shopId,
@@ -387,29 +470,111 @@ export const applyPurchase = (state, { lines, supplier, receivedBy, at, shopId =
 
   let next = { ...state, purchases: [...state.purchases, purchase] }
   for (const { variantId, quantity, unitCost } of lines) {
-    if (quantity < 1) throw new Error("Quantity must be at least 1")
     next = moveStock(next, { variantId, quantity, type: "purchase", unitCost, ref: { kind: "Purchase", id: purchase.id, number: supplier }, userId: receivedBy, at, shopId })
   }
 
   return { state: next, record: purchase }
 }
 
-export const applyAdjustment = (state, { variantId, quantity, reason, note, userId, at, shopId = SHOP_ID }) => {
+export const applyAdjustment = (state, { variantId, quantity, reason, note, userId, at }) => {
   if (!reason) throw new Error("A reason is required")
-  if (!quantity) throw new Error("Quantity cannot be zero")
+  if (!Number.isInteger(quantity) || !quantity) throw new Error("Quantity must be a whole number")
   const { variantById } = indexCatalog(state)
-  const next = moveStock(state, { variantId, quantity, type: "adjustment", unitCost: variantById[variantId].cost, reason, note, ref: null, userId, at, shopId })
+  if (!variantById[variantId]) throw new Error("Unknown item")
+  const next = moveStock(state, { variantId, quantity, type: "adjustment", unitCost: variantById[variantId].cost, reason, note, ref: null, userId, at, shopId: shopOfVariant(state, variantId) })
   return { state: next, record: next.movements.at(-1) }
 }
 
 export const applySync = (state, { at }) => {
   const waiting = new Set(state.outbox)
+  let next = state
+  const report = (fbr) => {
+    const result = reportIfPending(next, fbr, at)
+    next = result.state
+    return result.fbr
+  }
+  const sales = state.sales.map((sale) => (waiting.has(sale.id) ? { ...sale, syncedAt: at, fbr: report(sale.fbr) } : sale))
+  const refunds = state.refunds.map((refund) => (waiting.has(refund.id) ? { ...refund, fbr: report(refund.fbr) } : refund))
+  const exchanges = state.exchanges.map((exchange) =>
+    waiting.has(exchange.id) ? { ...exchange, fbr: exchange.fbr && { credit: report(exchange.fbr.credit), invoice: report(exchange.fbr.invoice) } } : exchange
+  )
   return {
-    state: {
-      ...state,
-      outbox: [],
-      sales: state.sales.map((sale) => (waiting.has(sale.id) ? { ...sale, syncedAt: at } : sale)),
-    },
+    state: { ...next, outbox: [], sales, refunds, exchanges },
     record: waiting.size,
   }
+}
+
+export const applyExchange = (state, { saleId, fromVariantId, toVariantId, quantity, userId, at, offline = false, clientId = newId() }) => {
+  const existing = state.exchanges.find((exchange) => exchange.clientId === clientId)
+  if (existing) return { state, record: existing }
+
+  const sale = state.sales.find(({ id }) => id === saleId)
+  if (!sale) throw new Error("Sale not found")
+  const item = sale.items.find(({ variantId }) => variantId === fromVariantId)
+  if (!item) throw new Error("Item is not on this sale")
+  if (!pairCount(quantity) || quantity > refundableQuantity(state, saleId, fromVariantId)) throw new Error("That is more than can still be swapped")
+
+  const { productById, variantById } = indexCatalog(state)
+  const from = variantById[fromVariantId]
+  const to = variantById[toVariantId]
+  if (!to || to.id === fromVariantId || to.productId !== from?.productId) throw new Error("Swap for another size or colour of the same product")
+  if (!to.active || productById[to.productId].status !== "active") throw new Error("This item is archived and cannot be sold")
+
+  let next = state
+  let fbr = null
+  if (sale.fbr) {
+    const swap = saleExchanges(state, saleId).length + 1
+    const shared = { posId: sale.fbr.posId, at, offline, refUsin: sale.number }
+    const credit = fbrRecord(next, { ...shared, usin: `${sale.number}-X${swap}C`, invoiceType: FBR_INVOICE_TYPE.credit })
+    const invoice = fbrRecord(credit.state, { ...shared, usin: `${sale.number}-X${swap}`, invoiceType: FBR_INVOICE_TYPE.sale })
+    next = invoice.state
+    fbr = { credit: credit.fbr, invoice: invoice.fbr }
+  }
+  const exchange = { id: newId(), clientId, saleId, saleNumber: sale.number, shopId: sale.shopId, fromVariantId, toVariantId, quantity, userId, createdAt: at, fbr }
+  const ref = { kind: "Exchange", id: exchange.id, number: sale.number }
+  next = moveStock(next, { variantId: fromVariantId, quantity, type: "exchange", unitCost: item.unitCost, ref, userId, at, shopId: sale.shopId })
+  next = moveStock(next, { variantId: toVariantId, quantity: -quantity, type: "exchange", unitCost: to.cost, ref, userId, at, shopId: sale.shopId })
+
+  return {
+    state: { ...next, exchanges: [...next.exchanges, exchange], outbox: fbr?.credit.status === "pending" ? [...next.outbox, exchange.id] : next.outbox },
+    record: exchange,
+  }
+}
+
+export const applyStockCount = (state, { counts, userId, at, id = newId() }) => {
+  if (!counts.length) throw new Error("Scan at least one item")
+  const { variantById } = indexCatalog(state)
+  const lines = counts.map(({ variantId, counted }) => {
+    if (!variantById[variantId]) throw new Error("Unknown item")
+    if (!Number.isInteger(counted) || counted < 0) throw new Error("Counts must be whole numbers")
+    return { variantId, expected: state.stock[variantId] ?? 0, counted }
+  })
+
+  let next = state
+  for (const { variantId, expected, counted } of lines.filter(({ expected, counted }) => expected !== counted)) {
+    next = moveStock(next, {
+      variantId,
+      quantity: counted - expected,
+      type: "adjustment",
+      unitCost: variantById[variantId].cost,
+      reason: "count",
+      note: null,
+      ref: { kind: "Count", id, number: null },
+      userId,
+      at,
+      shopId: shopOfVariant(state, variantId),
+    })
+  }
+
+  return { state: next, record: { id, lines, changed: lines.filter(({ expected, counted }) => expected !== counted).length } }
+}
+
+export const DRAWER_REASONS = { sale: "Cash sale", "no-sale": "No sale" }
+
+export const applyDrawerOpen = (state, { registerId, shiftId = null, userId, reason, note = "", at }) => {
+  if (!DRAWER_REASONS[reason]) throw new Error("Unknown drawer reason")
+  if (reason === "no-sale" && state.registers.find(({ id }) => id === registerId)?.manualDrawer === false) throw new Error("This counter doesn't allow opening the drawer without a sale")
+  if (reason === "no-sale" && !note.trim()) throw new Error("Say why the drawer was opened")
+  const event = { id: newId(), registerId, shiftId, userId, reason, note: note.trim().slice(0, 120), at }
+  return { state: { ...state, drawerEvents: [...state.drawerEvents, event] }, record: event }
 }

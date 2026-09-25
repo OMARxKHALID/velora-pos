@@ -3,8 +3,7 @@
 import { useState, useTransition } from "react"
 import { toast } from "sonner"
 import { cn } from "cn"
-import { CheckCircleIcon, DotsThreeVerticalIcon, InfoIcon, MagnifyingGlassIcon, PlusIcon, ProhibitIcon, TrashIcon, UserSwitchIcon } from "@phosphor-icons/react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { AirplaneTiltIcon, CheckCircleIcon, DotsThreeVerticalIcon, InfoIcon, MagnifyingGlassIcon, PlusIcon, ProhibitIcon, TrashIcon, UserSwitchIcon } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -21,12 +20,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { TablePagination, paginate, resetsPage } from "@/components/ui/table-pagination"
 import { setStaffAccess } from "@/features/auth/actions"
 import { roleLabels } from "@/features/auth/lib/demo-users"
-import { activeStaff } from "@/features/demo/lib/staff"
+import { activeStaff, isOnLeave, worksAtClosedShop } from "@/features/demo/lib/staff"
+import { useShopNameOf, useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ALL_SHOPS, staffShopId } from "@/features/shops/lib/shops"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { timeAgo } from "@/lib/dates"
 import { CreateStaffDialog } from "./create-staff-dialog"
+import { EditStaffDialog } from "./edit-staff-dialog"
+import { LeaveDialog } from "./leave-dialog"
 import { RemoveStaffDialog } from "./remove-staff-dialog"
 import { RoleBadge } from "./role-badge"
+import { StaffAvatar } from "./staff-avatar"
 import { StaffDetailsDialog } from "./staff-details-dialog"
 
 const roleFilters = [
@@ -37,16 +41,23 @@ const roleFilters = [
 
 const NOBODY = []
 
+const statusTones = { Disabled: "text-destructive", "On leave": "text-warning", "Shop closed": "text-warning", Active: "text-success" }
+
 const latest = (list) => list.reduce((max, at) => Math.max(max, new Date(at).getTime()), 0)
 
 export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
   const staff = useDemoStore(({ staff }) => staff)
+  const shops = useDemoStore(({ shops }) => shops)
   const sales = useDemoStore(({ sales }) => sales)
   const shifts = useDemoStore(({ shifts }) => shifts)
   const movements = useDemoStore(({ movements }) => movements)
   const transferStaffRole = useDemoStore(({ transferStaffRole }) => transferStaffRole)
   const removeStaff = useDemoStore(({ removeStaff }) => removeStaff)
   const addStaff = useDemoStore(({ addStaff }) => addStaff)
+  const updateStaffProfile = useDemoStore(({ updateStaffProfile }) => updateStaffProfile)
+  const [editing, setEditing] = useState(null)
+  const [leaveFor, setLeaveFor] = useState(null)
+  const setStaffLeave = useDemoStore(({ setStaffLeave }) => setStaffLeave)
 
   const [seen, setSeen] = useState(serverDisabled)
   const [disabled, setDisabled] = useState(serverDisabled)
@@ -64,13 +75,15 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
   const [creating, setCreating] = useState(false)
 
   const search = query.trim().toLowerCase()
-  const people = activeStaff(staff)
+  const scope = useShopScope()
+  const people = activeStaff(staff).filter((person) => scope === ALL_SHOPS || person.role === "admin" || staffShopId(person) === scope)
+  const shopOf = useShopNameOf()
   const selected = selectedId ? (staff[selectedId] ?? null) : null
 
   const visible = people.filter(
     (person) =>
       (roleFilter === "all" || person.role === roleFilter) &&
-      (!search || [person.name, person.email, person.phone, person.shop, roleLabels[person.role]].some((value) => value?.toLowerCase().includes(search)))
+      (!search || [person.name, person.email, person.phone, shopOf(person), roleLabels[person.role]].some((value) => value?.toLowerCase().includes(search)))
   )
 
   const pagination = paginate(visible, page)
@@ -123,6 +136,26 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
     }
   }
 
+  const handleLeave = (person, leave) => {
+    try {
+      setStaffLeave(person.id, leave)
+      toast.success(leave ? "Leave saved" : "Welcome back", { description: leave ? `${person.name} is marked on leave.` : `${person.name} can sign in again.` })
+      setLeaveFor(null)
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
+  const handleSaveProfile = (id, input) => {
+    try {
+      updateStaffProfile(id, input)
+      toast.success("Profile saved")
+      setEditing(null)
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
   const handleCreate = (input) => {
     try {
       const created = addStaff(input)
@@ -164,6 +197,7 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
           <TableBody>
             {pagination.rows.map((person) => {
               const off = disabled.includes(person.id)
+              const status = off ? "Disabled" : isOnLeave(person) ? "On leave" : worksAtClosedShop(person, shops) ? "Shop closed" : "Active"
               const lastActive = activityOf(person.id).lastActive
               const isOwner = person.role === "admin"
 
@@ -171,34 +205,32 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
                 <TableRow key={person.id} className="hover:bg-accent/40" onClick={() => setSelectedId(person.id)}>
                   <TableCell className="w-full max-w-0 @lg:w-auto @lg:max-w-none">
                     <div className="flex items-center gap-3">
-                      <Avatar size="default" className="size-9 shrink-0">
-                        <AvatarFallback className="text-xs font-semibold">{person.avatar || person.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
+                      <StaffAvatar person={person} className="size-9 shrink-0" fallbackClassName="text-xs font-semibold" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className={cn("truncate text-sm font-medium", off && "text-muted-foreground line-through")}>{person.name}</p>
                           <RoleBadge role={person.role} className="@lg:hidden" />
                         </div>
                         <p className="truncate text-xs text-muted-foreground">
-                          {person.shop} · {person.email || person.phone}
+                          {shopOf(person)} · {person.email || person.phone}
                         </p>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden @@4xl:table-cell">
+                  <TableCell className="hidden @3xl:table-cell">
                     <RoleBadge role={person.role} />
                   </TableCell>
                   <TableCell className="hidden text-xs text-muted-foreground @2xl:table-cell">
                     <p className="truncate">{person.email}</p>
                     <p className="mt-0.5">{person.phone}</p>
                   </TableCell>
-                  <TableCell className="hidden text-xs text-muted-foreground @4xl:table-cell">{person.shop}</TableCell>
-                  <TableCell className="hidden text-xs text-muted-foreground @@4xl:table-cell">{lastActive ? timeAgo(lastActive) : "Never"}</TableCell>
+                  <TableCell className="hidden text-xs text-muted-foreground @4xl:table-cell">{shopOf(person)}</TableCell>
+                  <TableCell className="hidden text-xs text-muted-foreground @5xl:table-cell">{lastActive ? timeAgo(lastActive) : "Never"}</TableCell>
                   <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
-                      <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase", off ? "text-destructive" : "text-success")}>
-                        <span className={cn("size-1.5 rounded-full", off ? "bg-destructive" : "bg-success")} />
-                        <span className="hidden @lg:inline">{off ? "Disabled" : "Active"}</span>
+                      <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase", statusTones[status])}>
+                        <span className="size-1.5 rounded-full bg-current" />
+                        <span className="hidden @lg:inline">{status}</span>
                       </span>
 
                       {isOwner ? (
@@ -225,6 +257,17 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
                                 </DropdownMenuItem>
                               </DropdownMenuGroup>
                               <DropdownMenuSeparator />
+                              {person.leave ? (
+                                <DropdownMenuItem onClick={() => handleLeave(person, null)}>
+                                  <CheckCircleIcon className="text-success" />
+                                  End leave
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem onClick={() => setLeaveFor(person)}>
+                                  <AirplaneTiltIcon />
+                                  Mark on leave
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => handleTransfer(person, person.role === "cashier" ? "manager" : "cashier")}>
                                 <UserSwitchIcon />
                                 {person.role === "cashier" ? "Make supervisor" : "Make cashier"}
@@ -256,6 +299,10 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
         <StaffDetailsDialog
           person={selected}
           activity={activityOf(selected.id)}
+          onEdit={(person) => {
+            setSelectedId(null)
+            setEditing(person)
+          }}
           onTransfer={handleTransfer}
           onRemove={(person) => {
             setSelectedId(null)
@@ -264,6 +311,8 @@ export const StaffScreen = ({ disabled: serverDisabled = NOBODY }) => {
           onClose={() => setSelectedId(null)}
         />
       )}
+      {leaveFor && <LeaveDialog person={leaveFor} onClose={() => setLeaveFor(null)} onSave={handleLeave} />}
+      {editing && <EditStaffDialog person={editing} onClose={() => setEditing(null)} onSave={handleSaveProfile} />}
       {removing && <RemoveStaffDialog person={removing} onCancel={() => setRemoving(null)} onConfirm={handleConfirmRemove} />}
     </div>
   )

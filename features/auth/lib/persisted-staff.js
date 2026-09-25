@@ -2,8 +2,6 @@ import { STORAGE_KEY } from "@/features/demo/lib/storage"
 import { USER_ID_PATTERN } from "./session-cookie"
 import { isRole } from "./demo-users"
 
-// The sign-in page is rendered on the server, but the staff list lives in this browser's demo data.
-// Read the persisted copy safely so people added in Staff can sign in.
 export const parsePersistedStaff = (raw) => {
   if (!raw) return null
   try {
@@ -15,6 +13,16 @@ export const parsePersistedStaff = (raw) => {
     return people.length ? people : null
   } catch {
     return null
+  }
+}
+
+export const parsePersistedShops = (raw) => {
+  if (!raw) return []
+  try {
+    const shops = JSON.parse(raw)?.state?.shops
+    return Array.isArray(shops) ? shops.filter((shop) => shop && typeof shop.id === "string") : []
+  } catch {
+    return []
   }
 }
 

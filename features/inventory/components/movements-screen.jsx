@@ -14,11 +14,13 @@ import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { DAY, formatDateTime, startOfToday } from "@/lib/dates"
 import { addReasons, removeReasons } from "../schemas"
+import { sizeLabel } from "@/features/catalog/lib/catalog"
 
 const types = [
   { key: "all", label: "All" },
   { key: "sale", label: "Sales" },
   { key: "return", label: "Returns" },
+  { key: "exchange", label: "Exchanges" },
   { key: "purchase", label: "Deliveries" },
   { key: "adjustment", label: "Fixes" },
 ]
@@ -29,7 +31,7 @@ const ranges = [
   { key: "all", label: "All", from: () => 0 },
 ]
 
-const typeLabel = { sale: "Sold", return: "Returned", purchase: "Delivery", adjustment: "Fixed" }
+const typeLabel = { sale: "Sold", return: "Returned", exchange: "Exchanged", purchase: "Delivery", adjustment: "Fixed" }
 const reasonLabel = { ...addReasons, ...removeReasons }
 
 const referenceFor = (movement) => {
@@ -73,7 +75,7 @@ export const MovementsScreen = ({ user }) => {
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Shoe, SKU, receipt or person" />
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Product, SKU, receipt or person" />
         </InputGroup>
         <Segmented label="Movement type" options={types} value={type} onChange={withReset(setType)} />
         <Segmented label="Date range" options={ranges} value={range} onChange={withReset(setRange)} />
@@ -97,7 +99,7 @@ export const MovementsScreen = ({ user }) => {
                   <TableCell className="max-w-64">
                     <p className="truncate text-sm">{productById[variant.productId].name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {variant.attributes.color} · EU {variant.attributes.size} · {referenceFor(movement)}
+                      {variant.attributes.color} · {sizeLabel(variant.attributes.size)} · {referenceFor(movement)}
                     </p>
                     <p className="truncate text-xs text-muted-foreground @lg:hidden">
                       {formatDateTime(movement.createdAt)} · {nameOf(movement.userId)}

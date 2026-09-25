@@ -1,5 +1,5 @@
-import { indexCatalog } from "@/features/catalog/lib/catalog"
-import { netRefund, netRevenue } from "@/features/pricing/lib/pricing"
+import { indexCatalog, lowLimitFor } from "@/features/catalog/lib/catalog"
+import { itemNet, netRefund, netRevenue } from "@/features/pricing/lib/pricing"
 import { sumBy } from "@/lib/money"
 
 const DAY = 24 * 60 * 60 * 1000
@@ -14,14 +14,15 @@ export const periodFor = (range, now = Date.now()) => {
 
 export const within = (list, key, from, to) => list.filter((item) => time(item[key]) >= from && time(item[key]) < to)
 
-const itemProfit = ({ total, unitCost, quantity }) => total - unitCost * quantity
+const itemProfit = (item) => itemNet(item) - item.unitCost * item.quantity
 
 const refundImpact = (state, refund) => {
   const sale = state.sales.find(({ id }) => id === refund.saleId)
-  const profit = sumBy(refund.items, ({ variantId, quantity, amount, restock }) => {
-    const unitCost = sale?.items.find((item) => item.variantId === variantId)?.unitCost ?? 0
-    return amount - (restock ? unitCost * quantity : 0)
-  })
+  const profit =
+    sumBy(refund.items, ({ variantId, quantity, amount, restock }) => {
+      const unitCost = sale?.items.find((item) => item.variantId === variantId)?.unitCost ?? 0
+      return amount - (restock ? unitCost * quantity : 0)
+    }) - (sale?.taxInclusive ? (refund.taxTotal ?? 0) : 0)
   return { at: refund.decidedAt, revenue: netRefund(refund), profit }
 }
 
@@ -53,7 +54,6 @@ export const summarize = (state, from, to) => {
 
 const profitOf = (sales) => sumBy(sales, ({ items }) => sumBy(items, itemProfit))
 
-// Approved refunds are taken off the day (or hour) they were approved, so a chart always adds up to the headline number.
 const bucket = ({ sales, impacts }, from, to, matches = () => true) => {
   const soldHere = sales.filter((sale) => matches(sale.soldAt) && time(sale.soldAt) >= from && time(sale.soldAt) < to)
   const refundedHere = impacts.filter((impact) => matches(impact.at) && time(impact.at) >= from && time(impact.at) < to)
@@ -71,7 +71,6 @@ export const dailySeries = (summary, from, days) =>
     return { day: start, revenue, profit }
   })
 
-// Shows opening hours by default and stretches to include any sale or refund made outside them.
 export const hourlySeries = (summary, { fromHour = 10, toHour = 22 } = {}) => {
   const hours = [...summary.sales.map(({ soldAt }) => new Date(soldAt).getHours()), ...summary.impacts.map(({ at }) => new Date(at).getHours())]
   const first = Math.min(fromHour, ...hours)
@@ -91,7 +90,7 @@ export const productPerformance = (state, sales) => {
       const productId = variantById[item.variantId]?.productId
       sold[productId] ??= { pairs: 0, revenue: 0 }
       sold[productId].pairs += item.quantity
-      sold[productId].revenue += item.total
+      sold[productId].revenue += itemNet(item)
     }
   }
 
@@ -111,7 +110,7 @@ export const lowStock = (state, threshold = null) => {
   return state.variants
     .filter(
       (variant) =>
-        variant.active && productById[variant.productId]?.status === "active" && (state.stock[variant.id] ?? 0) <= (threshold ?? variant.lowStockAt)
+        variant.active && productById[variant.productId]?.status === "active" && (state.stock[variant.id] ?? 0) <= lowLimitFor(state.categories, productById[variant.productId]?.category, (typeof threshold === "function" ? threshold(productById[variant.productId]?.shopId) : threshold) ?? variant.lowStockAt)
     )
     .map((variant) => ({ variant, product: productById[variant.productId], quantity: state.stock[variant.id] ?? 0 }))
     .toSorted((a, b) => a.quantity - b.quantity)
@@ -142,7 +141,6 @@ export const cashierStats = (state, sales, refunds, from, to, cashierIds) => {
   })
 }
 
-// Everyone who has sold, plus current cashiers who simply have not sold yet.
 export const cashierIdsFor = (state, staff = {}) => [
   ...new Set([...Object.values(staff).filter((person) => person.role === "cashier" && !person.removed).map(({ id }) => id), ...state.sales.map(({ cashierId }) => cashierId)]),
 ]
@@ -161,7 +159,7 @@ export const brandPerformance = (state, sales) => {
     for (const item of sale.items) {
       const brand = productById[variantById[item.variantId]?.productId]?.brand ?? "Other"
       brands[brand] ??= { brand, revenue: 0, pairs: 0 }
-      brands[brand].revenue += item.total
+      brands[brand].revenue += itemNet(item)
       brands[brand].pairs += item.quantity
     }
   }
@@ -178,7 +176,7 @@ export const notSelling = (state, days = 14, now = Date.now()) => {
 
 export const paymentSplit = (sales) => {
   const cash = sumBy(sales, ({ payments, change }) => sumBy(payments.filter(({ method }) => method === "cash"), ({ amount }) => amount) - change)
-  const card = sumBy(sales, ({ payments }) => sumBy(payments.filter(({ method }) => method === "card"), ({ amount }) => amount))
+  const card = sumBy(sales, ({ payments }) => sumBy(payments.filter(({ method }) => method !== "cash"), ({ amount }) => amount))
   return { cash, card, cashShare: cash + card ? cash / (cash + card) : 0 }
 }
 
@@ -186,4 +184,18 @@ export const stockValue = (state) => {
   const { variantById } = indexCatalog(state)
   const rows = Object.entries(state.stock).filter(([id, quantity]) => quantity > 0 && variantById[id]?.active)
   return { value: sumBy(rows, ([id, quantity]) => quantity * variantById[id].cost), pairs: sumBy(rows, ([, quantity]) => quantity) }
+}
+
+export const splitLiveTail = (data, byHour, hourNow = new Date().getHours()) => {
+  const points = byHour ? data.map((point) => (point.hour > hourNow ? { ...point, revenue: null, profit: null } : point)) : data
+  const last = points.findLastIndex((point) => point.revenue !== null)
+  return points.map((point, index) => ({
+    ...point,
+    ...Object.fromEntries(
+      ["revenue", "profit"].flatMap((key) => [
+        [`${key}Done`, index < last ? point[key] : null],
+        [`${key}Live`, index >= last - 1 && index <= last ? point[key] : null],
+      ])
+    ),
+  }))
 }

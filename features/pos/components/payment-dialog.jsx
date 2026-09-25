@@ -3,20 +3,27 @@
 import { useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowsSplitIcon, CreditCardIcon, MoneyIcon, PhoneIcon, UserIcon } from "@phosphor-icons/react"
+import { ArrowsSplitIcon, CreditCardIcon, DeviceMobileIcon, MoneyIcon, PhoneIcon, UserIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Input } from "@/components/ui/input"
+import { Segmented } from "@/components/ui/segmented"
+import { REFERENCE_REQUIRED, cashRoundingFor } from "@/features/demo/lib/ledger"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { formatMoney, toPaisa } from "@/lib/money"
 import { hasFinePointer } from "@/lib/pointer"
-import { referenceError } from "../lib/card-reference"
-import { cashTenderSchema } from "../schemas"
+import { MAX_REFERENCE, referenceError } from "../lib/card-reference"
+import { cardEnabled, enabledOtherMethods, methodLabel } from "../lib/payment-methods"
+import { MAX_CHANGE, cashTenderSchema, changeTooBig } from "../schemas"
 import { useCartStore } from "../store/cart-store-provider"
 import { AddReferenceLink, CardReferenceField } from "./card-reference-field"
+import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
+
+const tabColumns = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4" }
 
 const ctaClass = "h-12 w-full whitespace-normal pointer-coarse:h-14"
 
@@ -25,10 +32,11 @@ const quickTenders = (total) => {
   return [...new Set([rupees, Math.ceil(rupees / 500) * 500, Math.ceil(rupees / 1000) * 1000, Math.ceil(rupees / 5000) * 5000])]
 }
 
-const CashForm = ({ total, onPay }) => {
-  const form = useForm({ resolver: zodResolver(cashTenderSchema(total)), defaultValues: { tendered: String(total / 100) } })
+const CashForm = ({ total, rounding, onPay }) => {
+  const due = total + rounding
+  const form = useForm({ resolver: zodResolver(cashTenderSchema(due)), defaultValues: { tendered: String(due / 100) } })
   const tendered = toPaisa(useWatch({ control: form.control, name: "tendered" }) || 0)
-  const change = tendered - total
+  const change = tendered - due
 
   const handleSubmit = form.handleSubmit(({ tendered: rupees }) => onPay([{ method: "cash", amount: toPaisa(rupees) }]))
 
@@ -58,7 +66,7 @@ const CashForm = ({ total, onPay }) => {
         )}
       />
       <div className="flex flex-wrap gap-2">
-        {quickTenders(total).map((amount, index) => (
+        {quickTenders(due).map((amount, index) => (
           <Button
             key={amount}
             type="button"
@@ -71,6 +79,11 @@ const CashForm = ({ total, onPay }) => {
           </Button>
         ))}
       </div>
+      {rounding < 0 && (
+        <p className="text-xs text-muted-foreground">
+          Cash due {formatMoney(due)}, rounded down from {formatMoney(total)}.
+        </p>
+      )}
       <div className="flex items-center justify-between gap-3 border bg-muted/50 px-4 py-3">
         <span className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Change to give</span>
         <span className="shrink-0 font-sans text-xl font-bold text-gold tabular-nums sm:text-2xl">{change >= 0 ? formatMoney(change) : "—"}</span>
@@ -130,6 +143,43 @@ const CardForm = ({ total, onPay }) => {
   )
 }
 
+const referenceProblem = (method, value) => (REFERENCE_REQUIRED.includes(method) && !value.trim() ? "Enter the transaction ID" : referenceError(value))
+
+const ReferenceInput = ({ id, method, value, onChange }) => (
+  <Field>
+    <FieldLabel htmlFor={id}>{methodLabel(method)} transaction ID</FieldLabel>
+    <Input id={id} value={value} onChange={(event) => onChange(event.target.value.slice(0, MAX_REFERENCE))} placeholder="From the customer's confirmation message" autoComplete="off" className="font-mono" />
+  </Field>
+)
+
+const OtherForm = ({ total, methods, onPay }) => {
+  const [method, setMethod] = useState(methods[0])
+  const [reference, setReference] = useState("")
+  const problem = referenceProblem(method, reference)
+
+  const handleSubmit = (event) => {
+    event.preventDefault()
+    if (problem) return
+    onPay([{ method, amount: total, reference: reference.trim() }])
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {methods.length > 1 && <Segmented label="Pay with" options={methods.map((key) => ({ key, label: methodLabel(key) }))} value={method} onChange={setMethod} />}
+      <div className="flex items-center justify-between gap-3 border bg-muted/40 p-4">
+        <span className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Amount to receive</span>
+        <span className="shrink-0 font-sans text-xl font-bold text-gold tabular-nums sm:text-2xl">{formatMoney(total)}</span>
+      </div>
+      <ReferenceInput id="other-reference" method={method} value={reference} onChange={setReference} />
+      <DialogFooter sticky>
+        <Button type="submit" size="lg" className={ctaClass} disabled={Boolean(problem)}>
+          {methodLabel(method)} received, complete sale
+        </Button>
+      </DialogFooter>
+    </form>
+  )
+}
+
 const getSplitPresets = (totalRupees) => {
   const half = Math.floor(totalRupees / 2)
   const candidates = [1000, 2000, 5000, 10000].filter((amt) => amt > 0 && amt < totalRupees && amt !== half)
@@ -141,7 +191,8 @@ const getSplitPresets = (totalRupees) => {
   return presets
 }
 
-const SplitForm = ({ total, onPay }) => {
+const SplitForm = ({ total, methods, onPay }) => {
+  const [second, setSecond] = useState(methods[0])
   const totalRupees = total / 100
   const defaultCash = Math.floor(totalRupees / 2)
   const [cashPart, setCashPart] = useState(String(defaultCash))
@@ -154,7 +205,8 @@ const SplitForm = ({ total, onPay }) => {
   const cardRupees = Math.max(0, totalRupees - cashRupees)
   const changeRupees = Math.max(0, tenderedRupees - cashRupees)
 
-  const isValid = cashRupees > 0 && cashRupees < totalRupees && cardRupees > 0 && tenderedRupees >= cashRupees && !referenceError(reference)
+  const changeTooLarge = changeTooBig(toPaisa(changeRupees))
+  const isValid = cashRupees > 0 && cashRupees < totalRupees && cardRupees > 0 && tenderedRupees >= cashRupees && !changeTooLarge && !referenceProblem(second, reference)
 
   const handleQuickCash = (amount) => {
     setCashPart(String(amount))
@@ -168,7 +220,7 @@ const SplitForm = ({ total, onPay }) => {
     const cardPaisa = toPaisa(cardRupees)
     onPay([
       { method: "cash", amount: cashPaisa },
-      { method: "card", amount: cardPaisa, reference: reference.trim() || null },
+      { method: second, amount: cardPaisa, reference: reference.trim() || null },
     ])
   }
 
@@ -176,6 +228,7 @@ const SplitForm = ({ total, onPay }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {methods.length > 1 && <Segmented label="Rest paid by" options={methods.map((key) => ({ key, label: methodLabel(key) }))} value={second} onChange={setSecond} />}
       <dl className="grid grid-cols-2 divide-x border bg-muted/40">
         <div className="flex min-w-0 flex-col gap-1 p-3">
           <dt className="flex items-center gap-1.5 text-2xs font-semibold tracking-label text-muted-foreground uppercase">
@@ -187,7 +240,7 @@ const SplitForm = ({ total, onPay }) => {
         <div className="flex min-w-0 flex-col gap-1 p-3 text-right">
           <dt className="flex items-center justify-end gap-1.5 text-2xs font-semibold tracking-label text-muted-foreground uppercase">
             <CreditCardIcon className="size-3.5 shrink-0 text-gold" />
-            Card
+            {methodLabel(second)}
           </dt>
           <dd className="truncate font-sans text-xl font-bold text-gold tabular-nums">{formatMoney(toPaisa(cardRupees))}</dd>
         </div>
@@ -225,7 +278,7 @@ const SplitForm = ({ total, onPay }) => {
               <button
                 type="button"
                 onClick={() => setTendered(String(cashRupees))}
-                className="py-0.5 text-2xs tracking-widest text-gold uppercase hover:underline pointer-coarse:py-2"
+                className="py-0.5 text-xs font-medium text-gold hover:underline pointer-coarse:py-2"
               >
                 Exact
               </button>
@@ -264,15 +317,18 @@ const SplitForm = ({ total, onPay }) => {
       </div>
 
       {tenderedRupees > 0 && tenderedRupees < cashRupees && <p className="text-xs text-destructive">Received amount is short by {formatMoney(toPaisa(cashRupees - tenderedRupees))}</p>}
+      {changeTooLarge && <p className="text-xs text-destructive">Change would be {formatMoney(MAX_CHANGE)} or more. Check the cash received.</p>}
       {cashRupees >= totalRupees && <p className="text-xs text-warning">Cash covers the full sale. Use the Cash tab or reduce the cash amount.</p>}
       {cashRupees <= 0 && <p className="text-xs text-warning">Enter a cash amount greater than zero.</p>}
 
       <div className="space-y-3 border p-4">
         <p className="flex items-start gap-2 text-xs text-muted-foreground">
           <CreditCardIcon className="mt-0.5 size-4 shrink-0 text-gold" />
-          <span>Take the card amount on the bank terminal first, then complete the sale once it is approved.</span>
+          <span>{second === "card" ? "Take the card amount on the bank terminal first, then complete the sale once it is approved." : `Check the ${methodLabel(second)} payment has arrived before completing the sale.`}</span>
         </p>
-        {showRef ? (
+        {REFERENCE_REQUIRED.includes(second) ? (
+          <ReferenceInput id="split-reference" method={second} value={reference} onChange={setReference} />
+        ) : showRef ? (
           <CardReferenceField
             id="split-card-ref"
             value={reference}
@@ -296,12 +352,20 @@ const SplitForm = ({ total, onPay }) => {
   )
 }
 
-export const PaymentDialog = ({ total, count, onPay, onClose }) => {
+export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
   const [method, setMethod] = useState("cash")
-  const settings = useDemoStore(({ settings }) => settings)
+  const settings = useSettingsFor(shopId)
   const customerName = useCartStore(({ customerName }) => customerName)
   const customerPhone = useCartStore(({ customerPhone }) => customerPhone)
   const setCustomer = useCartStore(({ setCustomer }) => setCustomer)
+  const others = enabledOtherMethods(settings)
+  const splitMethods = [...(cardEnabled(settings) ? ["card"] : []), ...others]
+  const tabs = [
+    ["cash", "Cash", MoneyIcon],
+    ...(cardEnabled(settings) ? [["card", "Card", CreditCardIcon]] : []),
+    ...(others.length ? [["other", others.length === 1 ? methodLabel(others[0]) : "Wallet / bank", DeviceMobileIcon]] : []),
+    ...(splitMethods.length ? [["split", "Split", ArrowsSplitIcon]] : []),
+  ]
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -321,7 +385,7 @@ export const PaymentDialog = ({ total, count, onPay, onClose }) => {
                 <button
                   type="button"
                   onClick={() => setCustomer({ name: "", phone: "" })}
-                  className="py-0.5 text-2xs tracking-widest text-muted-foreground uppercase transition-colors hover:text-foreground pointer-coarse:py-2"
+                  className="py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground pointer-coarse:py-2"
                 >
                   Clear
                 </button>
@@ -345,12 +409,8 @@ export const PaymentDialog = ({ total, count, onPay, onClose }) => {
         )}
 
         <Tabs value={method} onValueChange={setMethod}>
-          <TabsList className="grid h-10 w-full min-w-0 grid-cols-3 pointer-coarse:h-12">
-            {[
-              ["cash", "Cash", MoneyIcon],
-              ["card", "Card", CreditCardIcon],
-              ["split", "Split", ArrowsSplitIcon],
-            ].map(([value, label, Icon]) => (
+          <TabsList className={cn("grid h-10 w-full min-w-0 pointer-coarse:h-12", tabColumns[tabs.length])}>
+            {tabs.map(([value, label, Icon]) => (
               <TabsTrigger key={value} value={value} className="min-w-0 gap-1.5 px-2 text-xs pointer-coarse:h-full sm:px-3">
                 <Icon className="size-4 shrink-0 text-gold" />
                 <span className="truncate">{label}</span>
@@ -358,14 +418,19 @@ export const PaymentDialog = ({ total, count, onPay, onClose }) => {
             ))}
           </TabsList>
           <TabsContent value="cash" className="pt-3">
-            <CashForm total={total} onPay={onPay} />
+            <CashForm total={total} rounding={cashRoundingFor(total, settings?.cashRounding)} onPay={onPay} />
           </TabsContent>
           <TabsContent value="card" className="pt-3">
             <CardForm total={total} onPay={onPay} />
           </TabsContent>
           <TabsContent value="split" className="pt-3">
-            <SplitForm total={total} onPay={onPay} />
+            <SplitForm total={total} methods={splitMethods} onPay={onPay} />
           </TabsContent>
+          {others.length > 0 && (
+            <TabsContent value="other" className="pt-3">
+              <OtherForm total={total} methods={others} onPay={onPay} />
+            </TabsContent>
+          )}
         </Tabs>
       </DialogContent>
     </Dialog>

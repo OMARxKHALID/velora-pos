@@ -75,7 +75,7 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
         >
           {tone === "success" ? <CheckCircleIcon className="size-6 shrink-0" weight="fill" /> : <WarningIcon className="size-6 shrink-0" weight="fill" />}
           <div>
-            <p className="font-heading text-lg font-bold tracking-wider uppercase">{verdict}</p>
+            <p className="text-lg font-semibold">{verdict}</p>
             {tone !== "success" && <p className="text-xs">Flagged for the owner on the dashboard.</p>}
           </div>
         </div>
@@ -92,7 +92,7 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
           {[
             ["Sales", summary.saleCount],
             ["Net sales", formatMoney(summary.netSales)],
-            ["Card", formatMoney(summary.cardSales)],
+            ["Card & wallets", formatMoney(summary.cardSales + Object.values(summary.otherSales ?? {}).reduce((sum, amount) => sum + amount, 0))],
           ].map(([label, value]) => (
             <div key={label} className="border-r px-2 py-3 last:border-r-0">
               <dt className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">{label}</dt>
@@ -101,11 +101,20 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
           ))}
         </dl>
 
-        {summary.tax > 0 && (
+        {(summary.tax > 0 || summary.serviceFees > 0) && (
           <p className="text-xs text-muted-foreground">
-            Tax collected {formatMoney(summary.tax)} · total collected {formatMoney(summary.revenue)}
+            Tax collected {formatMoney(summary.tax)}
+            {summary.serviceFees > 0 && ` · FBR POS fees ${formatMoney(summary.serviceFees)}`} · total collected {formatMoney(summary.revenue)}
           </p>
         )}
+        {summary.fbrReported + summary.fbrPending > 0 && (
+          <p className="text-xs text-muted-foreground">
+            FBR: {summary.fbrReported} reported{summary.fbrPending > 0 && <span className="text-warning"> · {summary.fbrPending} waiting to report</span>}
+          </p>
+        )}
+
+        {summary.cashRounding < 0 && <p className="text-xs text-muted-foreground">Cash rounding given to customers: {formatMoney(-summary.cashRounding)} (already inside cash sales).</p>}
+        {summary.noSaleOpens > 0 && <p className="text-xs text-warning">Drawer opened {summary.noSaleOpens} {summary.noSaleOpens === 1 ? "time" : "times"} without a sale this shift.</p>}
 
         {shift.closeNote && <p className="border-l-2 border-primary pl-3 text-sm text-muted-foreground">“{shift.closeNote}”</p>}
 

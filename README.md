@@ -25,14 +25,24 @@ Supervisor PIN for discounts above 5%: `1234`. It is not shown on screen. The ow
 
 ## What is in the demo
 
-- **POS**: barcode scanning (USB scanner or "Test scan"), size and colour picker, discounts with supervisor approval, cash, card and split payment, 80mm receipt with barcode, `F2` to charge
+- **POS**: barcode scanning (USB scanner or "Test scan"), size and colour picker, discounts with supervisor approval, cash, card and split payment (change of Rs 5,000 or more is refused as a likely typo), 80mm receipt with barcode, `F2` to charge
 - **Held sales**: hold a sale (optionally named), serve someone else, resume later. Held carts survive a refresh and are trimmed to available stock on resume. A shift cannot be closed while carts are held
 - **Shifts**: open with a cash float, close with a blind count, shortage and overage report. A second cashier can take over a busy counter by counting and closing the first shift
 - **Sales and refunds**: finished sales are locked. Refunds are requested by cashiers and approved by supervisors. They include the tax that was charged, go back the way the sale was paid, and cash refunds leave the drawer that is open when they are approved, so a cash refund waits until a cashier has a shift open
-- **Z-reports**: any of the last closed shifts, printable and exportable to CSV
-- **Products**: add, edit, archive, CSV import and export, barcode labels
+- **Size exchanges**: from any sale, swap a pair for another size or colour of the same shoe at no charge. Stock moves both ways and is logged; swapped pairs cannot be refunded later
+- **Z-reports**: any of the last closed shifts, printable and exportable to CSV. A closed shift's report never changes: refunds (cash and card) are booked to the shift that is open when they are approved
+- **Products**: add, edit, archive, CSV import and export, barcode labels. **Categories** (Products → Categories) are your own: each has an icon, a default PCT code and a size type (EU shoe sizes, clothing sizes XS–XXL, or one size), so socks, polish and brushes sell next to shoes. CSV import creates missing categories
 - **Stock**: per size and colour, receive deliveries, adjustments with reasons, append-only movement history
-- **Settings** (owner): sales tax, discounts, supervisor PIN, low-stock threshold, customer details at checkout
+- **Size run**: stock as a size-by-shoe heatmap, or what sold in the last 30 days with sold-out sizes ringed in red
+- **Stock count**: scan the shelf (system numbers stay hidden while counting), review differences, save them as "Stock count" fixes
+- **Staff** (owner): profile photo, phone, email, CNIC, city, address and emergency contact, all optional except the name, editable later
+- **Receipt design** (Settings → Receipt): shop name, address, phone, return policy, closing message, 58 or 80 mm paper and which details print, with a live preview
+- **Shops and counters** (Settings → Shops): add, edit, close or delete shops (only an empty shop can be deleted), each with its own address, NTN and STRN, and counters with their own FBR POSID, receipt numbers, auto-print and copies, and cash drawer rules. Staff, products, stock, sales and returns belong to a shop; the owner switches between shops or sees all of them. Staff of a closed shop cannot sign in, and discounts are approved by a supervisor from the same shop (or the owner)
+- **Group and shop settings**: with All shops selected, Settings edits the defaults every shop uses. With one shop selected, each tab edits that shop only, marked "Custom for this shop", with a button to go back to the group settings
+- **Payments**: cash, card, JazzCash, Easypaisa and bank transfer (wallets and bank need a transaction ID), split payments, and optional cash rounding down to Rs 5 or Rs 10
+- **Staff leave**: mark someone on leave with dates; they cannot sign in or approve until it ends
+- **Settings** (owner, in tabs): sales tax (added on top or included in the price), discounts, supervisor PIN, low-stock threshold, products per row at the till, customer details at checkout
+- **FBR reporting (simulated)**: turn on in Settings with an NTN and the counter's POSID. Every sale, approved return (credit note) and size exchange (credit note + new invoice) gets an FBR record: a fiscal number, a QR code and the NTN/STRN on the receipt, the optional Rs 1 FBR POS fee, per-item PCT codes, and "FBR pending" while offline until the counter syncs. Each sale's detail shows the exact PostData JSON a live build would send. Numbers are generated in the browser; nothing is sent to FBR
 - **Dashboard**: sales, profit, busiest hours, top and slow sellers, low stock, cashier watch. Charts add up to the headline numbers
 - **Offline (simulated)**: turn on "Simulate internet drop" in the header. Sales are queued and synced once when you reconnect. There is no server behind the demo, so a real browser reload while offline will not work
 - Dark and light mode, responsive down to phone width
@@ -64,6 +74,8 @@ components/layout/   app shell: sidebar, header, theme
 lib/                 money, dates, csv, ids, download helpers
 ```
 
+FBR invoice data is built by pure functions in `features/fbr/lib/fbr.js` (sale invoice, credit note, exchange), ready for a server-side client to post to the FBR endpoint.
+
 Business rules (sales, refunds, shifts, stock movements, catalog, analytics) are pure functions in `features/*/lib` with tests, so they can move to a server unchanged. Reducers take an optional shop and register, and default to the first shop.
 
 ## Deploy on Vercel
@@ -72,4 +84,4 @@ Import the repository in Vercel. It detects Next.js and Bun automatically; no en
 
 ## Production roadmap
 
-A real database (the ledger, stock movements and unique receipt numbers suit a relational store with transactions), real authentication, server-side validation of every sale and approval, server-issued receipt numbers, price change audit log, FBR invoicing, receipt printer and cash drawer integration, per-shop stock and transfers, and shop-type specific product attributes for the clothing and cosmetics shops.
+A real database (the ledger, stock movements and unique receipt numbers suit a relational store with transactions), real authentication, server-side validation of every sale and approval, server-issued receipt numbers, price change audit log, FBR invoicing, receipt printer and cash drawer integration, per-shop stock and transfers, and product attributes beyond size and colour.

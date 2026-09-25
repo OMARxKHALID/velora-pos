@@ -3,7 +3,7 @@ import { cleanIdentity, decodeSession, encodeSession, parseDisabled, serializeDi
 
 test("a signed-in identity survives the cookie round trip", () => {
   const raw = encodeSession({ id: "u-cashier", name: "Hamza Ali", role: "cashier" })
-  expect(decodeSession(raw)).toEqual({ id: "u-cashier", name: "Hamza Ali", role: "cashier", title: "Cashier · Shoe Shop", shopId: "shop-shoes" })
+  expect(decodeSession(raw)).toEqual({ id: "u-cashier", name: "Hamza Ali", role: "cashier", title: "Cashier", shopId: "shop-shoes" })
   expect(decodeSession(encodeSession({ id: "u-admin", name: "ASIF", role: "admin" })).shopId).toBeNull()
 })
 

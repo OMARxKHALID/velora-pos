@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { applyOpenShift, applyRefundDecision, expectedCash, openShiftFor, shiftSummary } from "./ledger"
 import { createSeed } from "./seed"
 
-const at = (hours, minutes = 0) => new Date(2026, 8, 16, hours, minutes).getTime() // a Wednesday
+const at = (hours, minutes = 0) => new Date(2026, 8, 16, hours, minutes).getTime()
 
 const startOfDay = (time) => new Date(time).setHours(0, 0, 0, 0)
 
@@ -53,7 +53,7 @@ describe("demo seed", () => {
     }
     for (const shift of state.shifts.filter(({ status }) => status === "closed")) {
       expect(expectedCash(state, shift)).toBe(shift.expectedCash)
-      expect(shiftSummary(state, shift).cashRefunds).toBe(state.refunds.filter(({ payoutShiftId }) => payoutShiftId === shift.id).reduce((sum, { total }) => sum + total, 0))
+      expect(shiftSummary(state, shift).cashRefunds).toBe(state.refunds.filter(({ payoutShiftId, method }) => payoutShiftId === shift.id && method === "cash").reduce((sum, { total }) => sum + total, 0))
     }
   })
 })

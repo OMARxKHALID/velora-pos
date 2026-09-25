@@ -7,7 +7,6 @@ export const announceSynced = (count) => {
   toast.success(`${count} offline ${count === 1 ? "sale" : "sales"} synced`, { description: "Stock, reports and the dashboard are up to date." })
 }
 
-// One implementation for the header menu and the offline banner on the sell screen.
 export const useSyncNow = () => {
   const setOffline = useDemoStore(({ setOffline }) => setOffline)
   const syncOutbox = useDemoStore(({ syncOutbox }) => syncOutbox)

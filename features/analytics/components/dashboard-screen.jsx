@@ -9,8 +9,8 @@ import { StatStrip } from "@/components/ui/stat-strip"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
-import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
-import { ALL_SHOPS, scopeState, shops } from "@/features/shops/lib/shops"
+import { useLowLimitOf, useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ALL_SHOPS, scopeState } from "@/features/shops/lib/shops"
 import { formatMoney, sumBy } from "@/lib/money"
 import {
   brandPerformance,
@@ -30,6 +30,7 @@ import {
 } from "../lib/analytics"
 import { Panel } from "./panel"
 import { TrendChart } from "./trend-chart"
+import { sizeLabel } from "@/features/catalog/lib/catalog"
 
 const ranges = [
   { key: "today", label: "Today" },
@@ -77,9 +78,7 @@ const List = ({ rows, empty }) =>
     <p className="px-4 py-8 text-center text-sm text-muted-foreground">{empty}</p>
   )
 
-// Everything the dashboard shows comes from one pass over the ledger, recomputed only when the data,
-// the shop or the range changes (not on every unrelated store update).
-const buildView = (full, scope, period, staff, lowThreshold) => {
+const buildView = (full, scope, period, staff, lowThreshold, shops) => {
   const state = scopeState(full, scope)
   const current = summarize(state, period.from, period.to)
   const previous = summarize(state, period.prevFrom, period.prevTo)
@@ -125,16 +124,18 @@ export const DashboardScreen = ({ user }) => {
   const purchases = useDemoStore(({ purchases }) => purchases)
   const stock = useDemoStore(({ stock }) => stock)
   const staff = useDemoStore(({ staff }) => staff)
-  const lowThreshold = useDemoStore(({ settings }) => settings.lowStockThreshold)
+  const shops = useDemoStore(({ shops }) => shops)
   const nameOf = useStaffName()
   const scope = useShopScope(user)
+  const lowThreshold = useLowLimitOf()
+  const categories = useDemoStore(({ categories }) => categories)
   const [range, setRange] = useState("7d")
   const period = useMemo(() => periodFor(range), [range])
   const full = useMemo(
-    () => ({ products, variants, sales, refunds, shifts, movements, purchases, stock }),
-    [products, variants, sales, refunds, shifts, movements, purchases, stock]
+    () => ({ products, variants, sales, refunds, shifts, movements, purchases, stock, categories }),
+    [products, variants, sales, refunds, shifts, movements, purchases, stock, categories]
   )
-  const view = useMemo(() => buildView(full, scope, period, staff, lowThreshold), [full, scope, period, staff, lowThreshold])
+  const view = useMemo(() => buildView(full, scope, period, staff, lowThreshold, shops), [full, scope, period, staff, lowThreshold, shops])
   const { current, previous, best, short, idle, brands, payments, closedShifts, cashShort, cashiers, comparable, shopRows } = view
   const byHour = range === "today"
   const trend = byHour ? hourlySeries(current) : dailySeries(current, period.from, period.days)
@@ -155,13 +156,13 @@ export const DashboardScreen = ({ user }) => {
             tone: cashShort > 0 ? "destructive" : undefined,
             hint: <span>{closedShifts.filter(({ difference }) => difference < 0).length} of {closedShifts.length} shifts</span>,
           },
-          { label: "Stock value", value: formatMoney(view.stock.value), hint: <span>{view.stock.pairs.toLocaleString("en-PK")} pairs at cost</span> },
+          { label: "Stock value", value: formatMoney(view.stock.value), hint: <span>{view.stock.pairs.toLocaleString("en-PK")} items at cost</span> },
         ]}
       />
 
       <Panel
         title={byHour ? "Today" : "Sales & profit"}
-        description={`${current.count} sales · ${percent(payments.cashShare)} cash, ${percent(1 - payments.cashShare)} card`}
+        description={`${current.count} sales · ${percent(payments.cashShare)} cash, ${percent(1 - payments.cashShare)} card and wallets`}
       >
         <div className="p-3">
           <TrendChart data={trend} byHour={byHour} />
@@ -200,19 +201,19 @@ export const DashboardScreen = ({ user }) => {
       )}
 
       <div className="grid gap-4 @4xl:grid-cols-3">
-        <Panel title="Best sellers" description="Most pairs sold">
+        <Panel title="Best sellers" description="Most items sold">
           <List
             empty="No sales in this period."
             rows={best.map(({ product, pairs }) => ({ key: product.id, title: product.name, detail: product.brand, value: `${pairs} sold` }))}
           />
         </Panel>
-        <Panel title="Running short" description={`${short.length} ${short.length === 1 ? "size" : "sizes"} at ${lowThreshold} ${lowThreshold === 1 ? "pair" : "pairs"} or fewer`} action={<LinkAction href="/stock">Stock</LinkAction>}>
+        <Panel title="Running short" description={`${short.length} ${short.length === 1 ? "size" : "sizes"} running low`} action={<LinkAction href="/stock">Stock</LinkAction>}>
           <List
             empty="Nothing is running short."
             rows={short.slice(0, 5).map(({ variant, product, quantity }) => ({
               key: variant.id,
               title: product.name,
-              detail: `${variant.attributes.color} · EU ${variant.attributes.size}`,
+              detail: `${variant.attributes.color} · ${sizeLabel(variant.attributes.size)}`,
               value: quantity <= 0 ? "Sold out" : `${quantity} left`,
               tone: quantity <= 0 ? "destructive" : "warning",
             }))}
@@ -220,8 +221,8 @@ export const DashboardScreen = ({ user }) => {
         </Panel>
         <Panel title="Not selling" description={`No sale in 14 days · ${formatMoney(sumBy(idle, ({ value }) => value))} tied up`}>
           <List
-            empty="Every shoe sold in the last 14 days."
-            rows={idle.slice(0, 5).map(({ product, stock: pairs, value }) => ({ key: product.id, title: product.name, detail: `${pairs} pairs in stock`, value: formatMoney(value) }))}
+            empty="Every product sold in the last 14 days."
+            rows={idle.slice(0, 5).map(({ product, stock: pairs, value }) => ({ key: product.id, title: product.name, detail: `${pairs} in stock`, value: formatMoney(value) }))}
           />
         </Panel>
       </div>
@@ -234,7 +235,7 @@ export const DashboardScreen = ({ user }) => {
                 <div className="flex justify-between gap-3 text-sm">
                   <span>{brand}</span>
                   <span className="text-muted-foreground tabular-nums">
-                    {formatMoney(revenue)} · {pairs} pairs
+                    {formatMoney(revenue)} · {pairs} sold
                   </span>
                 </div>
                 <div className="h-2 bg-muted">

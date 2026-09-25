@@ -18,11 +18,18 @@ export const managerPinSchema = (expectedPin = DEFAULT_MANAGER_PIN) =>
       .refine((pin) => pin === expectedPin, { error: "Wrong PIN" }),
   })
 
+export const MAX_CHANGE = 500000
+
+export const changeTooBig = (change) => change >= MAX_CHANGE
+
 export const cashTenderSchema = (total) =>
   z.object({
     tendered: z.coerce
       .number({ error: "Enter the cash received" })
-      .min(total / 100, { error: `Must be at least ${formatMoney(total)}` }),
+      .min(total / 100, { error: `Must be at least ${formatMoney(total)}` })
+      .refine((rupees) => !changeTooBig(Math.round(rupees * 100) - total), {
+        error: `Change would be ${formatMoney(MAX_CHANGE)} or more. Check the amount received`,
+      }),
   })
 
 export const closeShiftSchema = z.object({

@@ -7,12 +7,15 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { downloadFile } from "@/lib/download"
 import { formatMoney } from "@/lib/money"
 import { importTemplateCsv, parseCatalogImport } from "../lib/catalog-csv"
 import { ColorDot } from "./color-dot"
+import { sizeLabel } from "../lib/catalog"
 
 export const ImportCatalogDialog = ({ user, onClose }) => {
+  const shopId = useShopScope(user)
   const importCatalog = useDemoStore(({ importCatalog }) => importCatalog)
   const [file, setFile] = useState(null)
   const [result, setResult] = useState(null)
@@ -26,8 +29,8 @@ export const ImportCatalogDialog = ({ user, onClose }) => {
 
   const handleApply = () => {
     try {
-      const { created, updated, pairs } = importCatalog({ rows: result.rows, userId: user.id })
-      toast.success("Import complete", { description: `${created} new, ${updated} updated${pairs ? `, ${pairs} pairs added to stock` : ""}.` })
+      const { created, updated, pairs } = importCatalog({ rows: result.rows, userId: user.id, shopId })
+      toast.success("Import complete", { description: `${created} new, ${updated} updated${pairs ? `, ${pairs} items added to stock` : ""}.` })
       onClose()
     } catch (error) {
       toast.error(error.message)
@@ -42,7 +45,7 @@ export const ImportCatalogDialog = ({ user, onClose }) => {
         <DialogHeader>
           <DialogTitle>Import products</DialogTitle>
           <DialogDescription>
-            One row per colour and size. Existing products (same name and brand) get new sizes and prices; nothing is deleted. A “receive” column adds pairs to stock as a delivery; the exported “stock” column is ignored, so re-importing an export never doubles stock.
+            One row per colour and size. Existing products (same name and brand) get new sizes and prices; nothing is deleted. A “receive” column adds items to stock as a delivery; the exported “stock” column is ignored, so re-importing an export never doubles stock.
           </DialogDescription>
         </DialogHeader>
 
@@ -97,7 +100,7 @@ export const ImportCatalogDialog = ({ user, onClose }) => {
                         <TableCell className="text-sm">
                           <span className="flex items-center gap-1.5">
                             <ColorDot color={row.color} className="size-3.5" />
-                            {row.color} · EU {row.size}
+                            {row.color} · {sizeLabel(row.size)}
                           </span>
                         </TableCell>
                         <TableCell className="text-right text-sm tabular-nums">{formatMoney(row.price)}</TableCell>

@@ -4,12 +4,10 @@ import { useState } from "react"
 import { LockKeyIcon } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { REGISTER_CODE } from "@/features/catalog/lib/catalog"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { CloseShiftDialog } from "./close-shift-dialog"
 
-// Two cashiers cannot sell on one drawer. The second cashier counts the drawer and closes the first shift (a handover).
-export const CounterBusyCard = ({ user, shift, onClosed }) => {
+export const CounterBusyCard = ({ user, shift, register, onClosed }) => {
   const nameOf = useStaffName()
   const [closing, setClosing] = useState(false)
 
@@ -20,7 +18,7 @@ export const CounterBusyCard = ({ user, shift, onClosed }) => {
           <div className="mb-3 flex size-12 items-center justify-center border border-primary/40 text-gold">
             <LockKeyIcon className="size-6" />
           </div>
-          <CardTitle>Counter {REGISTER_CODE} is in use</CardTitle>
+          <CardTitle>Counter {register.code} is in use</CardTitle>
           <CardDescription>
             {nameOf(shift.cashierId)} has this counter open. To take over, count the drawer and close their shift, then open your own.
           </CardDescription>

@@ -10,6 +10,7 @@ import { formatMoney } from "@/lib/money"
 import { fitToStock } from "../lib/cart-fit"
 import { cartTotals } from "@/features/pricing/lib/pricing"
 import { useCartStore } from "../store/cart-store-provider"
+import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
 
 const ParkedCard = ({ parked, catalog, settings, stock, onResume, onDiscard }) => {
   const { count, total } = cartTotals(parked.lines, parked.discountPct, catalog, settings)
@@ -27,7 +28,7 @@ const ParkedCard = ({ parked, catalog, settings, stock, onResume, onDiscard }) =
     <div className="flex flex-col gap-3 border bg-card p-3.5 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex flex-wrap items-center gap-x-2">
-          <span className="font-heading text-sm font-bold tracking-wider uppercase">{parked.label}</span>
+          <span className="text-sm font-semibold">{parked.label}</span>
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <ClockIcon className="size-3 text-gold" />
             {timeAgo(parked.parkedAt)}
@@ -68,11 +69,11 @@ const ParkedCard = ({ parked, catalog, settings, stock, onResume, onDiscard }) =
   )
 }
 
-export const ParkedSalesDialog = ({ onResume, onClose }) => {
+export const ParkedSalesDialog = ({ shopId, onResume, onClose }) => {
   const parkedSales = useCartStore(({ parkedSales }) => parkedSales)
   const removeParkedSale = useCartStore(({ removeParkedSale }) => removeParkedSale)
   const stock = useDemoStore(({ stock }) => stock)
-  const settings = useDemoStore(({ settings }) => settings)
+  const settings = useSettingsFor(shopId)
   const catalog = useCatalog()
 
   return (

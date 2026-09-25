@@ -54,7 +54,7 @@ export const ConnectionStatus = () => {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "flex h-7 items-center gap-1.5 border px-2 pointer-coarse:h-10 pointer-coarse:px-3 text-xs font-semibold tracking-widest whitespace-nowrap uppercase transition-colors",
+          "flex h-7 items-center gap-1.5 border px-2 pointer-coarse:h-10 pointer-coarse:px-3 text-xs font-medium whitespace-nowrap transition-colors",
           state === "online" && "border-success/30 bg-success/10 text-success",
           state === "offline" && "border-warning/40 bg-warning/10 text-warning",
           state === "syncing" && "border-info/40 bg-info/10 text-info"

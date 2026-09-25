@@ -1,15 +1,31 @@
 "use client"
 
-import { useRef } from "react"
+import { useEffect, useEffectEvent, useRef } from "react"
 import { CheckCircleIcon, PrinterIcon } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { formatMoney } from "@/lib/money"
 import { printNode } from "../lib/print-node"
+import { receiptDesign, receiptPaper } from "../lib/receipt-design"
 import { Receipt } from "./receipt"
+import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
 
-export const ReceiptDialog = ({ sale, onClose }) => {
+export const ReceiptDialog = ({ sale, register = null, onClose }) => {
   const receipt = useRef(null)
+  const design = receiptDesign({ receipt: useSettingsFor(sale.shopId).receipt })
+  const copies = register?.copies ?? 1
+
+  const handlePrint = () => printNode(receipt.current, { paper: receiptPaper(design), copies })
+
+  const printOnOpen = useEffectEvent(() => {
+    if (register?.autoPrint) handlePrint()
+  })
+
+  useEffect(() => {
+    const timer = setTimeout(printOnOpen, 300)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -19,7 +35,7 @@ export const ReceiptDialog = ({ sale, onClose }) => {
             <CheckCircleIcon className="size-6" weight="fill" />
             <span className="text-xs font-semibold tracking-label uppercase">Sale complete</span>
           </div>
-          <DialogTitle>{formatMoney(sale.total)}</DialogTitle>
+          <DialogTitle>{formatMoney(sale.total + (sale.cashRounding ?? 0))}</DialogTitle>
           <DialogDescription>
             {sale.change > 0 ? `Give ${formatMoney(sale.change)} change.` : "No change due."} Receipt {sale.number}.
           </DialogDescription>
@@ -28,9 +44,9 @@ export const ReceiptDialog = ({ sale, onClose }) => {
           <Receipt sale={sale} ref={receipt} />
         </div>
         <DialogFooter className="shrink-0 p-4 pt-3 sm:p-6 sm:pt-4">
-          <Button variant="outline" onClick={() => printNode(receipt.current, { paper: "receipt" })}>
+          <Button variant="outline" onClick={handlePrint}>
             <PrinterIcon />
-            Print receipt
+            {copies > 1 ? `Print ${copies} copies` : "Print receipt"}
           </Button>
           <Button onClick={onClose}>New sale</Button>
         </DialogFooter>

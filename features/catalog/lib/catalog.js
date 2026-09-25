@@ -58,6 +58,85 @@ const catalog = [
   ["Velora Scout Kids Boot", "Velora", "Kids", "kids", 7900, ["Brown", "Black"], 0],
 ]
 
+const pctByCategory = {
+  Sneakers: "6404.1100",
+  Sports: "6404.1100",
+  Kids: "6404.1990",
+  Sandals: "6402.9990",
+}
+
+export const PCT_PATTERN = /^\d{4}\.\d{4}$/
+
+export const defaultPctCode = (category) => pctByCategory[category] ?? "6403.9900"
+
+const clothingSizes = ["XS", "S", "M", "L", "XL", "XXL"]
+
+export const ONE_SIZE = "One size"
+
+export const SIZE_TYPES = {
+  shoe: { label: "Shoe sizes (EU)", sizes: Array.from({ length: 20 }, (_, index) => String(28 + index)) },
+  clothing: { label: "Letter sizes (XS–XXL)", sizes: clothingSizes },
+  one: { label: "One size", sizes: [ONE_SIZE] },
+}
+
+export const CATEGORY_ICONS = ["sneaker", "sneaker-move", "heel", "boot", "sock", "tshirt", "brush", "drop", "spray", "tag"]
+
+const seedCategoryIcons = { Heels: "heel", Boots: "boot", Sports: "sneaker-move" }
+
+export const makeCategory = ({ name, sizeType = "shoe", icon = "sneaker", pctCode = "" }) => ({
+  id: `c-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`,
+  name,
+  sizeType,
+  icon,
+  pctCode,
+})
+
+const sizeTypeFromSizes = (sizes) => (sizes.every((size) => /^\d+$/.test(size)) ? "shoe" : sizes.length === 1 && sizes[0] === ONE_SIZE ? "one" : "clothing")
+
+export const categoriesFromProducts = (products, existing = []) => {
+  const known = new Set(existing.map(({ name }) => name.toLowerCase()))
+  const added = []
+  for (const { category, sizes } of products) {
+    if (known.has(category.toLowerCase())) continue
+    known.add(category.toLowerCase())
+    added.push(makeCategory({ name: category, sizeType: sizeTypeFromSizes(sizes.map(String)), icon: seedCategoryIcons[category] ?? "sneaker" }))
+  }
+  return [...existing, ...added]
+}
+
+export const categoryFor = (categories, name) => categories?.find((category) => category.name.toLowerCase() === String(name ?? "").toLowerCase()) ?? null
+
+export const pctCodeFor = (categories, name) => categoryFor(categories, name)?.pctCode || defaultPctCode(name)
+
+export const compareSizes = (a, b) => {
+  const [first, second] = [String(a), String(b)]
+  const numeric = /^\d+$/
+  if (numeric.test(first) && numeric.test(second)) return Number(first) - Number(second)
+  const order = [...clothingSizes, ONE_SIZE]
+  const [left, right] = [order.indexOf(first), order.indexOf(second)]
+  if (left !== -1 && right !== -1) return left - right
+  return first.localeCompare(second, "en", { numeric: true })
+}
+
+export const lowLimitFor = (categories, name, fallback) => {
+  const own = categoryFor(categories, name)?.lowStockAt
+  return Number.isInteger(own) ? own : fallback
+}
+
+export const unitOf = (categories, name) => ((categoryFor(categories, name)?.sizeType ?? "shoe") === "shoe" ? ["pair", "pairs"] : ["piece", "pieces"])
+
+export const countOf = (count, [one, many]) => `${count} ${count === 1 ? one : many}`
+
+export const sizeLabel = (size) => (/^\d+$/.test(String(size)) ? `EU ${size}` : String(size))
+
+export const sizeRangeLabel = (sizes) => {
+  if (!sizes.length) return ""
+  const sorted = sizes.map(String).toSorted(compareSizes)
+  if (sorted.length === 1) return sizeLabel(sorted[0])
+  const range = `${sorted[0]}–${sorted.at(-1)}`
+  return /^\d+$/.test(sorted[0]) ? `EU ${range}` : range
+}
+
 const slug = (text) => text.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3)
 
 export const sizePresets = sizeRuns
@@ -83,7 +162,6 @@ export const seedCatalog = () => {
     id: `p-${String(index + 1).padStart(2, "0")}`,
     code: String(index + 1).padStart(2, "0"),
     shopId: SHOP_ID,
-    productType: "footwear",
     name,
     brand,
     category,
@@ -93,6 +171,7 @@ export const seedCatalog = () => {
     price: rupees * 100,
     cost: Math.round(rupees * 100 * (brand === "Velora" ? 0.45 : 0.7)),
     discountPct: 0,
+    pctCode: defaultPctCode(category),
     popularity,
     status: "active",
   }))
@@ -102,7 +181,7 @@ export const seedCatalog = () => {
     product.colors.flatMap((color) => product.sizes.map((size) => makeVariant(product, color, size, (serial += 1))))
   )
 
-  return { products, variants, barcodeSeq: serial, productSeq: products.length }
+  return { products, variants, categories: categoriesFromProducts(products), barcodeSeq: serial, productSeq: products.length }
 }
 
 const cache = new WeakMap()

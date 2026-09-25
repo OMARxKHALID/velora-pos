@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { emptyLedger, applyPurchase, applySale, applyOpenShift } from "@/features/demo/lib/ledger"
-import { indexCatalog, seedCatalog, variantKey } from "./catalog"
-import { applyDeleteProduct, applyImportCatalog, applySaveProduct, applySetProductStatus } from "./catalog-ledger"
+import { ONE_SIZE, compareSizes, indexCatalog, seedCatalog, sizeLabel, sizeRangeLabel, variantKey } from "./catalog"
+import { parseCatalogImport } from "./catalog-csv"
+import { applyDeleteCategory, applyDeleteProduct, applyImportCatalog, applySaveCategory, applySaveProduct, applySetProductStatus } from "./catalog-ledger"
 
 const base = () => ({ ...emptyLedger(), ...seedCatalog() })
 const at = Date.now()
@@ -58,5 +59,46 @@ describe("catalog ledger", () => {
     expect(record).toEqual({ created: 1, updated: 1, pairs: 4 })
     expect(indexCatalog(state).variantByBarcode["8901234567890"].attributes.size).toBe("43")
     expect(state.products.find(({ name }) => name === "Velora Aurum Runner").sizes).toContain("46")
+  })
+})
+
+describe("categories", () => {
+  const base = () => ({ ...emptyLedger(), ...seedCatalog() })
+
+  test("a new category needs a unique name, a size type and an icon", () => {
+    const { state, record } = applySaveCategory(base(), { name: " Shoe  care ", sizeType: "one", icon: "brush", pctCode: "3405.1000" })
+    expect(record).toMatchObject({ name: "Shoe care", sizeType: "one", icon: "brush" })
+    expect(state.categories.at(-1).id).toMatch(/^c-[a-f0-9]{8}$/)
+    expect(() => applySaveCategory(state, { name: "shoe care", sizeType: "one", icon: "brush" })).toThrow("already exists")
+    expect(() => applySaveCategory(state, { name: "Laces", sizeType: "huge", icon: "brush" })).toThrow("sized")
+    expect(() => applySaveCategory(state, { name: "Laces", sizeType: "one", icon: "brush", pctCode: "12" })).toThrow("PCT")
+  })
+
+  test("renaming moves its products, but used sizes are locked and used categories cannot be deleted", () => {
+    const state = base()
+    const heels = state.categories.find(({ name }) => name === "Heels")
+    const renamed = applySaveCategory(state, { categoryId: heels.id, name: "Party heels", sizeType: "shoe", icon: "heel" }).state
+    expect(renamed.products.filter(({ category }) => category === "Party heels").length).toBe(state.products.filter(({ category }) => category === "Heels").length)
+    expect(() => applySaveCategory(state, { categoryId: heels.id, name: "Heels", sizeType: "clothing", icon: "heel" })).toThrow("new category")
+    expect(() => applyDeleteCategory(state, { categoryId: heels.id })).toThrow("Move them first")
+  })
+
+  test("one-size and clothing products sort and label sensibly", () => {
+    expect(["XL", "S", "M"].toSorted(compareSizes)).toEqual(["S", "M", "XL"])
+    expect(["42", "40", "9"].toSorted(compareSizes)).toEqual(["9", "40", "42"])
+    expect(sizeLabel("42")).toBe("EU 42")
+    expect(sizeLabel(ONE_SIZE)).toBe(ONE_SIZE)
+    expect(sizeRangeLabel(["M", "S", "XL"])).toBe("S–XL")
+    expect(sizeRangeLabel(["40", "38"])).toBe("EU 38–40")
+  })
+
+  test("a CSV import creates categories it has not seen, sized from its rows", () => {
+    const { rows } = parseCatalogImport(
+      ["product,brand,category,audience,color,size,price,cost", "Kiwi Polish,Kiwi,Shoe care,unisex,Black,one size,450,200", "Ankle Socks,Velora,Socks,men,White,m,600,250"].join("\n")
+    )
+    const { state } = applyImportCatalog(base(), { rows, userId: "u-manager", at: Date.now() })
+    expect(state.categories.find(({ name }) => name === "Shoe care").sizeType).toBe("one")
+    expect(state.categories.find(({ name }) => name === "Socks").sizeType).toBe("clothing")
+    expect(state.products.find(({ name }) => name === "Ankle Socks").sizes).toEqual(["M"])
   })
 })

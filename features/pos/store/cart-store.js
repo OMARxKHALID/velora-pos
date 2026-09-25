@@ -15,7 +15,6 @@ const holdOf = (cart, label, position) => ({
   label: label || cart.customerName || `Order #${position}`,
 })
 
-// The cart lives in this browser tab, so a refresh (or a dropped connection) does not lose the sale in progress.
 export const createCartStore = () =>
   createStore()(
     persist(
@@ -48,7 +47,6 @@ export const createCartStore = () =>
           set({ ...blank, parkedSales: [parked, ...state.parkedSales] })
           return parked
         },
-        // Returns which lines had to be trimmed (or null if the held cart does not exist).
         resumeSale: (parkedId, stock = null) => {
           const state = get()
           const parked = state.parkedSales.find(({ id }) => id === parkedId)
@@ -60,7 +58,6 @@ export const createCartStore = () =>
           return { adjusted }
         },
         removeParkedSale: (parkedId) => set((state) => ({ parkedSales: state.parkedSales.filter(({ id }) => id !== parkedId) })),
-        // Drops items that no longer exist in the catalog (for example after demo data was reset).
         prune: (variantIds) =>
           set(({ lines, parkedSales }) => ({
             lines: lines.filter(({ variantId }) => variantIds.has(variantId)),
@@ -68,7 +65,16 @@ export const createCartStore = () =>
               .map((parked) => ({ ...parked, lines: parked.lines.filter(({ variantId }) => variantIds.has(variantId)) }))
               .filter(({ lines: kept }) => kept.length),
           })),
-        clear: () => set(blank),
+        clear: () => {
+          const removed = currentCart(get())
+          set(blank)
+          return removed
+        },
+        restore: (removed) => {
+          if (get().lines.length) return false
+          set(removed)
+          return true
+        },
       }),
       {
         name: CART_STORAGE_KEY,

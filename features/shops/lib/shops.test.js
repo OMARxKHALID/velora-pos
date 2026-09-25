@@ -1,13 +1,76 @@
 import { expect, test } from "bun:test"
+import { applyOpenShift, applySale } from "@/features/demo/lib/ledger"
 import { createSeed } from "@/features/demo/lib/seed"
-import { ALL_SHOPS, scopeState, shops } from "./shops"
+import { ALL_SHOPS, SETTING_GROUPS, applyDeleteShop, applyResetShopSettings, applySaveRegister, applySaveShop, applySetShopSettings, overriddenKeys, scopeState, settingsFor, shopRegisters } from "./shops"
 
 test("scoping to a shop keeps only that shop's records", () => {
   const state = createSeed()
-  const other = { ...state, sales: [...state.sales, { ...state.sales[0], id: "x", shopId: "shop-clothes" }] }
+  const other = { ...state, sales: [...state.sales, { ...state.sales[0], id: "x", shopId: "shop-second" }] }
   expect(scopeState(other, ALL_SHOPS).sales).toHaveLength(state.sales.length + 1)
-  const scoped = scopeState(other, shops[0].id)
+  const scoped = scopeState(other, state.shops[0].id)
   expect(scoped.sales).toHaveLength(state.sales.length)
   expect(scoped.products).toHaveLength(state.products.length)
   expect(scopeState(state, "shop-none").variants).toHaveLength(0)
+})
+
+test("a new shop gets the next code and its first counter", () => {
+  const state = createSeed()
+  const { state: next, record } = applySaveShop(state, { name: "Second Shop", city: "Karachi", ntn: "1234567-8" })
+  expect(record.code).toBe("SH2")
+  expect(shopRegisters(next.registers, record.id).map(({ code }) => code)).toEqual(["SH2-R1"])
+  expect(() => applySaveShop(next, { name: "second shop" })).toThrow("already exists")
+  expect(() => applySaveShop(next, { name: "Third", ntn: "12" })).toThrow("NTN")
+})
+
+test("counters get their own code, a unique POSID and printer settings", () => {
+  const state = createSeed()
+  const shopId = state.shops[0].id
+  const { state: next, record } = applySaveRegister(state, { shopId, name: "Counter 2", fbrPosId: "110015", autoPrint: true, copies: 2 })
+  expect(record).toMatchObject({ code: "SH1-R2", fbrPosId: "110015", autoPrint: true, copies: 2 })
+  expect(() => applySaveRegister(next, { shopId, name: "Counter 3", fbrPosId: "110015" })).toThrow("already uses")
+  expect(() => applySaveRegister(next, { shopId, name: "Counter 3", copies: 5 })).toThrow("one or two")
+})
+
+test("each counter numbers its own receipts", () => {
+  const state = createSeed(new Date(2026, 8, 16, 9).getTime())
+  const { state: withCounter, record: counter } = applySaveRegister(state, { shopId: state.shops[0].id, name: "Counter 2" })
+  const variant = withCounter.variants.find(({ id }) => (withCounter.stock[id] ?? 0) > 0)
+  const { state: opened, record: shift } = applyOpenShift(withCounter, { cashierId: "u-cashier", openingCash: 0, registerId: counter.id, at: Date.now() })
+  const { record: sale } = applySale(opened, {
+    lines: [{ variantId: variant.id, quantity: 1 }],
+    payments: [{ method: "card", amount: variant.price }],
+    cashierId: "u-cashier",
+    shiftId: shift.id,
+    registerId: counter.id,
+    registerCode: counter.code,
+    at: Date.now(),
+  })
+  expect(sale.number).toBe("SH1-R2-000001")
+})
+
+test("only an empty shop can be deleted, never the last one", () => {
+  const state = createSeed()
+  expect(() => applyDeleteShop(state, { shopId: state.shops[0].id })).toThrow("last shop")
+  const { state: withNew, record } = applySaveShop(state, { name: "Pop-up" })
+  const { state: after } = applyDeleteShop(withNew, { shopId: record.id })
+  expect(after.shops.map(({ id }) => id)).toEqual([state.shops[0].id])
+  expect(after.registers.some(({ shopId }) => shopId === record.id)).toBe(false)
+  const staffed = { ...withNew, staff: { x: { id: "x", role: "cashier", shopId: record.id } } }
+  expect(() => applyDeleteShop(staffed, { shopId: record.id })).toThrow("staff")
+  const { state: busy } = applySaveShop(withNew, { name: "Second" })
+  const withHistory = { ...busy, shops: [...busy.shops], products: [...busy.products, { ...busy.products[0], id: "p-new", shopId: record.id }] }
+  expect(() => applyDeleteShop(withHistory, { shopId: record.id })).toThrow("Close it instead")
+})
+
+test("a shop can override group settings and go back to them", () => {
+  const state = createSeed()
+  const settings = { taxEnabled: false, taxRate: 0, cashRounding: 1 }
+  const shopId = state.shops[0].id
+  const { state: custom } = applySetShopSettings(state, { shopId, patch: { taxEnabled: true, taxRate: 18 } })
+  expect(settingsFor(settings, custom.shops, shopId)).toMatchObject({ taxEnabled: true, taxRate: 18, cashRounding: 1 })
+  expect(settingsFor(settings, custom.shops, "shop-other")).toMatchObject({ taxEnabled: false, taxRate: 0 })
+  expect(overriddenKeys(custom.shops[0], SETTING_GROUPS.tax)).toEqual(["taxEnabled", "taxRate"])
+  const { state: back } = applyResetShopSettings(custom, { shopId, keys: SETTING_GROUPS.tax })
+  expect(settingsFor(settings, back.shops, shopId).taxEnabled).toBe(false)
+  expect(() => applySetShopSettings(state, { shopId, patch: { staff: {} } })).toThrow("whole group")
 })

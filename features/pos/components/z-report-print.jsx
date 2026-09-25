@@ -3,6 +3,7 @@
 import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { formatFullDateTime } from "@/lib/dates"
 import { formatMoney } from "@/lib/money"
+import { methodLabel } from "../lib/payment-methods"
 
 const Row = ({ label, value, strong }) => (
   <div className={strong ? "flex justify-between gap-2 text-xs font-bold" : "flex justify-between gap-2"}>
@@ -11,7 +12,6 @@ const Row = ({ label, value, strong }) => (
   </div>
 )
 
-// Printed on 80mm paper, so the type sizes here are fixed on purpose and do not follow the app's UI scale.
 export const ZReportPrint = ({ shift, summary, printedAt, ref }) => {
   const nameOf = useStaffName()
   const diff = shift.difference ?? 0
@@ -46,8 +46,21 @@ export const ZReportPrint = ({ shift, summary, printedAt, ref }) => {
         {summary.discounts > 0 && <Row label="Total Discounts" value={`−${formatMoney(summary.discounts)}`} />}
         <Row label="NET SALES" value={formatMoney(summary.netSales)} strong />
         {summary.tax > 0 && <Row label="Tax Collected" value={formatMoney(summary.tax)} />}
-        {summary.tax > 0 && <Row label="TOTAL COLLECTED" value={formatMoney(summary.revenue)} strong />}
+        {summary.serviceFees > 0 && <Row label="FBR POS Fees" value={formatMoney(summary.serviceFees)} />}
+        {summary.cashRounding < 0 && <Row label="Cash Rounding Given" value={`−${formatMoney(-summary.cashRounding)}`} />}
+        {(summary.tax > 0 || summary.serviceFees > 0) && <Row label="TOTAL COLLECTED" value={formatMoney(summary.revenue)} strong />}
       </div>
+
+      {summary.fbrReported + summary.fbrPending > 0 && (
+        <>
+          <div className="my-2.5 border-t border-dashed border-black" />
+          <p className="mb-1 text-center font-bold tracking-wider uppercase text-[10px]">FBR Reporting (Simulated)</p>
+          <div className="space-y-0.5">
+            <Row label="Invoices Reported" value={summary.fbrReported} />
+            <Row label="Waiting To Report" value={summary.fbrPending} />
+          </div>
+        </>
+      )}
 
       <div className="my-2.5 border-t border-dashed border-black" />
 
@@ -55,6 +68,16 @@ export const ZReportPrint = ({ shift, summary, printedAt, ref }) => {
       <div className="space-y-0.5">
         <Row label="Cash Sales (Net)" value={formatMoney(summary.cashSales)} />
         <Row label="Card Payments" value={formatMoney(summary.cardSales)} />
+        {Object.entries(summary.otherSales ?? {})
+          .filter(([, amount]) => amount > 0)
+          .map(([method, amount]) => (
+            <Row key={method} label={methodLabel(method)} value={formatMoney(amount)} />
+          ))}
+        {Object.entries(summary.otherRefunds ?? {})
+          .filter(([, amount]) => amount > 0)
+          .map(([method, amount]) => (
+            <Row key={`${method}-refund`} label={`${methodLabel(method)} Refunds`} value={`−${formatMoney(amount)}`} />
+          ))}
         {summary.cardRefunds > 0 && <Row label="Card Refunds" value={`−${formatMoney(summary.cardRefunds)}`} />}
         {summary.cashRefunds > 0 && <Row label="Cash Refunds Paid" value={`−${formatMoney(summary.cashRefunds)}`} />}
       </div>
@@ -64,6 +87,7 @@ export const ZReportPrint = ({ shift, summary, printedAt, ref }) => {
       <p className="mb-1 text-center font-bold tracking-wider uppercase text-[10px]">Drawer Cash Audit</p>
       <div className="space-y-0.5">
         <Row label="Opening Float" value={formatMoney(summary.openingCash)} />
+        {summary.noSaleOpens > 0 && <Row label="No-sale Drawer Opens" value={summary.noSaleOpens} />}
         <Row label="+ Cash Received" value={formatMoney(summary.cashSales)} />
         {summary.cashRefunds > 0 && <Row label="− Cash Refunds Paid" value={formatMoney(summary.cashRefunds)} />}
         <Row label="EXPECTED IN DRAWER" value={formatMoney(shift.expectedCash)} strong />

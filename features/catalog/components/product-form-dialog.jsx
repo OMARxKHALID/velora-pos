@@ -4,25 +4,31 @@ import { useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { XIcon } from "@phosphor-icons/react"
+import { PlusIcon, XIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
+import { Autocomplete, AutocompleteContent, AutocompleteEmpty, AutocompleteInput, AutocompleteItem, AutocompleteList } from "@/components/ui/autocomplete"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { formatMoney, toPaisa } from "@/lib/money"
 import { useCatalog } from "../hooks/use-catalog"
-import { sizePresets, variantKey } from "../lib/catalog"
+import { ONE_SIZE, SIZE_TYPES, categoryFor, compareSizes, pctCodeFor, sizePresets, variantKey } from "../lib/catalog"
 import { mostUsedColors, suggestColors, swatchStyle } from "../lib/colors"
+import { CategoryEditorDialog } from "./category-editor-dialog"
+import { IconForKey } from "./category-icon"
 import { ColorDot } from "./color-dot"
 import { OpeningStockGrid, stockKey, toPairs } from "./opening-stock-grid"
 import { productSchema } from "../schemas"
+import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
 
-const allSizes = Array.from({ length: 20 }, (_, index) => String(28 + index))
-const audiences = ["men", "women", "kids", "unisex"].map((key) => ({ key, label: key }))
+const presetSizes = (sizeType, audience) => (sizeType === "shoe" ? sizePresets[audience].map(String) : sizeType === "one" ? [ONE_SIZE] : ["S", "M", "L", "XL"])
+const audiences = ["men", "women", "kids", "unisex"].map((key) => ({ key, label: key[0].toUpperCase() + key.slice(1) }))
 
 const MoneyInput = ({ field, fieldState, label }) => (
   <Field data-invalid={fieldState.invalid}>
@@ -136,27 +142,37 @@ const ColorPicker = ({ value, onChange, popular }) => {
 }
 
 export const ProductFormDialog = ({ product, user, onClose }) => {
+  const shopId = useShopScope(user)
   const saveProduct = useDemoStore(({ saveProduct }) => saveProduct)
   const receivePurchase = useDemoStore(({ receivePurchase }) => receivePurchase)
-  const settings = useDemoStore(({ settings }) => settings)
+  const settings = useSettingsFor(shopId)
   const [quantities, setQuantities] = useState({})
   const { products } = useCatalog()
+  const categories = useDemoStore(({ categories }) => categories)
+  const [addingCategory, setAddingCategory] = useState(false)
   const form = useForm({
     resolver: zodResolver(productSchema),
     defaultValues: product
-      ? { ...product, discountPct: product.discountPct ?? 0, price: String(product.price / 100), cost: String(product.cost / 100) }
-      : { name: "", brand: "Velora", category: "Sneakers", audience: "men", price: "", cost: "", discountPct: 0, colors: [], sizes: sizePresets.men.map(String) },
+      ? { ...product, pctCode: product.pctCode ?? "", discountPct: product.discountPct ?? 0, price: String(product.price / 100), cost: String(product.cost / 100) }
+      : { name: "", brand: "Velora", category: categories[0]?.name ?? "Sneakers", audience: "men", price: "", cost: "", pctCode: "", discountPct: 0, colors: [], sizes: presetSizes(categories[0]?.sizeType ?? "shoe", "men") },
   })
-  const [audience, colors, sizes, price, cost] = useWatch({ control: form.control, name: ["audience", "colors", "sizes", "price", "cost"] })
+  const [audience, colors, sizes, price, cost, category] = useWatch({ control: form.control, name: ["audience", "colors", "sizes", "price", "cost", "category"] })
   const margin = Number(price) > 0 ? Math.round(((Number(price) - Number(cost || 0)) / Number(price)) * 100) : null
-  const brands = [...new Set(products.map(({ brand }) => brand))]
-  const categories = [...new Set(products.map(({ category }) => category))]
+  const brands = [...new Set(products.map(({ brand }) => brand))].toSorted()
+  const sizeType = categoryFor(categories, category)?.sizeType ?? "shoe"
+  const unit = sizeType === "shoe" ? "pairs" : "pieces"
+
+  const handleCategory = (name) => {
+    const nextType = categoryFor(categories, name)?.sizeType ?? "shoe"
+    form.setValue("category", name, { shouldValidate: true })
+    if (!product || nextType !== sizeType) form.setValue("sizes", presetSizes(nextType, audience))
+  }
 
   const handleSubmit = form.handleSubmit((values) => {
     try {
       const saved = saveProduct({
         productId: product?.id ?? null,
-        input: { ...values, price: toPaisa(values.price), cost: toPaisa(values.cost), sizes: values.sizes.toSorted((a, b) => Number(a) - Number(b)) },
+        input: { ...values, shopId, price: toPaisa(values.price), cost: toPaisa(values.cost), sizes: values.sizes.toSorted(compareSizes) },
       })
       const lines = product
         ? []
@@ -168,7 +184,7 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
       if (lines.length) receivePurchase({ supplier: "Opening stock", receivedBy: user.id, lines })
       const pairs = lines.reduce((sum, { quantity }) => sum + quantity, 0)
       toast.success(product ? "Product updated" : "Product added", {
-        description: product ? `${saved.name} · ${formatMoney(saved.price)}` : `${saved.name} · ${pairs} pairs in stock, ready to sell at ${formatMoney(saved.price)}`,
+        description: product ? `${saved.name} · ${formatMoney(saved.price)}` : `${saved.name} · ${pairs} ${unit} in stock, ready to sell at ${formatMoney(saved.price)}`,
       })
       onClose()
     } catch (error) {
@@ -198,33 +214,75 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
               )}
             />
             <div className="grid gap-4 sm:grid-cols-2">
-              {[
-                ["brand", "Brand", brands],
-                ["category", "Category", categories],
-              ].map(([name, label, options]) => (
-                <Controller
-                  key={name}
-                  name={name}
-                  control={form.control}
-                  render={({ field, fieldState }) => (
-                    <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor={field.name}>{label}</FieldLabel>
-                      <Input {...field} id={field.name} list={`${name}-options`} aria-invalid={fieldState.invalid} />
-                      <datalist id={`${name}-options`}>
-                        {options.map((option) => (
-                          <option key={option} value={option} />
+              <Controller
+                name="brand"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Brand</FieldLabel>
+                    <Autocomplete items={brands} value={field.value} onValueChange={field.onChange}>
+                      <AutocompleteInput id={field.name} onBlur={field.onBlur} placeholder="Pick or type a brand" autoComplete="off" aria-invalid={fieldState.invalid} />
+                      <AutocompleteContent>
+                        <AutocompleteEmpty>New brand. It is added when you save.</AutocompleteEmpty>
+                        <AutocompleteList>
+                          {(brand) => (
+                            <AutocompleteItem key={brand} value={brand}>
+                              {brand}
+                            </AutocompleteItem>
+                          )}
+                        </AutocompleteList>
+                      </AutocompleteContent>
+                    </Autocomplete>
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="category"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <div className="flex items-center justify-between">
+                      <FieldLabel htmlFor={field.name}>Category</FieldLabel>
+                      <Button type="button" variant="link" size="xs" className="h-auto px-0 pointer-coarse:h-auto" onClick={() => setAddingCategory(true)}>
+                        <PlusIcon />
+                        New
+                      </Button>
+                    </div>
+                    <Select value={field.value} onValueChange={handleCategory}>
+                      <SelectTrigger id={field.name} className="w-full" aria-invalid={fieldState.invalid}>
+                        <SelectValue placeholder="Pick a category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((option) => (
+                          <SelectItem key={option.id} value={option.name}>
+                            <IconForKey icon={option.icon} className="size-4 text-gold" weight="regular" />
+                            {option.name}
+                          </SelectItem>
                         ))}
-                      </datalist>
-                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                    </Field>
-                  )}
-                />
-              ))}
+                      </SelectContent>
+                    </Select>
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Controller name="price" control={form.control} render={({ field, fieldState }) => <MoneyInput field={field} fieldState={fieldState} label="Selling price" />} />
               <Controller name="cost" control={form.control} render={({ field, fieldState }) => <MoneyInput field={field} fieldState={fieldState} label="Cost price" />} />
             </div>
+            <Controller
+              name="pctCode"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>PCT code</FieldLabel>
+                  <Input {...field} id={field.name} inputMode="decimal" placeholder={pctCodeFor(categories, category)} className="max-w-48 font-mono" aria-invalid={fieldState.invalid} />
+                  <FieldDescription>Tariff heading reported to FBR with every sale. Leave empty to use {pctCodeFor(categories, category)} for {category || "this category"}.</FieldDescription>
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
             {settings.productDiscountEnabled && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Controller
@@ -254,7 +312,7 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
                     value={field.value}
                     onChange={(value) => {
                       field.onChange(value)
-                      if (!product) form.setValue("sizes", sizePresets[value].map(String))
+                      if (!product && sizeType === "shoe") form.setValue("sizes", presetSizes(sizeType, value))
                     }}
                   />
                 </Field>
@@ -279,13 +337,18 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <div className="flex items-center justify-between">
-                    <FieldLabel>Sizes (EU)</FieldLabel>
-                    <Button type="button" variant="link" size="xs" className="px-0" onClick={() => field.onChange(sizePresets[audience].map(String))}>
-                      Use {audience} sizes
-                    </Button>
+                    <FieldLabel>{sizeType === "shoe" ? "Sizes (EU)" : "Sizes"}</FieldLabel>
+                    {sizeType === "shoe" && (
+                      <Button type="button" variant="link" size="xs" className="px-0" onClick={() => field.onChange(presetSizes(sizeType, audience))}>
+                        Use {audience} sizes
+                      </Button>
+                    )}
                   </div>
-                  <div className="grid grid-cols-10 gap-1">
-                    {allSizes.map((size) => {
+                  {sizeType === "one" ? (
+                    <p className="border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">{ONE_SIZE}. Each colour is one item.</p>
+                  ) : (
+                  <div className={cn("grid gap-1", sizeType === "shoe" ? "grid-cols-10" : "grid-cols-6")}>
+                    {SIZE_TYPES[sizeType].sizes.map((size) => {
                       const on = field.value.includes(size)
                       return (
                         <button
@@ -299,6 +362,7 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
                       )
                     })}
                   </div>
+                  )}
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
               )}
@@ -306,11 +370,11 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
           </FieldGroup>
 
           {product ? (
-            <p className="text-xs text-muted-foreground">To change how many pairs you have, use Receive delivery or fix stock on the Stock page.</p>
+            <p className="text-xs text-muted-foreground">To change how many {unit} you have, use Receive delivery or fix stock on the Stock page.</p>
           ) : (
             <Field>
-              <FieldLabel>Pairs in stock now</FieldLabel>
-              <OpeningStockGrid colors={colors} sizes={sizes.toSorted((a, b) => Number(a) - Number(b))} value={quantities} onChange={setQuantities} />
+              <FieldLabel>{unit === "pairs" ? "Pairs" : "Pieces"} in stock now</FieldLabel>
+              <OpeningStockGrid colors={colors} sizes={sizes.toSorted(compareSizes)} value={quantities} onChange={setQuantities} unit={unit} />
             </Field>
           )}
 
@@ -327,6 +391,10 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
           </DialogFooter>
         </form>
       </DialogContent>
+      {addingCategory && <CategoryEditorDialog onClose={() => setAddingCategory(false)} onSaved={(saved) => {
+            form.setValue("category", saved.name, { shouldValidate: true })
+            form.setValue("sizes", presetSizes(saved.sizeType, audience))
+          }} />}
     </Dialog>
   )
 }

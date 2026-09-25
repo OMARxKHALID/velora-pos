@@ -1,6 +1,5 @@
 import { isRole, toSessionUser } from "./demo-users"
 
-// Demo sessions: the cookie carries who signed in. It is not signed, so a real build replaces this with real auth.
 export const USER_ID_PATTERN = /^u-[a-z0-9-]{1,40}$/
 const MAX_DISABLED = 50
 

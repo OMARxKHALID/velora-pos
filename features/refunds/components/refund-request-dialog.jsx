@@ -16,8 +16,9 @@ import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { newId } from "@/lib/id"
 import { formatMoney } from "@/lib/money"
 import { refundReasons, refundRequestSchema } from "../schemas"
+import { sizeLabel } from "@/features/catalog/lib/catalog"
 
-const methodLabels = { cash: "Cash from drawer", card: "Card reversal" }
+const methodLabels = { cash: "Cash from drawer", card: "Card reversal", jazzcash: "Back to JazzCash", easypaisa: "Back to Easypaisa", bank: "Bank transfer back" }
 
 const Choice = ({ active, children, onClick }) => (
   <button
@@ -36,14 +37,14 @@ const Choice = ({ active, children, onClick }) => (
 export const RefundRequestDialog = ({ sale, user, onClose }) => {
   const sales = useDemoStore(({ sales }) => sales)
   const refunds = useDemoStore(({ refunds }) => refunds)
+  const exchanges = useDemoStore(({ exchanges }) => exchanges)
   const shifts = useDemoStore(({ shifts }) => shifts)
   const requestRefund = useDemoStore(({ requestRefund }) => requestRefund)
   const decideRefund = useDemoStore(({ decideRefund }) => decideRefund)
-  const state = { sales, refunds }
+  const state = { sales, refunds, exchanges }
   const refundable = Object.fromEntries(sale.items.map(({ variantId }) => [variantId, refundableQuantity(state, sale.id, variantId)]))
   const selfApprove = user.role !== "cashier"
   const methods = refundMethodsFor(sale)
-  // One id per dialog, so a double tap on "Refund now" cannot file the same refund twice.
   const [clientId] = useState(newId)
 
   const form = useForm({
@@ -58,7 +59,6 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
   const lines = useWatch({ control: form.control, name: "lines" })
   const reason = useWatch({ control: form.control, name: "reason" })
   const method = useWatch({ control: form.control, name: "method" })
-  // The same maths the ledger books with, so the customer is quoted exactly what is recorded.
   const quote = previewRefund(state, sale.id, lines)
   const overCap = quote.total > refundCapFor(state, sale, method)
   const openShift = openShiftFor({ shifts })
@@ -109,7 +109,7 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{item.productName}</p>
                           <p className="text-xs text-muted-foreground">
-                            {item.attributes.color} · EU {item.attributes.size} · {max ? `${max} refundable` : "already refunded"}
+                            {item.attributes.color} · {sizeLabel(item.attributes.size)} · {max ? `${max} refundable` : "nothing left to return"}
                           </p>
                         </div>
                         <Controller

@@ -16,7 +16,7 @@ const LoginPage = async ({ searchParams }) => {
         <VeloraLogo className="relative" />
         <div className="relative space-y-6">
           <p className="bg-linear-to-b from-[#f5d77a] via-[#d4af37] to-[#8a6a1f] bg-clip-text font-heading text-5xl leading-tight font-bold tracking-wider text-transparent">
-            Every pair,
+            Every item,
             <br />
             every sale,
             <br />

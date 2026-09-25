@@ -43,7 +43,6 @@ export const SalesScreen = ({ user }) => {
   const refunds = useDemoStore(({ refunds }) => refunds)
   const staff = useDemoStore(({ staff }) => staff)
   const nameOf = useStaffName()
-  // Cashiers only see their own shifts. Everyone else sees every closed shift, newest first.
   const closedShifts = shifts
     .filter(({ status, shopId, cashierId }) => status === "closed" && (scope === ALL_SHOPS || shopId === scope) && (user.role !== "cashier" || cashierId === user.id))
     .toReversed()
@@ -116,7 +115,7 @@ export const SalesScreen = ({ user }) => {
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Receipt no, customer, or shoe name" />
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Receipt no, customer, or product" />
         </InputGroup>
         <Segmented label="Date range" options={ranges} value={range} onChange={withReset(setRange)} />
         {user.role !== "cashier" && (

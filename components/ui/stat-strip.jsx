@@ -1,7 +1,7 @@
 import { cn } from "cn"
 
 export const StatStrip = ({ stats, className }) => (
-  <dl className={cn("grid grid-cols-2 border bg-card @2xl:grid-cols-4", className)}>
+  <dl className={cn("grid grid-cols-2 border bg-card shadow-xs dark:shadow-md dark:shadow-black/30 @2xl:grid-cols-4", className)}>
     {stats.map(({ label, value, tone, hint }) => (
       <div key={label} className="border-b px-4 py-3 odd:border-r @2xl:border-r @2xl:border-b-0 @2xl:last:border-r-0">
         <dt className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">{label}</dt>

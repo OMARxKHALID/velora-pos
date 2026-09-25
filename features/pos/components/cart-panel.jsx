@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { BarcodeIcon, MinusIcon, PauseIcon, PlusIcon, ShoppingBagIcon, TrashIcon, XIcon } from "@phosphor-icons/react"
+import { BarcodeIcon, CaretDownIcon, MinusIcon, PauseIcon, PlusIcon, ShoppingBagIcon, ShuffleIcon, TrashIcon, XIcon } from "@phosphor-icons/react"
+import { toast } from "sonner"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
@@ -15,11 +16,13 @@ import { formatMoney } from "@/lib/money"
 import { useCartStore } from "../store/cart-store-provider"
 import { HeldCartsButton } from "./held-carts-button"
 import { ManagerApprovalDialog } from "./manager-approval-dialog"
+import { sizeLabel } from "@/features/catalog/lib/catalog"
+import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
 
 const discountSteps = [0, 5, 10, 15, 20]
 const cashierLimitPct = MAX_CASHIER_DISCOUNT * 100
 
-const ScanField = ({ onScan, availableFor }) => {
+const ScanField = ({ onScan, availableFor, autoFocus }) => {
   const [code, setCode] = useState("")
   const { variants } = useCatalog()
 
@@ -42,14 +45,16 @@ const ScanField = ({ onScan, availableFor }) => {
       </InputGroupAddon>
       <InputGroupInput
         value={code}
+        autoFocus={autoFocus}
         onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
         onKeyDown={handleKeyDown}
         inputMode="numeric"
-        placeholder="Scan or type barcode, then Enter"
+        enterKeyHint="done"
+        placeholder="Scan or type barcode"
       />
       <InputGroupAddon align="inline-end">
-        <InputGroupButton size="xs" variant="ghost" onClick={handleTestScan}>
-          Test scan
+        <InputGroupButton size="icon-xs" variant="ghost" aria-label="Test scan (demo)" title="Test scan (demo)" onClick={handleTestScan}>
+          <ShuffleIcon />
         </InputGroupButton>
       </InputGroupAddon>
     </InputGroup>
@@ -57,85 +62,107 @@ const ScanField = ({ onScan, availableFor }) => {
 }
 
 const CartLine = ({ row, highlight, canAdd, onQuantity }) => (
-  <li className={cn("flex gap-3 border-b px-4 py-3 transition-colors", highlight && "bg-accent/50")}>
-    <div className="min-w-0 flex-1 space-y-1">
-      <p className="truncate text-sm font-medium">{row.product.name}</p>
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <ColorDot color={row.variant.attributes.color} className="size-3.5" />
-        {row.variant.attributes.color} · EU {row.variant.attributes.size}
-        {row.entry === "manual" && <span className="text-2xs tracking-widest uppercase">· manual</span>}
+  <li className={cn("space-y-1.5 border-b px-4 py-2.5 transition-colors", highlight && "bg-accent/50")}>
+    <div className="flex items-baseline justify-between gap-3">
+      <p className="min-w-0 truncate text-sm font-medium">{row.product.name}</p>
+      <p className="shrink-0 text-sm tabular-nums">
+        {(row.discount > 0 || row.productDiscount > 0) && <span className="mr-1.5 text-xs text-muted-foreground line-through">{formatMoney(row.gross)}</span>}
+        <span className="font-semibold">{formatMoney(row.total)}</span>
       </p>
-      <div className="flex items-center gap-1.5 pt-1">
-        <Button size="icon-sm" variant="outline" aria-label="Remove one" onClick={() => onQuantity(row.variantId, row.quantity - 1)}>
+    </div>
+    <div className="flex items-center justify-between gap-3">
+      <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+        <ColorDot color={row.variant.attributes.color} className="size-3.5 shrink-0" />
+        <span className="truncate">
+          {row.variant.attributes.color} · {sizeLabel(row.variant.attributes.size)}
+          {row.productDiscount > 0 && <span className="text-gold"> · On offer</span>}
+          {row.entry === "manual" && " · typed in"}
+        </span>
+      </p>
+      <div className="flex shrink-0 items-center gap-1">
+        <Button size="icon-sm" variant="outline" aria-label={row.quantity === 1 ? "Remove item" : "Remove one"} onClick={() => onQuantity(row.variantId, row.quantity - 1)}>
           {row.quantity === 1 ? <TrashIcon /> : <MinusIcon />}
         </Button>
-        <span className="w-8 text-center text-sm font-semibold tabular-nums select-none">{row.quantity}</span>
+        <span className="w-7 text-center text-sm font-semibold tabular-nums select-none">{row.quantity}</span>
         <Button size="icon-sm" variant="outline" aria-label="Add one" disabled={!canAdd} onClick={() => onQuantity(row.variantId, row.quantity + 1)}>
           <PlusIcon />
         </Button>
       </div>
     </div>
-    <div className="text-right text-sm tabular-nums">
-      <p className="font-semibold">{formatMoney(row.total)}</p>
-      {(row.discount > 0 || row.productDiscount > 0) && <p className="text-xs text-muted-foreground line-through">{formatMoney(row.gross)}</p>}
-      {row.productDiscount > 0 && <p className="text-2xs font-semibold tracking-widest text-gold uppercase">on offer</p>}
-    </div>
   </li>
 )
 
-export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onHold, onOpenHeld, onClose, className }) => {
+export const CartPanel = ({ user, shopId, lastAdded, availableFor, onScan, onCharge, onHold, onOpenHeld, onClose, focusScan = false, className }) => {
   const lines = useCartStore(({ lines }) => lines)
   const discountPct = useCartStore(({ discountPct }) => discountPct)
   const approvedBy = useCartStore(({ approvedBy }) => approvedBy)
   const setQuantity = useCartStore(({ setQuantity }) => setQuantity)
   const setDiscount = useCartStore(({ setDiscount }) => setDiscount)
   const clear = useCartStore(({ clear }) => clear)
+  const restore = useCartStore(({ restore }) => restore)
   const heldCount = useCartStore(({ parkedSales }) => parkedSales.length)
-  const settings = useDemoStore(({ settings }) => settings)
+  const settings = useSettingsFor(shopId)
   const [pendingDiscount, setPendingDiscount] = useState(null)
+  const [discountOpen, setDiscountOpen] = useState(false)
   const catalog = useCatalog()
-  const { rows, count, subtotal, discountTotal, taxRate, taxLabel, taxTotal, total } = cartTotals(lines, discountPct, catalog, settings)
+  const { rows, count, subtotal, discountTotal, taxRate, taxLabel, taxTotal, taxInclusive, serviceFee, total } = cartTotals(lines, discountPct, catalog, settings)
 
-  const handleDiscount = (pct) => (pct <= cashierLimitPct ? setDiscount(pct) : setPendingDiscount(pct))
+  const handleDiscount = (pct) => {
+    setDiscountOpen(false)
+    if (pct <= cashierLimitPct) setDiscount(pct)
+    else setPendingDiscount(pct)
+  }
+
+  const handleClear = () => {
+    const removed = clear()
+    toast("Sale cleared", {
+      description: `${count} ${count === 1 ? "item" : "items"} removed.`,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          if (!restore(removed)) toast.error("New items were added, so the cleared sale cannot come back.")
+        },
+      },
+    })
+  }
 
   return (
     <aside className={cn("flex min-h-0 flex-col bg-card", className)}>
       <div className="space-y-2.5 border-b p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <h2 className="font-heading text-base font-semibold tracking-wider uppercase">Current sale</h2>
+            <h2 className="text-base font-semibold whitespace-nowrap">Current sale</h2>
             {count > 0 && (
-              <span className="flex size-5 items-center justify-center bg-primary text-2xs font-bold text-primary-foreground tabular-nums">{count}</span>
+              <span className="flex size-5 shrink-0 items-center justify-center bg-primary text-2xs font-bold text-primary-foreground tabular-nums">{count}</span>
             )}
           </div>
-          {onClose && (
-            <Button size="icon-sm" variant="ghost" aria-label="Close cart" onClick={onClose}>
-              <XIcon />
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <HeldCartsButton count={heldCount} onClick={onOpenHeld} />
+            <Button type="button" size="sm" variant="outline" disabled={!rows.length} onClick={onHold} title="Hold this sale to serve another customer" className="px-3">
+              <PauseIcon className="text-gold" />
+              Hold
             </Button>
-          )}
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="outline"
+              disabled={!rows.length}
+              onClick={handleClear}
+              aria-label="Clear sale"
+              title="Remove every item from this sale"
+              className="text-muted-foreground hover:border-destructive/40 hover:text-destructive"
+            >
+              <TrashIcon />
+            </Button>
+            {onClose && (
+              <Button size="icon-sm" variant="ghost" aria-label="Close cart" onClick={onClose}>
+                <XIcon />
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5 pt-0.5">
-          <HeldCartsButton count={heldCount} onClick={onOpenHeld} />
-          <Button type="button" size="sm" variant="outline" disabled={!rows.length} onClick={onHold} title="Hold this sale to serve another customer" className="w-full px-2">
-            <PauseIcon className="text-gold" />
-            Hold
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!rows.length}
-            onClick={clear}
-            title="Remove every item from this sale"
-            className="w-full px-2 text-muted-foreground hover:border-destructive/40 hover:text-destructive"
-          >
-            <TrashIcon />
-            Clear
-          </Button>
-        </div>
-
-        <ScanField onScan={onScan} availableFor={availableFor} />
+        <ScanField onScan={onScan} availableFor={availableFor} autoFocus={focusScan} />
       </div>
 
       {rows.length ? (
@@ -147,17 +174,13 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onH
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
           <ShoppingBagIcon className="size-10 text-gold" weight="thin" />
-          <p className="text-sm text-muted-foreground">Scan a barcode or tap a shoe to start a sale.</p>
+          <p className="text-sm text-muted-foreground">Scan a barcode or tap a product to start a sale.</p>
         </div>
       )}
 
-      <div className="space-y-4 border-t p-4">
-        {settings.cartDiscountEnabled && (
+      <div className="space-y-3 border-t p-4">
+        {settings.cartDiscountEnabled && discountOpen && rows.length > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold tracking-label text-muted-foreground uppercase">Discount</span>
-              {approvedBy && discountPct > cashierLimitPct && <span className="text-gold">Approved by supervisor</span>}
-            </div>
             <div className="grid grid-cols-5 gap-1">
               {discountSteps.map((pct) => (
                 <button
@@ -185,16 +208,44 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onH
             </dt>
             <dd>{formatMoney(subtotal)}</dd>
           </div>
-          <div className="flex justify-between text-muted-foreground">
-            <dt>Discount</dt>
-            <dd>{discountTotal ? `− ${formatMoney(discountTotal)}` : "—"}</dd>
+          <div className="flex items-center justify-between text-muted-foreground">
+            <dt>
+              Discount
+              {discountPct > 0 && ` · ${discountPct}%`}
+              {approvedBy && discountPct > cashierLimitPct && <span className="text-gold"> · approved</span>}
+            </dt>
+            <dd>
+              {settings.cartDiscountEnabled ? (
+                <button
+                  type="button"
+                  disabled={!rows.length}
+                  aria-expanded={discountOpen}
+                  onClick={() => setDiscountOpen((open) => !open)}
+                  className="-my-1 flex items-center gap-1 py-1 text-gold underline-offset-4 hover:underline disabled:text-muted-foreground disabled:no-underline pointer-coarse:-my-2 pointer-coarse:py-2"
+                >
+                  {discountTotal ? `− ${formatMoney(discountTotal)}` : "Add"}
+                  <CaretDownIcon className={cn("size-3.5 transition-transform", discountOpen && "rotate-180")} />
+                </button>
+              ) : discountTotal ? (
+                `− ${formatMoney(discountTotal)}`
+              ) : (
+                "—"
+              )}
+            </dd>
           </div>
           {taxTotal > 0 && (
             <div className="flex justify-between text-muted-foreground">
               <dt>
+                {taxInclusive ? "Incl. " : ""}
                 {taxLabel || "Tax"} {taxRate ? `(${taxRate}%)` : ""}
               </dt>
               <dd>{formatMoney(taxTotal)}</dd>
+            </div>
+          )}
+          {serviceFee > 0 && rows.length > 0 && (
+            <div className="flex justify-between text-muted-foreground">
+              <dt>FBR POS fee</dt>
+              <dd>{formatMoney(serviceFee)}</dd>
             </div>
           )}
           <div className="flex items-end justify-between border-t pt-2">
@@ -203,14 +254,15 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onH
           </div>
         </dl>
 
-        <Button size="lg" className="h-14 w-full text-sm" disabled={!rows.length} onClick={onCharge}>
+        <Button size="lg" className="h-12 w-full text-sm pointer-coarse:h-14" disabled={!rows.length} onClick={onCharge}>
           Charge {formatMoney(total)}
-          <Kbd className="ml-2 bg-primary-foreground/15 text-primary-foreground">F2</Kbd>
+          <Kbd className="ml-2 bg-primary-foreground/15 text-primary-foreground pointer-coarse:hidden">F2</Kbd>
         </Button>
       </div>
 
       {pendingDiscount && (
         <ManagerApprovalDialog
+          shopId={shopId}
           reason={`${pendingDiscount}% discount is above the ${cashierLimitPct}% cashier limit.`}
           onClose={() => setPendingDiscount(null)}
           onApprove={(approverId) => {

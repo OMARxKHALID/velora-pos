@@ -1,6 +1,5 @@
 import { SHOP_ID } from "@/features/catalog/lib/catalog"
 
-export const SHOP_NAME = "Shoe Shop"
 export const GROUP_NAME = "Velora Group"
 
 export const ROLES = ["admin", "manager", "cashier"]
@@ -18,7 +17,7 @@ export const isRole = (role) => typeof role === "string" && ROLES.includes(role)
 
 export const homeFor = (role) => (role === "admin" ? "/dashboard" : role === "manager" ? "/sales" : "/pos")
 
-export const titleFor = (role) => `${roleLabels[role]} · ${role === "admin" ? GROUP_NAME : SHOP_NAME}`
+export const titleFor = (role) => (role === "admin" ? `${roleLabels[role]} · ${GROUP_NAME}` : roleLabels[role])
 
 export const toSessionUser = ({ id, name, role }) => ({
   id,

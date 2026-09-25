@@ -5,7 +5,6 @@ import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { MAX_REFERENCE, findSaleByReference, referenceError } from "../lib/card-reference"
 
-// Optional bank slip approval code, shared by the card and split tabs.
 export const CardReferenceField = ({ id, value, onChange, onHide }) => {
   const sales = useDemoStore(({ sales }) => sales)
   const error = referenceError(value)

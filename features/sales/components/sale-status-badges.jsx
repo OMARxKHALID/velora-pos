@@ -19,5 +19,6 @@ export const SaleStatusBadges = ({ sale, refundState }) => (
     {refundState.pending && <StatusBadge tone="warning">Refund pending</StatusBadge>}
     {refundState.refunded && <StatusBadge tone="destructive">{refundState.refunded === "full" ? "Refunded" : "Part refunded"}</StatusBadge>}
     {!sale.syncedAt && <StatusBadge tone="info">Not synced</StatusBadge>}
+    {sale.fbr?.status === "pending" && <StatusBadge tone="warning">FBR pending</StatusBadge>}
   </div>
 )

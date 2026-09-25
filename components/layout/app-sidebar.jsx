@@ -27,12 +27,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { logout } from "@/features/auth/actions"
 import { roleLabels } from "@/features/auth/lib/demo-users"
-import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
-import { ALL_SHOPS, shopName, shops } from "@/features/shops/lib/shops"
+import { useShopNameOf, useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { ALL_SHOPS, shopName } from "@/features/shops/lib/shops"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
+import { StaffAvatar } from "@/features/staff/components/staff-avatar"
 import { navItems } from "./nav-items"
 import { ResetDemoDialog } from "./reset-demo-dialog"
 import { ThemeToggle } from "./theme-toggle"
@@ -40,20 +40,32 @@ import { VeloraLogo } from "./velora-logo"
 
 const initials = (name) => name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("")
 
+const UserTitle = ({ user }) => {
+  const person = useDemoStore(({ staff }) => staff[user.id])
+  const shopOf = useShopNameOf()
+  return user.role === "admin" ? user.title : `${roleLabels[user.role]} · ${shopOf(person ?? user)}`
+}
+
+const SignedInAvatar = ({ user }) => {
+  const person = useDemoStore(({ staff }) => staff[user.id])
+  return <StaffAvatar person={person ?? { name: user.name, avatar: initials(user.name) }} className="size-8" fallbackClassName="bg-accent text-xs font-semibold text-accent-foreground" />
+}
+
 const ShopSwitcher = ({ user }) => {
   const scope = useShopScope(user)
   const setShopScope = useDemoStore(({ setShopScope }) => setShopScope)
   const canSwitch = user.role === "admin"
-  const options = [{ id: ALL_SHOPS, name: "All shops" }, ...shops]
+  const shops = useDemoStore(({ shops }) => shops)
+  const options = [{ id: ALL_SHOPS, name: "All shops" }, ...shops.filter(({ active }) => active !== false)]
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         disabled={!canSwitch}
-        render={<SidebarMenuButton size="lg" tooltip={shopName(scope)} className="border border-sidebar-border group-data-[collapsible=icon]:border-0" />}
+        render={<SidebarMenuButton size="lg" tooltip={shopName(shops, scope)} className="border border-sidebar-border group-data-[collapsible=icon]:border-0" />}
       >
         <StorefrontIcon className="text-gold" />
-        <span className="flex-1 truncate text-left text-sm font-semibold group-data-[collapsible=icon]:hidden">{shopName(scope)}</span>
+        <span className="flex-1 truncate text-left text-sm font-semibold group-data-[collapsible=icon]:hidden">{shopName(shops, scope)}</span>
         {canSwitch && <CaretUpDownIcon className="ml-auto group-data-[collapsible=icon]:hidden" />}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-60" align="start">
@@ -75,7 +87,8 @@ const ShopSwitcher = ({ user }) => {
 export const AppSidebar = ({ user }) => {
   const pathname = usePathname()
   const items = navItems.filter(({ roles }) => roles.includes(user.role))
-  const pendingRefunds = useDemoStore(({ refunds }) => refunds.filter(({ status }) => status === "pending").length)
+  const scope = useShopScope(user)
+  const pendingRefunds = useDemoStore(({ refunds }) => refunds.filter(({ status, shopId }) => status === "pending" && (scope === ALL_SHOPS || shopId === scope)).length)
   const badges = { "/refunds": pendingRefunds }
 
   const [resetOpen, setResetOpen] = useState(false)
@@ -125,14 +138,12 @@ export const AppSidebar = ({ user }) => {
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger render={<SidebarMenuButton size="lg" tooltip={user.name} />}>
-                <Avatar className="size-8">
-                  <AvatarFallback className="bg-accent text-xs font-semibold text-accent-foreground">
-                    {initials(user.name)}
-                  </AvatarFallback>
-                </Avatar>
+                <SignedInAvatar user={user} />
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate text-sm font-semibold">{user.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">{user.title}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    <UserTitle user={user} />
+                  </span>
                 </div>
                 <CaretUpDownIcon className="ml-auto" />
               </DropdownMenuTrigger>

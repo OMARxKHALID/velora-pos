@@ -11,10 +11,11 @@ import { useApprover } from "@/features/demo/hooks/use-directory"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { DEFAULT_MANAGER_PIN } from "@/features/pricing/lib/pricing"
 import { managerPinSchema } from "../schemas"
+import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
 
-export const ManagerApprovalDialog = ({ reason, onApprove, onClose }) => {
-  const settings = useDemoStore(({ settings }) => settings)
-  const approver = useApprover()
+export const ManagerApprovalDialog = ({ shopId, reason, onApprove, onClose }) => {
+  const settings = useSettingsFor(shopId)
+  const approver = useApprover(shopId)
   const form = useForm({ resolver: zodResolver(managerPinSchema(settings?.managerPin || DEFAULT_MANAGER_PIN)), defaultValues: { pin: "" } })
 
   const handleSubmit = form.handleSubmit(() => approver && onApprove(approver.id))
