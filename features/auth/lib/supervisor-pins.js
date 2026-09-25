@@ -1,5 +1,6 @@
 import "server-only"
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto"
+import { appEnv } from "@/lib/env"
 import { USER_ID_PATTERN } from "./session-cookie"
 
 export const PIN_PATTERN = /^\d{4}$/
@@ -7,7 +8,7 @@ export const DEFAULT_PINS = { "u-manager": "1234" }
 const MAX_ENTRIES = 20
 const DEMO_SECRET = "velora-demo-pin-secret"
 
-const secret = () => process.env.PIN_SECRET || DEMO_SECRET
+const secret = () => appEnv().PIN_SECRET ?? DEMO_SECRET
 
 const derive = (userId, pin, salt) =>
   scryptSync(createHmac("sha256", secret()).update(`${userId}:${pin}`).digest(), salt, 32, { N: 16384, r: 8, p: 1 })

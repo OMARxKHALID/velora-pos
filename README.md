@@ -43,10 +43,13 @@ Next.js 16 (App Router) · React 19 · Tailwind CSS 4 · shadcn/ui (Base UI) · 
 
 ## Develop
 
-Needs Bun 1.4 or newer. Older versions cannot read `bun.lock`.
+Needs Bun 1.4 or newer (older versions cannot read `bun.lock` or load the MongoDB driver) and Docker for the local database.
 
 ```bash
 bun install
+cp .env.example .env.local
+bun run db:up       # MongoDB 8 as a one-node replica set, so transactions work
+bun run db:seed     # 30 days of demo data (needs DEMO_MODE=true; --reset replaces it)
 bun dev
 ```
 
@@ -54,7 +57,17 @@ bun dev
 bun test          # unit tests and a server-render check of every screen
 bun run lint
 bun run build     # downloads Google Fonts, so it needs internet
+MONGODB_TEST_URI="mongodb://127.0.0.1:27017/?replicaSet=rs0" bun test   # also runs the database tests
 ```
+
+Database tests each use their own throwaway database and are skipped when `MONGODB_TEST_URI` is not set. `GET /api/health` reports whether the app can reach the database.
+
+| Variable | Needed for | Notes |
+| --- | --- | --- |
+| `MONGODB_URI` | database | `mongodb://` or `mongodb+srv://`; must be a replica set (Atlas always is) |
+| `MONGODB_DB` | database | defaults to `velora` |
+| `DEMO_MODE` | seeding | `true` allows `db:seed` |
+| `PIN_SECRET` | supervisor PINs | at least 32 characters in production |
 
 ## Structure
 
@@ -63,8 +76,12 @@ app/                 routes (thin pages)
 features/<name>/     components, lib (pure logic), schemas, store per feature
 components/ui/       shadcn and shared UI
 components/layout/   app shell: sidebar, header, theme
-lib/                 money, dates, csv, ids, download helpers
+lib/                 money, dates, csv, ids, download helpers, env
+lib/db/              MongoDB client, collections, indexes, transactions
+scripts/             db:indexes and db:seed
 ```
+
+The move to MongoDB is in progress. Phase 0 (database foundations) is done; the screens still run on this browser's demo data until their phase moves them to the server.
 
 Business rules (sales, refunds, shifts, stock movements, catalog, analytics) are pure functions in `features/*/lib` with tests, so they can move to a server unchanged. Reducers take an optional shop and register, and default to the first shop.
 

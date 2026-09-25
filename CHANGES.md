@@ -1,3 +1,14 @@
+# Backend phase 0: MongoDB foundations
+
+Lint clean; 109 tests pass with a MongoDB 8 replica set (101 without one, the database tests skip); production build succeeds. The screens still use browser demo data.
+
+- **Database layer** in `lib/db/`: one reused `MongoClient` (attached to Vercel's pool handling), a `withTransaction` helper with snapshot reads and majority writes, and collection names.
+- **Indexes enforce the rules**: one open shift per counter, a checkout stored once (`clientId`), receipt numbers unique per counter, barcodes unique everywhere, SKUs unique per shop, product names unique per shop regardless of case.
+- **Seed**: `bun run db:seed` loads the 30-day demo into MongoDB, with the shop typed as `footwear` for the future clothes and cosmetics shops. It refuses to run without `DEMO_MODE=true` and will not overwrite data without `--reset`.
+- **Environment variables are validated** with Zod (`lib/env.js`), the only place that reads `process.env`.
+- `GET /api/health` answers 200 when the database is reachable and 503 when not, without error details.
+- Local MongoDB via `compose.yaml`; CI (GitHub Actions) runs lint, all tests against a real replica set, and a build.
+
 # Offline queue, shared held carts, per-supervisor PINs
 
 Lint clean, all 99 tests pass, production build succeeds. Checked in Chromium: the owner sets a second supervisor's PIN; a cashier's 10% discount is rejected with the wrong PIN and credited to the chosen supervisor with the right one; a cart held in one tab is resumed in another; a sale and a shift close made offline sync after reconnecting.
