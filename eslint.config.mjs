@@ -3,5 +3,6 @@ import nextVitals from "eslint-config-next/core-web-vitals"
 
 export default defineConfig([
   ...nextVitals,
-  globalIgnores([".next/**", "out/**", "build/**"]),
+  { rules: { "no-unused-vars": ["error", { varsIgnorePattern: "^_", argsIgnorePattern: "^_", ignoreRestSiblings: true }] } },
+  globalIgnores([".next/**", "out/**", "build/**", "playwright-report/**", "test-results/**"]),
 ])

@@ -1,6 +1,7 @@
 import { generateZReportCsv } from "@/features/pos/lib/z-report"
-import { denied, noStore, viewerScope } from "@/features/sales/server/request"
+import { viewerScope } from "@/features/sales/server/request"
 import { COLLECTIONS as C, fromDoc } from "@/lib/db/collections"
+import { denied, noStore } from "@/lib/http"
 
 export const GET = async (_request, { params }) => {
   const { shiftId } = await params

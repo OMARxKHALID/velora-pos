@@ -3,7 +3,7 @@ import { createMongoClient } from "@/lib/db/connect"
 import { ensureIndexes } from "@/lib/db/indexes"
 import { newId } from "@/lib/id"
 
-export const TEST_URI = process.env.MONGODB_TEST_URI
+const TEST_URI = process.env.MONGODB_TEST_URI
 
 export const hasTestDatabase = Boolean(TEST_URI)
 

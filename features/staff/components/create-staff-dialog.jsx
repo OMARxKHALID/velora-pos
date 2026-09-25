@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Segmented } from "@/components/ui/segmented"
-import { SHOP_NAME } from "@/features/shops/lib/constants"
 import { createStaffSchema } from "../schemas"
 
 const roleOptions = [
@@ -44,7 +43,7 @@ export const CreateStaffDialog = ({ pending, onClose, onCreate }) => {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add staff member</DialogTitle>
-          <DialogDescription>They join the {SHOP_NAME} team and sign in with the username and password you set here.</DialogDescription>
+          <DialogDescription>They join the shop team and sign in with the username and password you set here.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2">

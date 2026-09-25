@@ -4,7 +4,7 @@ import { issueApproval } from "@/features/auth/server/approval-token"
 import { loadDocuments, seedDocuments } from "@/features/sample-data/lib/seed-documents"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { newId } from "@/lib/id"
-import { discardHeldCart, holdCart, listHeldCarts, takeHeldCart } from "./held-carts"
+import { discardHeldCart, holdCart, takeHeldCart } from "./held-carts"
 import { recordSale } from "./sales"
 import { closeShift, openShift } from "./shifts"
 
@@ -121,7 +121,7 @@ describe.skipIf(!hasTestDatabase)("selling on the server", () => {
     const variant = await pick()
     const held = await holdCart(cashier(), { cart: { lines: [{ variantId: variant._id, quantity: 2 }], customerName: "Sana" } })
     expect(held).toMatchObject({ label: "Sana", registerId: "reg-1" })
-    expect((await listHeldCarts(context.db, { shopId: SHOP, registerId: "reg-1" })).map(({ id }) => id)).toContain(held.id)
+    expect(await context.db.collection(C.heldCarts).countDocuments({ _id: held.id, registerId: "reg-1" })).toBe(1)
     const results = await Promise.allSettled([takeHeldCart(cashier(), held.id), takeHeldCart(as("u-cashier-2"), held.id)])
     expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(1)
     await expect(holdCart(cashier(), { cart: { lines: [] } })).rejects.toThrow("empty")

@@ -2,7 +2,8 @@
 
 import { refresh } from "next/cache"
 import { getAuth } from "@/features/auth/server/auth"
-import { UserError, actionResult, authorize } from "@/features/auth/server/session"
+import { actionResult, authorize } from "@/features/auth/server/session"
+import { UserError } from "@/lib/errors"
 import { getDb } from "@/lib/db/client"
 import { appEnv, authEnv, pinSecret } from "@/lib/env"
 import { resetSampleData, resetSampleTeam } from "./server/sample-data"

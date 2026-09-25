@@ -135,7 +135,7 @@ const ColorPicker = ({ value, onChange, popular }) => {
   )
 }
 
-export const ProductFormDialog = ({ product, user, onClose }) => {
+export const ProductFormDialog = ({ product, onClose }) => {
   const saveProduct = useLedgerStore(({ saveProduct }) => saveProduct)
   const settings = useLedgerStore(({ settings }) => settings)
   const [quantities, setQuantities] = useState({})

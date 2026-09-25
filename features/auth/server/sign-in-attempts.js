@@ -1,6 +1,6 @@
 import { COLLECTIONS as C } from "@/lib/db/collections"
 
-export const SIGN_IN_WINDOW_MS = 15 * 60 * 1000
+const SIGN_IN_WINDOW_MS = 15 * 60 * 1000
 
 export const clientAddress = (headers) => headers.get("x-forwarded-for")?.split(",")[0].trim() || headers.get("x-real-ip") || null
 

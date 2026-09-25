@@ -1,4 +1,4 @@
-export const ean13CheckDigit = (twelveDigits) => {
+const ean13CheckDigit = (twelveDigits) => {
   const sum = [...twelveDigits].reduce((total, digit, index) => total + Number(digit) * (index % 2 ? 3 : 1), 0)
   return (10 - (sum % 10)) % 10
 }

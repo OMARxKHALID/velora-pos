@@ -12,7 +12,7 @@ import { formatMoney } from "@/lib/money"
 import { importTemplateCsv, parseCatalogImport } from "../lib/catalog-csv"
 import { ColorDot } from "./color-dot"
 
-export const ImportCatalogDialog = ({ user, onClose }) => {
+export const ImportCatalogDialog = ({ onClose }) => {
   const importCatalog = useLedgerStore(({ importCatalog }) => importCatalog)
   const [file, setFile] = useState(null)
   const [result, setResult] = useState(null)

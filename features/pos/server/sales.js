@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { readApproval } from "@/features/auth/server/approval-token"
-import { UserError } from "@/features/auth/server/session-errors"
+import { UserError, parseInput } from "@/lib/errors"
 import { MAX_CASHIER_DISCOUNT, PAYMENT_METHODS, applySale } from "@/features/ledger/lib/rules"
 import { moveStock } from "@/features/inventory/server/stock"
 import { cartTotals, effectiveRate } from "@/features/pricing/lib/pricing"
@@ -49,12 +49,6 @@ const offlineSaleSchema = saleSchema.extend({
     cartDiscountEnabled: z.boolean(),
   }),
 })
-
-const parse = (schema, value) => {
-  const result = schema.safeParse(value)
-  if (!result.success) throw new UserError(result.error.issues[0].message)
-  return result.data
-}
 
 const approverFor = async (db, session, { approvalSecret, cashierId, discountPct, token, at }) => {
   if (!token) return null
@@ -272,11 +266,11 @@ const settle = async (client, db, clientId, work) => {
 }
 
 export const recordSale = async ({ db, client, user, shopId, approvalSecret, at = new Date() }, input) => {
-  const request = parse(saleSchema, input)
+  const request = parseInput(saleSchema, input)
   return settle(client, db, request.clientId, (session) => recordInSession(db, session, { user, shopId, at, approvalSecret }, request))
 }
 
 export const syncOfflineSale = async ({ db, client, user, shopId, approvalSecret, now = new Date() }, input) => {
-  const request = parse(offlineSaleSchema, input)
+  const request = parseInput(offlineSaleSchema, input)
   return settle(client, db, request.clientId, (session) => syncInSession(db, session, { user, shopId, now, approvalSecret }, request))
 }

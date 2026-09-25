@@ -1,9 +1,9 @@
 import { getSession } from "@/features/auth/server/session"
 import { syncOfflineSale } from "@/features/pos/server/sales"
 import { withoutCosts } from "@/features/sales/lib/for-viewer"
-import { denied, noStore } from "@/features/sales/server/request"
 import { getDb, getMongoClient } from "@/lib/db/client"
 import { authEnv } from "@/lib/env"
+import { denied, noStore } from "@/lib/http"
 
 const sameOrigin = (request) => {
   const origin = request.headers.get("origin")

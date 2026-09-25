@@ -64,7 +64,7 @@ const DeleteDialog = ({ product, onConfirm, onClose }) => (
   </Dialog>
 )
 
-export const ProductsScreen = ({ user }) => {
+export const ProductsScreen = () => {
   const stock = useLedgerStore(({ stock }) => stock)
   const usedVariantIds = useLedgerStore(({ usedVariantIds }) => usedVariantIds)
   const setProductStatus = useLedgerStore(({ setProductStatus }) => setProductStatus)
@@ -81,7 +81,6 @@ export const ProductsScreen = ({ user }) => {
   const usedVariants = useMemo(() => new Set(usedVariantIds ?? []), [usedVariantIds])
   const canDelete = (product) => !(variantsByProduct[product.id] ?? []).some(({ id }) => usedVariants.has(id))
 
-  const active = products.filter((product) => product.status === "active")
   const visible = products
     .filter((product) => (status === "all" || product.status === status) && (!search || `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(search)))
     .toReversed()
@@ -214,8 +213,8 @@ export const ProductsScreen = ({ user }) => {
       </div>
       <p className="text-xs text-muted-foreground">Shoes that were ever sold can be archived but not deleted, so old receipts stay correct.</p>
 
-      {editing && <ProductFormDialog product={editing === "new" ? null : editing} user={user} onClose={() => setEditing(null)} />}
-      {importing && <ImportCatalogDialog user={user} onClose={() => setImporting(false)} />}
+      {editing && <ProductFormDialog product={editing === "new" ? null : editing} onClose={() => setEditing(null)} />}
+      {importing && <ImportCatalogDialog onClose={() => setImporting(false)} />}
       {labelling && <LabelsDialog product={labelling} onClose={() => setLabelling(null)} />}
       {deleting && <DeleteDialog product={deleting} onConfirm={handleDelete} onClose={() => setDeleting(null)} />}
     </>

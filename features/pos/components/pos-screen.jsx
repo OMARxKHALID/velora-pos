@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { REGISTER_CODE } from "@/features/catalog/lib/catalog"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { openShiftFor } from "@/features/ledger/lib/rules"
+import { useCounter } from "../hooks/use-counter"
 import { OfflineQueueDialog } from "@/features/offline/components/offline-queue-dialog"
 import { heldAt } from "../lib/held-carts"
 import { numbersLeft } from "../lib/receipts"
@@ -18,6 +18,7 @@ import { fitToStock } from "../lib/cart-fit"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { cartTotals } from "@/features/pricing/lib/pricing"
 import { newId } from "@/lib/id"
+import { formatTime } from "@/lib/dates"
 import { formatMoney } from "@/lib/money"
 import { useBarcodeScanner } from "../hooks/use-barcode-scanner"
 import { beep } from "../lib/beep"
@@ -35,8 +36,6 @@ import { ReceiptDialog } from "./receipt-dialog"
 import { ShiftReportDialog } from "./shift-report-dialog"
 import { VariantPickerDialog } from "./variant-picker-dialog"
 
-const time = new Intl.DateTimeFormat("en-PK", { hour: "numeric", minute: "2-digit" })
-
 const screenHeight = "h-[calc(100dvh-var(--app-header-h)-2*var(--app-page-pad))] min-h-[34rem]"
 
 const PosSkeleton = () => (
@@ -46,7 +45,7 @@ const PosSkeleton = () => (
   </div>
 )
 
-const PosWorkspace = ({ user, shift, onShiftClosed }) => {
+const PosWorkspace = ({ shift, onShiftClosed }) => {
   const stock = useLedgerStore(({ stock }) => stock)
   const offline = useLedgerStore(({ offline }) => offline)
   const canSellOffline = useLedgerStore(({ canSellOffline }) => canSellOffline)
@@ -194,7 +193,6 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
 
   const cartPanel = (className, onClose) => (
     <CartPanel
-      user={user}
       lastAdded={lastAdded}
       availableFor={availableFor}
       onScan={handleScan}
@@ -252,13 +250,13 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
       )}
       <div className="flex items-center gap-x-5 gap-y-1 border bg-card px-3 py-2 text-xs text-muted-foreground">
         <span className="whitespace-nowrap">
-          Shift since <span className="font-semibold text-foreground">{time.format(shift.openedAt)}</span>
+          Shift since <span className="font-semibold text-foreground">{formatTime(shift.openedAt)}</span>
         </span>
         <span className="hidden whitespace-nowrap xl:inline">
           Cashier <span className="font-semibold text-foreground">{nameOf(shift.cashierId)}</span>
         </span>
         <span className="hidden whitespace-nowrap xl:inline">
-          Counter <span className="font-semibold text-foreground">{shift.registerCode ?? REGISTER_CODE}</span>
+          Counter <span className="font-semibold text-foreground">{shift.registerCode}</span>
         </span>
         <span className="ml-auto hidden whitespace-nowrap 2xl:inline">Scanner ready · F2 to charge</span>
         <Button size="sm" variant="ghost" className="ml-auto shrink-0 2xl:ml-0" disabled={Boolean(closeBlockedReason)} title={closeBlockedReason} onClick={() => setClosing(true)}>
@@ -325,7 +323,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
       )}
       {paying && <PaymentDialog total={total} count={count} onPay={handlePay} onClose={() => setPaying(false)} />}
       {completed && <ReceiptDialog sale={completed} onClose={() => setCompleted(null)} />}
-      {closing && <CloseShiftDialog shift={shift} user={user} onCancel={() => setClosing(false)} onClosed={onShiftClosed} />}
+      {closing && <CloseShiftDialog shift={shift} onCancel={() => setClosing(false)} onClosed={onShiftClosed} />}
       {parkedOpen && <ParkedSalesDialog heldCarts={heldCarts} onResume={handleResume} onClose={() => setParkedOpen(false)} />}
       {queueOpen && <OfflineQueueDialog onClose={() => setQueueOpen(false)} />}
       {holdOpen && <HoldSaleDialog suggestion={customerName || `Order #${heldCarts.length + 1}`} onHold={handleHold} onClose={() => setHoldOpen(false)} />}
@@ -338,17 +336,18 @@ export const PosScreen = ({ user }) => {
   const shifts = useLedgerStore(({ shifts }) => shifts)
   const epoch = useLedgerStore(({ epoch }) => epoch)
   const [report, setReport] = useState(null)
-  const shift = openShiftFor({ shifts })
+  const counter = useCounter(user)
+  const shift = counter ? openShiftFor({ shifts }, counter.id) : undefined
 
   if (!hydrated) return <PosSkeleton />
 
   return (
     <>
       {!shift && <OpenShiftCard user={user} />}
-      {shift && shift.cashierId !== user.id && <CounterBusyCard user={user} shift={shift} onClosed={setReport} />}
+      {shift && shift.cashierId !== user.id && <CounterBusyCard shift={shift} onClosed={setReport} />}
       {shift?.cashierId === user.id && (
         <CartStoreProvider key={epoch}>
-          <PosWorkspace user={user} shift={shift} onShiftClosed={setReport} />
+          <PosWorkspace shift={shift} onShiftClosed={setReport} />
         </CartStoreProvider>
       )}
       {report && <ShiftReportDialog shift={report} onClose={() => setReport(null)} />}

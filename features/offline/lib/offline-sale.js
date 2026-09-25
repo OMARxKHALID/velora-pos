@@ -2,9 +2,9 @@ import { indexCatalog } from "@/features/catalog/lib/catalog"
 import { applySale } from "@/features/ledger/lib/rules"
 import { cartTotals } from "@/features/pricing/lib/pricing"
 
-export const NOT_READY = "This till has no offline receipt numbers yet. Reconnect once to keep selling offline."
+const NOT_READY = "This till has no offline receipt numbers yet. Reconnect once to keep selling offline."
 
-export const pricingOf = (settings) => ({
+const pricingOf = (settings) => ({
   taxEnabled: Boolean(settings.taxEnabled),
   taxRate: Number(settings.taxRate) || 0,
   taxLabel: settings.taxLabel || null,

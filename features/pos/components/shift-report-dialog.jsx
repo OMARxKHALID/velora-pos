@@ -9,11 +9,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { shiftSummary } from "@/features/ledger/lib/rules"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { downloadFrom } from "@/lib/download"
+import { formatTime } from "@/lib/dates"
 import { formatMoney } from "@/lib/money"
 import { printNode } from "../lib/print-node"
 import { ZReportPrint } from "./z-report-print"
-
-const time = new Intl.DateTimeFormat("en-PK", { hour: "numeric", minute: "2-digit" })
 
 const Line = ({ label, value, strong, className }) => (
   <div className={cn("flex justify-between py-1.5", strong && "font-semibold text-foreground", className)}>
@@ -50,7 +49,7 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
             <span className="font-mono text-xs text-muted-foreground uppercase">#{shift.id.slice(0, 8)}</span>
           </div>
           <DialogDescription>
-            {nameOf(shift.cashierId)} · {time.format(shift.openedAt)} to {time.format(shift.closedAt)}
+            {nameOf(shift.cashierId)} · {formatTime(shift.openedAt)} to {formatTime(shift.closedAt)}
           </DialogDescription>
         </DialogHeader>
 

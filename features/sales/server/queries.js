@@ -1,17 +1,16 @@
 import { COLLECTIONS as C, fromDoc } from "@/lib/db/collections"
 import { saleForViewer } from "../lib/for-viewer"
 import { SHOP_TIME_ZONE, startOfDayIn } from "@/lib/zoned"
+import { DAY } from "@/lib/dates"
+import { escapeRegExp } from "@/lib/escape-regexp"
 
-const DAY = 24 * 60 * 60 * 1000
 export const SALE_RANGES = { today: 1, "7d": 7, "30d": 30, all: null }
 export const PAGE_SIZE = 25
 
-const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-
-export const saleFilter = ({ shopIds, viewer, range = "7d", cashierId = null, q = "", timeZone = SHOP_TIME_ZONE, now = Date.now() }) => {
+const saleFilter = ({ shopIds, viewer, range = "7d", cashierId = null, q = "", timeZone = SHOP_TIME_ZONE, now = Date.now() }) => {
   const days = SALE_RANGES[range]
   const search = q.trim()
-  const pattern = search ? new RegExp(escape(search), "i") : null
+  const pattern = search ? new RegExp(escapeRegExp(search), "i") : null
   return {
     shopId: { $in: shopIds },
     ...(viewer.role === "cashier" ? { cashierId: viewer.id } : cashierId ? { cashierId } : {}),
@@ -57,7 +56,7 @@ export const findSale = async (db, { shopIds, viewer, number = null, reference =
     shopId: { $in: shopIds },
     ...(viewer.role === "cashier" && number ? { cashierId: viewer.id } : {}),
     ...(number ? { number: String(number).trim().toUpperCase() } : {}),
-    ...(reference ? { "payments.reference": new RegExp(`^${escape(String(reference).trim())}$`, "i") } : {}),
+    ...(reference ? { "payments.reference": new RegExp(`^${escapeRegExp(String(reference).trim())}$`, "i") } : {}),
   }
   if (!number && !reference) return null
   const sale = await db.collection(C.sales).findOne(filter, { projection: { number: 1 } })

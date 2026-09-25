@@ -3,8 +3,9 @@
 import { refresh } from "next/cache"
 import { headers } from "next/headers"
 import { getAuth } from "@/features/auth/server/auth"
-import { actionResult, authorize, pinSecret } from "@/features/auth/server/session"
+import { actionResult, authorize } from "@/features/auth/server/session"
 import { getDb } from "@/lib/db/client"
+import { pinSecret } from "@/lib/env"
 import { changeRole, createStaff, removeStaff, setAccess, setPassword, setSupervisorPin } from "./server/staff"
 
 const asOwner = (work) =>

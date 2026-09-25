@@ -191,7 +191,7 @@ export const refundableQuantity = (state, saleId, variantId) => {
   return sold - claimed
 }
 
-export const paidByMethod = (sale) => ({
+const paidByMethod = (sale) => ({
   cash: sumBy(sale.payments.filter(({ method }) => method === "cash"), ({ amount }) => amount) - sale.change,
   card: sumBy(sale.payments.filter(({ method }) => method === "card"), ({ amount }) => amount),
 })
@@ -318,7 +318,7 @@ export const applyRefundDecision = (state, { refundId, approve, userId, at }) =>
   return { state: next, record: decided }
 }
 
-export const applyOpenShift = (state, { cashierId, openingCash, at, clientId = newId(), shopId = SHOP_ID, registerId = REGISTER_ID }) => {
+export const applyOpenShift = (state, { cashierId, openingCash, at, clientId = newId(), shopId = SHOP_ID, registerId = REGISTER_ID, registerCode = REGISTER_CODE }) => {
   const existing = state.shifts.find((shift) => shift.clientId === clientId)
   if (existing) return { state, record: existing }
   if (openShiftFor(state, registerId)) throw new Error("A shift is already open on this counter")
@@ -329,6 +329,7 @@ export const applyOpenShift = (state, { cashierId, openingCash, at, clientId = n
     clientId,
     shopId,
     registerId,
+    registerCode,
     cashierId,
     status: "open",
     openedAt: at,
@@ -360,7 +361,7 @@ const cardRefundsFor = (state, shift) =>
 
 export const expectedCash = (state, shift) => shift.openingCash + cashSalesFor(state, shift) - cashRefundsFor(state, shift)
 
-export const liveSummary = (state, shift) => {
+const liveSummary = (state, shift) => {
   const sales = state.sales.filter(({ shiftId }) => shiftId === shift.id)
   const paidBy = (method) =>
     sumBy(sales, ({ payments }) => sumBy(payments.filter((payment) => payment.method === method), ({ amount }) => amount))

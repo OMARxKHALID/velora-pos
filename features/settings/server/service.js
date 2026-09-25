@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { UserError } from "@/features/auth/server/session-errors"
+import { UserError, parseInput } from "@/lib/errors"
 import { changesBetween, writeAudit } from "@/lib/db/audit"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { withTransaction } from "@/lib/db/transaction"
@@ -20,14 +20,13 @@ const patchSchema = z
   .strict()
 
 export const updateSettings = async ({ db, client, user, shopId, at = new Date() }, patch) => {
-  const parsed = patchSchema.safeParse(patch)
-  if (!parsed.success) throw new UserError(parsed.error.issues[0].message)
-  if (!Object.keys(parsed.data).length) throw new UserError("Nothing to change")
+  const updates = parseInput(patchSchema, patch)
+  if (!Object.keys(updates).length) throw new UserError("Nothing to change")
   return withTransaction(client, async (session) => {
     const before = await db.collection(C.settings).findOne({ _id: shopId }, { session })
     if (!before) throw new UserError("This shop has no settings yet")
-    const after = { ...before, ...parsed.data }
-    await db.collection(C.settings).updateOne({ _id: shopId }, { $set: parsed.data }, { session })
+    const after = { ...before, ...updates }
+    await db.collection(C.settings).updateOne({ _id: shopId }, { $set: updates }, { session })
     const changes = changesBetween(before, after, FIELDS)
     if (Object.keys(changes).length) await writeAudit(db, session, { shopId, userId: user.id, kind: "settings.update", target: shopId, changes, at })
     const { _id, shopId: _shop, ...settings } = after

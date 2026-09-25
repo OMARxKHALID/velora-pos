@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { UserError } from "@/features/auth/server/session-errors"
+import { UserError, parseInput } from "@/lib/errors"
 import { applyCloseShift, applyOpenShift } from "@/features/ledger/lib/rules"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/lib/db/collections"
 import { isDuplicateKey, withTransaction } from "@/lib/db/transaction"
@@ -12,14 +12,8 @@ const openSchema = z.object({ openingCash: money, clientId: z.string().min(8).ma
 const reserveSchema = z.object({ shiftId: z.string().min(1).max(64) })
 const closeSchema = z.object({ shiftId: z.string().min(1).max(64), countedCash: money, note: z.string().trim().max(200).default("") })
 
-const parse = (schema, value) => {
-  const result = schema.safeParse(value)
-  if (!result.success) throw new UserError(result.error.issues[0].message)
-  return result.data
-}
-
 export const openShift = async ({ db, client, user, shopId, at = new Date() }, input) => {
-  const { openingCash, clientId, registerId } = parse(openSchema, input)
+  const { openingCash, clientId, registerId } = parseInput(openSchema, input)
   try {
     return await withTransaction(client, async (session) => {
       const existing = await db.collection(C.shifts).findOne({ clientId }, { session })
@@ -28,12 +22,12 @@ export const openShift = async ({ db, client, user, shopId, at = new Date() }, i
       const open = await db.collection(C.shifts).find({ registerId: register._id, status: "open" }, { session }).toArray()
       let record
       try {
-        ;({ record } = applyOpenShift({ shifts: open.map(fromDoc) }, { cashierId: user.id, openingCash, at, clientId, shopId, registerId: register._id }))
+        ;({ record } = applyOpenShift({ shifts: open.map(fromDoc) }, { cashierId: user.id, openingCash, at, clientId, shopId, registerId: register._id, registerCode: register.code }))
       } catch (error) {
         throw new UserError(error.message)
       }
       const block = await reserveOfflineBlock(db, session, register._id)
-      const shift = { ...record, registerCode: register.code, receiptBlocks: [block], syncedAt: at }
+      const shift = { ...record, receiptBlocks: [block], syncedAt: at }
       await db.collection(C.shifts).insertOne(toDoc(shift), { session })
       return shift
     })
@@ -46,7 +40,7 @@ export const openShift = async ({ db, client, user, shopId, at = new Date() }, i
 }
 
 export const closeShift = async ({ db, client, user, shopId, at = new Date() }, input) => {
-  const { shiftId, countedCash, note } = parse(closeSchema, input)
+  const { shiftId, countedCash, note } = parseInput(closeSchema, input)
   return withTransaction(client, async (session) => {
     const shift = await db.collection(C.shifts).findOne({ _id: shiftId, shopId }, { session })
     if (!shift || shift.status !== "open") throw new UserError("Shift is not open")
@@ -65,7 +59,7 @@ export const closeShift = async ({ db, client, user, shopId, at = new Date() }, 
 }
 
 export const reserveReceipts = async ({ db, client, user, shopId }, input) => {
-  const { shiftId } = parse(reserveSchema, input)
+  const { shiftId } = parseInput(reserveSchema, input)
   return withTransaction(client, async (session) => {
     const shift = await db.collection(C.shifts).findOne({ _id: shiftId, shopId }, { session })
     if (!shift || shift.status !== "open") throw new UserError("Shift is not open")

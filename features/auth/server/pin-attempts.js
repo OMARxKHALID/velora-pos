@@ -1,7 +1,7 @@
 import { COLLECTIONS as C } from "@/lib/db/collections"
 
-export const PIN_ATTEMPT_LIMIT = 5
-export const PIN_LOCK_MS = 5 * 60 * 1000
+const PIN_ATTEMPT_LIMIT = 5
+const PIN_LOCK_MS = 5 * 60 * 1000
 
 export const createPinAttempts = (db, { limit = PIN_ATTEMPT_LIMIT, window = PIN_LOCK_MS } = {}) => {
   const failures = db.collection(C.pinFailures)

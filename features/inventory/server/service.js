@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { UserError } from "@/features/auth/server/session-errors"
+import { parseInput } from "@/lib/errors"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { withTransaction } from "@/lib/db/transaction"
 import { newId } from "@/lib/id"
@@ -29,14 +29,8 @@ const adjustmentSchema = z
   })
   .refine(({ quantity, reason }) => (quantity < 0 ? reason in removeReasons : reason in addReasons), { error: "Pick a reason", path: ["reason"] })
 
-const parse = (schema, value) => {
-  const result = schema.safeParse(value)
-  if (!result.success) throw new UserError(result.error.issues[0].message)
-  return result.data
-}
-
 export const receiveDelivery = async ({ db, client, user, shopId, at = new Date() }, input) => {
-  const { supplier, lines } = parse(deliverySchema, input)
+  const { supplier, lines } = parseInput(deliverySchema, input)
   return withTransaction(client, async (session) => {
     const variants = await shopVariants(db, session, shopId, lines.map(({ variantId }) => variantId))
     const items = lines.map((line) => ({ ...line, unitCost: line.unitCost ?? variants[line.variantId].cost }))
@@ -58,7 +52,7 @@ export const receiveDelivery = async ({ db, client, user, shopId, at = new Date(
 }
 
 export const adjustStock = async ({ db, client, user, shopId, at = new Date() }, input) => {
-  const { variantId, quantity, reason, note } = parse(adjustmentSchema, input)
+  const { variantId, quantity, reason, note } = parseInput(adjustmentSchema, input)
   return withTransaction(client, async (session) => {
     const variants = await shopVariants(db, session, shopId, [variantId])
     const movement = await moveStock(db, session, { shopId, variantId, quantity, type: "adjustment", unitCost: variants[variantId].cost, reason, note: note || null, userId: user.id, at })

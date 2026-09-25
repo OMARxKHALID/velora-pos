@@ -124,8 +124,8 @@ export const StockScreen = ({ user }) => {
       </div>
       {canEdit && <p className="text-xs text-muted-foreground">Tap a shoe to fix its stock. Every change is saved with your name and a reason.</p>}
 
-      {receiving && <ReceiveStockDialog user={user} onClose={() => setReceiving(false)} />}
-      {adjusting && <AdjustStockDialog row={adjusting} user={user} onClose={() => setAdjusting(null)} />}
+      {receiving && <ReceiveStockDialog onClose={() => setReceiving(false)} />}
+      {adjusting && <AdjustStockDialog row={adjusting} onClose={() => setAdjusting(null)} />}
     </>
   )
 }

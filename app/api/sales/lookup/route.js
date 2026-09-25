@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { findSale } from "@/features/sales/server/queries"
-import { denied, noStore, viewerScope } from "@/features/sales/server/request"
+import { viewerScope } from "@/features/sales/server/request"
+import { denied, noStore } from "@/lib/http"
 
 const querySchema = z.object({ number: z.string().max(40).optional(), reference: z.string().max(40).optional() })
 

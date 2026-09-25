@@ -1,9 +1,10 @@
 import { z } from "zod"
 import { movementsPage } from "@/features/catalog/server/queries"
-import { denied, noStore, viewerScope } from "@/features/sales/server/request"
+import { viewerScope } from "@/features/sales/server/request"
 import { startOfDayIn } from "@/lib/zoned"
+import { denied, noStore } from "@/lib/http"
+import { DAY } from "@/lib/dates"
 
-const DAY = 24 * 60 * 60 * 1000
 const RANGE_DAYS = { today: 1, "7d": 7, all: null }
 
 const querySchema = z.object({

@@ -21,7 +21,7 @@ describe.skipIf(!hasTestDatabase)("owner dashboard from the database", () => {
       expect(Math.round(charted * 100)).toBe(view.current.revenue)
       expect(view.current.count).toBeGreaterThan(0)
       expect(JSON.stringify(view)).not.toContain('"items"')
-      expect(view.shopRows).toEqual([expect.objectContaining({ shop: { id: "shop-shoes", name: "Shoe Shop" }, revenue: view.current.revenue })])
+      expect(view.shopRows).toEqual([expect.objectContaining({ shop: { id: "shop-shoes", name: "Velora Shoes" }, revenue: view.current.revenue })])
     }
   })
 

@@ -1,8 +1,8 @@
-import { UserError } from "@/features/auth/server/session-errors"
+import { UserError } from "@/lib/errors"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { newId } from "@/lib/id"
 
-export const stockId = (shopId, variantId) => `${shopId}:${variantId}`
+const stockId = (shopId, variantId) => `${shopId}:${variantId}`
 
 export const moveStock = async (db, session, { shopId, variantId, quantity, type, unitCost, ref = null, userId, reason = null, note = null, at, allowNegative = false }) => {
   if (!Number.isInteger(quantity) || quantity === 0) throw new UserError("Quantity must be a whole number and not zero")

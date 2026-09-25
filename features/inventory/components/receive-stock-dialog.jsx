@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
@@ -17,7 +17,7 @@ import { beep } from "@/features/pos/lib/beep"
 import { formatMoney, sumBy } from "@/lib/money"
 import { purchaseSchema } from "../schemas"
 
-export const ReceiveStockDialog = ({ user, onClose }) => {
+export const ReceiveStockDialog = ({ onClose }) => {
   const stock = useLedgerStore(({ stock }) => stock)
   const { productById, variantByBarcode, variantById, variants: allVariants } = useCatalog()
   const variants = allVariants.filter(({ active }) => active)
@@ -110,12 +110,6 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
                   onKeyDown={handleKeyDown}
                   placeholder="Scan box barcode, then Enter"
                 />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton size="xs" variant="ghost" disabled={!variants.length}
-                    onClick={() => handleScan(variants[Math.floor(Math.random() * variants.length)].barcode)}>
-                    Test scan
-                  </InputGroupButton>
-                </InputGroupAddon>
               </InputGroup>
               <Button type="button" variant="link" size="xs" className="w-fit px-0" onClick={handleAddLowStock}>
                 Reorder everything low or out of stock

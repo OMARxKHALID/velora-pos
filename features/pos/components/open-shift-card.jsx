@@ -10,21 +10,22 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
-import { REGISTER_CODE } from "@/features/catalog/lib/catalog"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { newId } from "@/lib/id"
 import { toPaisa } from "@/lib/money"
+import { useCounter } from "../hooks/use-counter"
 import { openShiftSchema } from "../schemas"
 
 export const OpenShiftCard = ({ user }) => {
   const openShift = useLedgerStore(({ openShift }) => openShift)
+  const counter = useCounter(user)
   const form = useForm({ resolver: zodResolver(openShiftSchema), defaultValues: { openingCash: "10000" } })
   const [clientId] = useState(newId)
 
   const handleSubmit = form.handleSubmit(async ({ openingCash }) => {
     try {
-      await openShift({ openingCash: toPaisa(openingCash), clientId })
-      toast.success("Shift opened", { description: `Counter ${REGISTER_CODE} is ready to sell.` })
+      await openShift({ openingCash: toPaisa(openingCash), clientId, registerId: counter?.id })
+      toast.success("Shift opened", { description: `Counter ${counter?.code ?? ""} is ready to sell.` })
     } catch (error) {
       toast.error(error.message)
     }
@@ -40,7 +41,7 @@ export const OpenShiftCard = ({ user }) => {
             </div>
             <CardTitle>Open shift</CardTitle>
             <CardDescription>
-              {user.name} · Counter {REGISTER_CODE}. Count the cash in the drawer before the first sale.
+              {user.name} · Counter {counter?.code}. Count the cash in the drawer before the first sale.
             </CardDescription>
           </CardHeader>
           <CardContent>

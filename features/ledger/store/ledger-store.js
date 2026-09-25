@@ -1,17 +1,16 @@
 import { createStore } from "zustand/vanilla"
-import { emptyLedger } from "@/features/ledger/lib/rules"
 import { buildOfflineSale, overlayStock } from "@/features/offline/lib/offline-sale"
 import { SessionEnded, countersFor, flushOutbox, outboxFor, queueOfflineSale, readSnapshot, retryEntry, removeEntry, saveSnapshot, sendOfflineSale } from "@/features/offline/lib/outbox"
 import { TOP_UP_BELOW, numbersLeft } from "@/features/pos/lib/receipts"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 
-export const UNREACHABLE = "Could not reach the server. Check the connection and try again."
+const UNREACHABLE = "Could not reach the server. Check the connection and try again."
 
 const DATE_FIELDS = new Set(["soldAt", "syncedAt", "createdAt", "updatedAt", "decidedAt", "openedAt", "closedAt", "receivedAt", "parkedAt", "at"])
 
 export const parseLedger = (text) => JSON.parse(text, (key, value) => (DATE_FIELDS.has(key) && typeof value === "string" ? Date.parse(value) : value))
 
-export const fetchLedger = async () => {
+const fetchLedger = async () => {
   const response = await fetch("/api/ledger", { cache: "no-store" })
   if (response.status === 401) throw new SessionEnded("Your session has ended. Sign in again.")
   if (!response.ok) throw new Error(UNREACHABLE)
@@ -122,7 +121,14 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
     }
 
     return {
-      ...emptyLedger(),
+      shops: [],
+      registers: [],
+      products: [],
+      variants: [],
+      stock: {},
+      shifts: [],
+      refunds: [],
+      usedVariantIds: [],
       heldCarts: [],
       settings: defaultPricingSettings(),
       staff: directory,

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 
-export const MAX_HOLD_LABEL = 40
+const MAX_HOLD_LABEL = 40
 
 export const HoldSaleDialog = ({ suggestion, onHold, onClose }) => {
   const [label, setLabel] = useState("")

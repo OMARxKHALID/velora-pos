@@ -1,19 +1,12 @@
 import "server-only"
 import { SHOP_ID } from "@/features/catalog/lib/catalog"
-import { SHOP_NAME } from "@/features/shops/lib/constants"
 import { hashPin } from "@/features/auth/server/pins"
-import { UserError } from "@/features/auth/server/session-errors"
+import { UserError, parseInput } from "@/lib/errors"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { checkStaffChange, initialsOf } from "../lib/rules"
 import { createStaffSchema, passwordSchema, pinSchema } from "../schemas"
 
-export const PLACEHOLDER_EMAIL_DOMAIN = "staff.invalid"
-
-const parse = (schema, value) => {
-  const result = schema.safeParse(value)
-  if (!result.success) throw new UserError(result.error.issues[0].message)
-  return result.data
-}
+const PLACEHOLDER_EMAIL_DOMAIN = "staff.invalid"
 
 const toPerson = (doc) => ({
   id: doc._id,
@@ -51,7 +44,7 @@ export const staffActivity = async (db) => {
   )
 }
 
-export const directoryFor = (viewer, people, activity = {}) =>
+export const directoryFor = (viewer, people, activity = {}, shops = []) =>
   Object.fromEntries(
     people.map((person) => {
       const base = { id: person.id, name: person.name, role: person.role, removed: Boolean(person.removedAt), disabled: person.banned && !person.removedAt }
@@ -63,7 +56,7 @@ export const directoryFor = (viewer, people, activity = {}) =>
           username: person.username,
           email: person.email,
           phone: person.phone,
-          shop: person.role === "admin" ? "Head Office" : SHOP_NAME,
+          shop: person.role === "admin" ? "Head Office" : (shops.find(({ id }) => id === person.shopIds[0])?.name ?? "Shop"),
           joinedAt: new Date(person.createdAt).toISOString(),
           avatar: initialsOf(person.name),
           hasPin: person.hasPin,
@@ -79,7 +72,7 @@ const guard = async (db, id, change) => {
 }
 
 export const createStaff = async ({ auth, db, headers }, input) => {
-  const data = parse(createStaffSchema, input)
+  const data = parseInput(createStaffSchema, input)
   if (await db.collection(C.users).findOne({ username: data.username })) throw new UserError(`The username ${data.username} is taken.`)
   const email = data.email || `${data.username}@${PLACEHOLDER_EMAIL_DOMAIN}`
   const { user } = await auth.api.createUser({
@@ -122,7 +115,7 @@ export const removeStaff = async ({ auth, db, headers }, id) => {
 }
 
 export const setPassword = async ({ auth, db, headers }, id, password) => {
-  const newPassword = parse(passwordSchema, password)
+  const newPassword = parseInput(passwordSchema, password)
   await guard(db, id, { role: (await listPeople(db)).find((entry) => entry.id === id)?.role })
   await auth.api.setUserPassword({ headers, body: { userId: id, newPassword } })
   await auth.api.revokeUserSessions({ headers, body: { userId: id } })
@@ -130,7 +123,7 @@ export const setPassword = async ({ auth, db, headers }, id, password) => {
 }
 
 export const setSupervisorPin = async ({ db, pinSecret }, id, pin) => {
-  const value = parse(pinSchema, pin)
+  const value = parseInput(pinSchema, pin)
   const person = (await listPeople(db)).find((entry) => entry.id === id)
   if (!person || person.removedAt || person.role !== "manager") throw new UserError("Only a supervisor on the team can have a PIN.")
   await db.collection(C.users).updateOne({ _id: id }, { $set: { pinHash: hashPin(pinSecret, id, value) } })

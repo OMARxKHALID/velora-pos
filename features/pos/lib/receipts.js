@@ -6,7 +6,7 @@ export const receiptNumber = (registerCode, seq) => `${registerCode}-${String(se
 
 export const offlineNumber = (registerCode, seq) => `${registerCode}-X${String(seq).padStart(5, "0")}`
 
-export const blockSeqs = (blocks = []) => blocks.flatMap(({ from, to }) => Array.from({ length: to - from + 1 }, (_, index) => from + index))
+const blockSeqs = (blocks = []) => blocks.flatMap(({ from, to }) => Array.from({ length: to - from + 1 }, (_, index) => from + index))
 
 export const offlineNumbers = (registerCode, blocks = []) => blockSeqs(blocks).map((seq) => offlineNumber(registerCode, seq))
 

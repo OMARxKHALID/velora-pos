@@ -1,6 +1,6 @@
 import "server-only"
 import { COLLECTIONS as C } from "@/lib/db/collections"
-import { UserError } from "@/features/auth/server/session-errors"
+import { UserError } from "@/lib/errors"
 
 export const shopFor = async (db, user, requested) => {
   if (user.role !== "admin") return user.shopId

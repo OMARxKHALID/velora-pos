@@ -1,11 +1,6 @@
-import { SHOP_NAME } from "@/features/shops/lib/constants"
-import { SHOP_ID } from "@/features/catalog/lib/catalog"
-
 export const ALL_SHOPS = "all"
 
-export const shops = [{ id: SHOP_ID, name: SHOP_NAME }]
-
-export const shopName = (scope) => (scope === ALL_SHOPS ? "All shops" : (shops.find(({ id }) => id === scope)?.name ?? "Shop"))
+export const shopName = (scope, shops) => (scope === ALL_SHOPS ? "All shops" : (shops.find(({ id }) => id === scope)?.name ?? "Shop"))
 
 export const scopeState = (state, scope) => {
   if (scope === ALL_SHOPS) return state

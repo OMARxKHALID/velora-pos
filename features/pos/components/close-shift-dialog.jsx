@@ -14,7 +14,7 @@ import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { toPaisa } from "@/lib/money"
 import { closeShiftSchema } from "../schemas"
 
-export const CloseShiftDialog = ({ shift, user, onClosed, onCancel }) => {
+export const CloseShiftDialog = ({ shift, onClosed, onCancel }) => {
   const closeShift = useLedgerStore(({ closeShift }) => closeShift)
   const nameOf = useStaffName()
   const form = useForm({ resolver: zodResolver(closeShiftSchema), defaultValues: { countedCash: "", note: "" } })

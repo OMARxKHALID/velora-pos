@@ -3,7 +3,7 @@ import { COLLECTIONS as C } from "@/lib/db/collections"
 import { issueApproval } from "./approval-token"
 import { createPinAttempts } from "./pin-attempts"
 import { PIN_PATTERN, matchesPin } from "./pins"
-import { UserError } from "./session-errors"
+import { UserError } from "@/lib/errors"
 
 export const approveDiscount = async ({ db, pinSecret, approvalSecret }, { cashierId, supervisorId, pin, discountPct, now = new Date() }) => {
   if (typeof supervisorId !== "string" || !supervisorId) throw new UserError("Choose a supervisor")

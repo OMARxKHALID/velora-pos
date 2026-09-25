@@ -5,7 +5,7 @@ import { BarcodeIcon, MinusIcon, PauseIcon, PlusIcon, ShoppingBagIcon, TrashIcon
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/ui/input-group"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { MAX_CASHIER_DISCOUNT } from "@/features/ledger/lib/rules"
@@ -20,20 +20,13 @@ import { ManagerApprovalDialog } from "./manager-approval-dialog"
 const discountSteps = [0, 5, 10, 15, 20]
 const cashierLimitPct = MAX_CASHIER_DISCOUNT * 100
 
-const ScanField = ({ onScan, availableFor }) => {
+const ScanField = ({ onScan }) => {
   const [code, setCode] = useState("")
-  const { variants } = useCatalog()
 
   const handleKeyDown = (event) => {
     if (event.key !== "Enter" || !code.trim()) return
     onScan(code.trim())
     setCode("")
-  }
-
-  const handleTestScan = () => {
-    const inStock = variants.filter(({ id, active }) => active && availableFor(id) > 0)
-    if (!inStock.length) return
-    onScan(inStock[Math.floor(Math.random() * inStock.length)].barcode)
   }
 
   return (
@@ -48,11 +41,6 @@ const ScanField = ({ onScan, availableFor }) => {
         inputMode="numeric"
         placeholder="Scan or type barcode, then Enter"
       />
-      <InputGroupAddon align="inline-end">
-        <InputGroupButton size="xs" variant="ghost" onClick={handleTestScan}>
-          Test scan
-        </InputGroupButton>
-      </InputGroupAddon>
     </InputGroup>
   )
 }
@@ -84,7 +72,7 @@ const CartLine = ({ row, highlight, canAdd, onQuantity }) => (
   </li>
 )
 
-export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onHold, onOpenHeld, onClose, className }) => {
+export const CartPanel = ({ lastAdded, availableFor, onScan, onCharge, onHold, onOpenHeld, onClose, className }) => {
   const lines = useCartStore(({ lines }) => lines)
   const discountPct = useCartStore(({ discountPct }) => discountPct)
   const approvedBy = useCartStore(({ approvedBy }) => approvedBy)
@@ -136,7 +124,7 @@ export const CartPanel = ({ user, lastAdded, availableFor, onScan, onCharge, onH
           </Button>
         </div>
 
-        <ScanField onScan={onScan} availableFor={availableFor} />
+        <ScanField onScan={onScan} />
       </div>
 
       {rows.length ? (

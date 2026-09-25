@@ -31,19 +31,20 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { signOut } from "@/features/auth/actions"
 import { forgetDevice } from "@/features/offline/lib/forget-device"
 import { roleLabels } from "@/features/auth/lib/roles"
+import { initialsOf } from "@/features/staff/lib/rules"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
-import { ALL_SHOPS, shopName, shops } from "@/features/shops/lib/shops"
+import { ALL_SHOPS, shopName } from "@/features/shops/lib/shops"
+import { GROUP_NAME } from "@/features/shops/lib/constants"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { navItems } from "./nav-items"
 import { ResetSampleDataDialog } from "@/features/sample-data/components/reset-sample-data-dialog"
 import { ThemeToggle } from "./theme-toggle"
 import { VeloraLogo } from "./velora-logo"
 
-const initials = (name) => name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("")
-
 const ShopSwitcher = ({ user }) => {
   const scope = useShopScope(user)
   const setShopScope = useLedgerStore(({ setShopScope }) => setShopScope)
+  const shops = useLedgerStore(({ shops }) => shops)
   const canSwitch = user.role === "admin"
   const options = [{ id: ALL_SHOPS, name: "All shops" }, ...shops]
 
@@ -51,10 +52,10 @@ const ShopSwitcher = ({ user }) => {
     <DropdownMenu>
       <DropdownMenuTrigger
         disabled={!canSwitch}
-        render={<SidebarMenuButton size="lg" tooltip={shopName(scope)} className="border border-sidebar-border group-data-[collapsible=icon]:border-0" />}
+        render={<SidebarMenuButton size="lg" tooltip={shopName(scope, shops)} className="border border-sidebar-border group-data-[collapsible=icon]:border-0" />}
       >
         <StorefrontIcon className="text-gold" />
-        <span className="flex-1 truncate text-left text-sm font-semibold group-data-[collapsible=icon]:hidden">{shopName(scope)}</span>
+        <span className="flex-1 truncate text-left text-sm font-semibold group-data-[collapsible=icon]:hidden">{shopName(scope, shops)}</span>
         {canSwitch && <CaretUpDownIcon className="ml-auto group-data-[collapsible=icon]:hidden" />}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-60" align="start">
@@ -128,12 +129,12 @@ export const AppSidebar = ({ user, sampleData = false }) => {
               <DropdownMenuTrigger render={<SidebarMenuButton size="lg" tooltip={user.name} />}>
                 <Avatar className="size-8">
                   <AvatarFallback className="bg-accent text-xs font-semibold text-accent-foreground">
-                    {initials(user.name)}
+                    {initialsOf(user.name)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate text-sm font-semibold">{user.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">{user.title}</span>
+                  <span className="truncate text-xs text-muted-foreground">{roleLabels[user.role]} · {user.role === "admin" ? GROUP_NAME : shopName(user.shopId, shops)}</span>
                 </div>
                 <CaretUpDownIcon className="ml-auto" />
               </DropdownMenuTrigger>

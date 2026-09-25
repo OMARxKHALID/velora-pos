@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/layout/app-header"
 import { requireRole } from "@/features/auth/server/session"
 import { QueryProvider } from "@/components/providers/query-provider"
 import { LedgerStoreProvider } from "@/features/ledger/store/ledger-store-provider"
+import { listShops } from "@/features/shops/server/shops"
 import { directoryFor, listPeople, staffActivity } from "@/features/staff/server/staff"
 import { getDb } from "@/lib/db/client"
 import { appEnv } from "@/lib/env"
@@ -14,7 +15,7 @@ const DashboardLayout = async ({ children }) => {
   const cookieStore = await cookies()
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false"
   const db = getDb()
-  const directory = directoryFor(user, await listPeople(db), user.role === "admin" ? await staffActivity(db) : {})
+  const directory = user.role === "admin" ? directoryFor(user, await listPeople(db), await staffActivity(db), await listShops(db)) : directoryFor(user, await listPeople(db))
 
   return (
     <QueryProvider>

@@ -1,7 +1,8 @@
 import { offlineNumbers } from "@/features/pos/lib/receipts"
+import { listRegisters, listShops } from "@/features/shops/server/shops"
 import { COLLECTIONS as C, fromDoc } from "@/lib/db/collections"
 
-export const HISTORY_DAYS = 120
+const HISTORY_DAYS = 120
 
 const withoutCost = ({ cost: _cost, ...rest }) => rest
 
@@ -24,7 +25,9 @@ export const ledgerSnapshot = async (db, { user, now = new Date() }) => {
   const cashier = user.role === "cashier"
   const all = (name, filter = {}, sort = { _id: 1 }) => db.collection(name).find({ ...inShops, ...filter }, { sort }).toArray()
 
-  const [products, variants, stock, shifts, settings, refunds, usedVariantIds, heldCarts] = await Promise.all([
+  const [shops, registers, products, variants, stock, shifts, settings, refunds, usedVariantIds, heldCarts] = await Promise.all([
+    listShops(db, shopIds),
+    listRegisters(db, shopIds),
     all(C.products),
     all(C.variants),
     all(C.stock),
@@ -38,6 +41,8 @@ export const ledgerSnapshot = async (db, { user, now = new Date() }) => {
   const { _id: _settingsId, shopId: _settingsShop, ...shopSettings } = settings ?? {}
   return {
     since: since.toISOString(),
+    shops,
+    registers,
     products: products.map(fromDoc).map((product) => (cashier ? withoutCost(product) : product)),
     variants: variants.map(fromDoc).map((variant) => (cashier ? withoutCost(variant) : variant)),
     stock: Object.fromEntries(stock.map(({ variantId, quantity }) => [variantId, quantity])),

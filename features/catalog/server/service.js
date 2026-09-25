@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { UserError } from "@/features/auth/server/session-errors"
+import { UserError, parseInput } from "@/lib/errors"
 import { moveStock } from "@/features/inventory/server/stock"
 import { changesBetween, writeAudit } from "@/lib/db/audit"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/lib/db/collections"
@@ -23,16 +23,10 @@ const commonSchema = z
   })
   .refine(({ cost, price }) => cost <= price, { error: "Cost cannot be higher than the price", path: ["cost"] })
 
-const parse = (schema, value) => {
-  const result = schema.safeParse(value)
-  if (!result.success) throw new UserError(result.error.issues[0].message)
-  return result.data
-}
-
-export const parseProductInput = (input) => {
-  const common = parse(commonSchema, input)
+const parseProductInput = (input) => {
+  const common = parseInput(commonSchema, input)
   const type = productTypeFor(common.productType)
-  return { type, input: { ...common, ...parse(type.fieldsSchema, type.fieldsOf(input)) } }
+  return { type, input: { ...common, ...parseInput(type.fieldsSchema, type.fieldsOf(input)) } }
 }
 
 const nextSeq = async (db, session, key) =>

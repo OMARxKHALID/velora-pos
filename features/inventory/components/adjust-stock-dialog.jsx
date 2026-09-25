@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { addReasons, adjustmentSchema, removeReasons } from "../schemas"
 
-const AdjustForm = ({ row, size, onHand, user, onDone }) => {
+const AdjustForm = ({ row, size, onHand, onDone }) => {
   const adjustStock = useLedgerStore(({ adjustStock }) => adjustStock)
   const form = useForm({
     resolver: zodResolver(adjustmentSchema(onHand)),
@@ -113,7 +113,7 @@ const AdjustForm = ({ row, size, onHand, user, onDone }) => {
   )
 }
 
-export const AdjustStockDialog = ({ row, user, onClose }) => {
+export const AdjustStockDialog = ({ row, onClose }) => {
   const stock = useLedgerStore(({ stock }) => stock)
   const [variantId, setVariantId] = useState(null)
   const size = row.sizes.find(({ variant }) => variant.id === variantId)
@@ -148,7 +148,7 @@ export const AdjustStockDialog = ({ row, user, onClose }) => {
           {size && <FieldDescription className="font-mono">Barcode {size.variant.barcode} · SKU {size.variant.sku}</FieldDescription>}
         </Field>
         {size ? (
-          <AdjustForm key={size.variant.id} row={row} size={size} onHand={stock[size.variant.id] ?? 0} user={user} onDone={onClose} />
+          <AdjustForm key={size.variant.id} row={row} size={size} onHand={stock[size.variant.id] ?? 0} onDone={onClose} />
         ) : (
           <p className="text-sm text-muted-foreground">Pick the size you are correcting.</p>
         )}

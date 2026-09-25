@@ -3,7 +3,7 @@ import { hasTestDatabase, useTestDatabase } from "@/test/db"
 import { loadDocuments, seedDocuments } from "@/features/sample-data/lib/seed-documents"
 import { adjustStock, receiveDelivery } from "@/features/inventory/server/service"
 import { COLLECTIONS as C } from "@/lib/db/collections"
-import { auditPage, catalogSnapshot, movementsPage } from "./queries"
+import { movementsPage } from "./queries"
 import { deleteProduct, importCatalog, saveProduct, setProductStatus } from "./service"
 
 const SHOP = "shop-shoes"
@@ -13,6 +13,7 @@ describe.skipIf(!hasTestDatabase)("products and stock on the server", () => {
   const context = useTestDatabase()
   const deps = () => ({ db: context.db, client: context.client, user: { id: "u-manager" }, shopId: SHOP })
   const stockOf = async (variantId) => (await context.db.collection(C.stock).findOne({ variantId }))?.quantity ?? 0
+  const latestAudit = (target) => context.db.collection(C.auditLog).findOne({ shopId: SHOP, target }, { sort: { at: -1, _id: -1 } })
   const historyOf = (variantId) => context.db.collection(C.movements).find({ variantId }, { sort: { createdAt: 1, _id: 1 } }).toArray()
 
   beforeAll(async () => {
@@ -27,7 +28,7 @@ describe.skipIf(!hasTestDatabase)("products and stock on the server", () => {
     expect(new Set(variants.map(({ barcode }) => barcode)).size).toBe(4)
     expect(variants.find(({ _id }) => _id === "p-25-BLACK-42")).toMatchObject({ label: "Black · EU 42", shopId: SHOP, price: 1350000 })
     expect(await stockOf("p-25-BLACK-42")).toBe(4)
-    expect((await auditPage(context.db, { shopId: SHOP, target: "p-25" })).rows[0]).toMatchObject({ kind: "product.create", userId: "u-manager" })
+    expect(await latestAudit("p-25")).toMatchObject({ kind: "product.create", userId: "u-manager" })
   })
 
   test("names are unique per shop regardless of case, even when two people save at once", async () => {
@@ -57,11 +58,11 @@ describe.skipIf(!hasTestDatabase)("products and stock on the server", () => {
     expect(variants["p-25-BLACK-42"].active).toBe(false)
     expect(variants["p-25-WHITE-42"]).toBeUndefined()
     expect(variants["p-25-BLACK-41"]).toMatchObject({ active: true, price: 1450000 })
-    const [latest] = (await auditPage(context.db, { shopId: SHOP, target: "p-25" })).rows
+    const latest = await latestAudit("p-25")
     expect(latest).toMatchObject({ kind: "product.update", changes: { price: { from: 1350000, to: 1450000 } } })
     await expect(deleteProduct(deps(), { productId: "p-25" })).rejects.toThrow("Archive it instead")
     await setProductStatus(deps(), { productId: "p-25", status: "archived" })
-    expect((await auditPage(context.db, { shopId: SHOP, target: "p-25" })).rows[0].changes).toEqual({ status: { from: "active", to: "archived" } })
+    expect((await latestAudit("p-25")).changes).toEqual({ status: { from: "active", to: "archived" } })
   })
 
   test("another shop's items are out of reach", async () => {
@@ -125,14 +126,7 @@ describe.skipIf(!hasTestDatabase)("products and stock on the server", () => {
     await expect(importCatalog(deps(), { rows: [{ ...rows[0], product: null }] })).rejects.toThrow("Row 1: product is not valid")
   })
 
-  test("reads: cashiers get no cost prices; history pages newest first", async () => {
-    const forCashier = await catalogSnapshot(context.db, { shopId: SHOP, includeCost: false })
-    expect(forCashier.variants.every((variant) => !("cost" in variant))).toBe(true)
-    expect(forCashier.products.every((product) => !("cost" in product))).toBe(true)
-    const forSupervisor = await catalogSnapshot(context.db, { shopId: SHOP, includeCost: true })
-    expect(forSupervisor.variants[0].cost).toBeGreaterThan(0)
-    expect(forSupervisor.stock["p-25-BLACK-42"]).toBe(4)
-
+  test("stock history pages newest first", async () => {
     const first = await movementsPage(context.db, { shopId: SHOP, page: 1, pageSize: 10 })
     const second = await movementsPage(context.db, { shopId: SHOP, page: 2, pageSize: 10 })
     expect(first.rows).toHaveLength(10)

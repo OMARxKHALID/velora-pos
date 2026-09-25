@@ -15,8 +15,7 @@ import {
   summarize,
   within,
 } from "./analytics"
-
-const DAY = 24 * 60 * 60 * 1000
+import { DAY } from "@/lib/dates"
 
 const headline = ({ revenue, profit, margin, count, basket, pairs }) => ({ revenue, profit, margin, count, basket, pairs })
 

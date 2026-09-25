@@ -1,4 +1,4 @@
-import { UserError } from "@/features/auth/server/session-errors"
+import { UserError } from "@/lib/errors"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { OFFLINE_BLOCK } from "../lib/receipts"
 

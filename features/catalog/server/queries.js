@@ -1,27 +1,10 @@
 import { COLLECTIONS as C, fromDoc } from "@/lib/db/collections"
-
-const withoutCost = ({ cost: _cost, ...rest }) => rest
-
-export const catalogSnapshot = async (db, { shopId, includeCost }) => {
-  const [products, variants, stock] = await Promise.all([
-    db.collection(C.products).find({ shopId }, { sort: { _id: 1 } }).toArray(),
-    db.collection(C.variants).find({ shopId }, { sort: { _id: 1 } }).toArray(),
-    db.collection(C.stock).find({ shopId }, { projection: { variantId: 1, quantity: 1 } }).toArray(),
-  ])
-  const shape = (doc) => (includeCost ? fromDoc(doc) : withoutCost(fromDoc(doc)))
-  return {
-    products: products.map(shape),
-    variants: variants.map(shape),
-    stock: Object.fromEntries(stock.map(({ variantId, quantity }) => [variantId, quantity])),
-  }
-}
+import { escapeRegExp } from "@/lib/escape-regexp"
 
 export const PAGE_SIZE = 50
 
-const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-
 const searchFilter = async (db, shopIds, q) => {
-  const pattern = new RegExp(escape(q.trim()), "i")
+  const pattern = new RegExp(escapeRegExp(q.trim()), "i")
   const [products, variants, people] = await Promise.all([
     db.collection(C.products).find({ shopId: { $in: shopIds }, name: pattern }, { projection: { _id: 1 } }).toArray(),
     db.collection(C.variants).find({ shopId: { $in: shopIds }, $or: [{ sku: pattern }, { barcode: pattern }] }, { projection: { _id: 1 } }).toArray(),
@@ -65,15 +48,4 @@ export const movementsPage = async (db, { shopId, shopIds = [shopId], page = 1, 
       return { ...fromDoc(movement), sku: variant?.sku ?? null, label: variant?.label ?? null, productName: product ? product.name : null }
     }),
   }
-}
-
-export const auditPage = async (db, { shopId, page = 1, pageSize = PAGE_SIZE, target = null }) => {
-  const filter = { shopId, ...(target ? { target } : {}) }
-  const size = Math.min(Math.max(1, pageSize), 200)
-  const current = Math.max(1, page)
-  const [rows, total] = await Promise.all([
-    db.collection(C.auditLog).find(filter, { sort: { at: -1, _id: -1 }, skip: (current - 1) * size, limit: size }).toArray(),
-    db.collection(C.auditLog).countDocuments(filter),
-  ])
-  return { page: current, pageSize: size, total, rows: rows.map(fromDoc) }
 }

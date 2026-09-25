@@ -16,6 +16,7 @@ import { toSessionUser } from "@/features/auth/lib/roles"
 import { SAMPLE_TEAM } from "@/features/sample-data/lib/team"
 import { applyCloseShift, applyOpenShift, applySale, shiftSummary } from "@/features/ledger/lib/rules"
 import { createSeed } from "@/features/sample-data/lib/seed"
+import { firstShopDocuments } from "@/features/shops/lib/first-shop"
 import { createLedgerStore } from "@/features/ledger/store/ledger-store"
 import { LedgerStoreContext } from "@/features/ledger/store/ledger-store-provider"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
@@ -31,7 +32,9 @@ const users = {
 }
 
 const seededStore = ({ openShift = false, settings = {} } = {}) => {
-  let state = { ...createSeed(), heldCarts: [], settings: { ...defaultPricingSettings(), ...settings } }
+  const { shop, register } = firstShopDocuments()
+  const counters = { shops: [{ id: shop._id, name: shop.name, code: shop.code }], registers: [{ id: register._id, shopId: register.shopId, code: register.code }] }
+  let state = { ...createSeed(), ...counters, heldCarts: [], settings: { ...defaultPricingSettings(), ...settings } }
   if (openShift) state = applyOpenShift(state, { cashierId: "u-cashier", openingCash: 1000000, at: Date.now() }).state
   const store = createLedgerStore({ directory: { ...SAMPLE_TEAM } })
   store.setState({ ...state, hydrated: true })
@@ -57,7 +60,7 @@ const render = (store, element, prefill = []) => {
 
 const dashboardFor = (store) => {
   const state = store.getState()
-  const view = dashboardView(state, { scope: "all", period: periodFor("7d"), range: "7d", staff: state.staff, shops: [{ id: "shop-shoes", name: "Shoe Shop" }], firstSaleAt: state.sales[0]?.soldAt })
+  const view = dashboardView(state, { scope: "all", period: periodFor("7d"), range: "7d", staff: state.staff, shops: [{ id: "shop-shoes", name: "Velora Shoes" }], firstSaleAt: state.sales[0]?.soldAt })
   return [["dashboard", "all", "7d"], view]
 }
 
@@ -82,7 +85,7 @@ describe("screens render against seeded data", () => {
     const store = seededStore()
     expect(render(store, <SalesScreen user={users.manager} />)).toContain("Export CSV")
     expect(render(store, <RefundsScreen user={users.manager} />)).toContain("To approve")
-    expect(render(store, <ProductsScreen user={users.manager} />)).toContain("Velora")
+    expect(render(store, <ProductsScreen />)).toContain("Velora")
     expect(render(store, <StockScreen user={users.manager} />)).toContain("Receive delivery")
   })
 
@@ -111,7 +114,7 @@ describe("screens render against seeded data", () => {
       cashierId: "u-cashier",
       shiftId: shift.id,
     })
-    store.getState().setDirectory({ ...SAMPLE_TEAM, "u-zain": { id: "u-zain", name: "Zain Malik", role: "cashier", username: "zain", shop: "Shoe Shop", disabled: true } })
+    store.getState().setDirectory({ ...SAMPLE_TEAM, "u-zain": { id: "u-zain", name: "Zain Malik", role: "cashier", username: "zain", shop: "Velora Shoes", disabled: true } })
     expect(render(store, <SalesScreen user={users.admin} />, [salesFor(store, users.admin)])).toContain(sale.number)
     const staffPage = render(store, <StaffScreen />)
     expect(staffPage).toContain("Zain Malik")
@@ -128,7 +131,7 @@ describe("screens render against seeded data", () => {
     const sale = run(store, applySale, { lines: [{ variantId: variant.id, quantity: 1 }], payments: [{ method: "cash", amount: total }], cashierId: "u-cashier", shiftId: shift.id, settings: store.getState().settings })
     const closed = run(store, applyCloseShift, { shiftId: shift.id, countedCash: 1000000 + total, closedBy: "u-cashier" })
 
-    const cart = render(store, <CartStoreProvider><CartPanel user={users.cashier} availableFor={() => 5} onScan={() => {}} onCharge={() => {}} onHold={() => {}} onOpenHeld={() => {}} /></CartStoreProvider>)
+    const cart = render(store, <CartStoreProvider><CartPanel availableFor={() => 5} onScan={() => {}} onCharge={() => {}} onHold={() => {}} onOpenHeld={() => {}} /></CartStoreProvider>)
     expect(cart).toContain("Current sale")
     expect(cart).toContain("Held")
 

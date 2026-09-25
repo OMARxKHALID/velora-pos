@@ -4,12 +4,12 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { z } from "zod"
 import { getDb } from "@/lib/db/client"
-import { authEnv } from "@/lib/env"
+import { authEnv, pinSecret } from "@/lib/env"
 import { homeFor } from "./lib/roles"
 import { getAuth } from "./server/auth"
 import { approveDiscount } from "./server/approvals"
 import { clientAddress, createSignInAttempts } from "./server/sign-in-attempts"
-import { actionResult, authorize, pinSecret } from "./server/session"
+import { actionResult, authorize } from "./server/session"
 
 const signInSchema = z.object({
   username: z.string().trim().toLowerCase().min(1, { error: "Enter your username" }).max(30),

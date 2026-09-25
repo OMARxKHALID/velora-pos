@@ -1,9 +1,10 @@
 import { z } from "zod"
 import { staffName } from "@/features/staff/lib/people"
 import { SALE_RANGES, salesForExport, salesPage } from "@/features/sales/server/queries"
-import { denied, noStore, viewerScope } from "@/features/sales/server/request"
+import { viewerScope } from "@/features/sales/server/request"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { toCsv } from "@/lib/csv"
+import { denied, noStore } from "@/lib/http"
 
 const querySchema = z.object({
   range: z.enum(Object.keys(SALE_RANGES)).default("7d"),

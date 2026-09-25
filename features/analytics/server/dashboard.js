@@ -2,8 +2,8 @@ import { COLLECTIONS as C, fromDoc } from "@/lib/db/collections"
 import { SHOP_TIME_ZONE, hourIn, startOfDayIn } from "@/lib/zoned"
 import { periodFor } from "../lib/analytics"
 import { dashboardView } from "../lib/dashboard-view"
+import { DAY } from "@/lib/dates"
 
-const DAY = 24 * 60 * 60 * 1000
 export const RANGES = ["today", "7d", "30d"]
 
 const asTimes = (doc) => {

@@ -1,6 +1,6 @@
 import Dexie from "dexie"
 
-export const TILL_DB = "velora-till"
+const TILL_DB = "velora-till"
 
 export const createTillDb = (name = TILL_DB, options) => {
   const db = new Dexie(name, options)

@@ -69,7 +69,7 @@ export const mostUsedColors = (products, limit = 10) => {
 
 const titleCase = (text) => text.replace(/\b\w/g, (letter) => letter.toUpperCase())
 
-export const colorNames = [...new Set([...Object.keys(colorSwatches).filter((name) => !name.includes("/")), ...Object.keys(fashionColors).map(titleCase)])].toSorted()
+const colorNames = [...new Set([...Object.keys(colorSwatches).filter((name) => !name.includes("/")), ...Object.keys(fashionColors).map(titleCase)])].toSorted()
 
 export const suggestColors = (draft, exclude = [], limit = 6) => {
   const query = draft.trim().toLowerCase()

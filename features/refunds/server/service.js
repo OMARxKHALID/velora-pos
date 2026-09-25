@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { UserError } from "@/features/auth/server/session-errors"
+import { UserError, parseInput } from "@/lib/errors"
 import { applyRefundDecision, applyRefundRequest } from "@/features/ledger/lib/rules"
 import { moveStock } from "@/features/inventory/server/stock"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/lib/db/collections"
@@ -16,16 +16,10 @@ const requestSchema = z.object({
   method: z.enum(["cash", "card"]),
 })
 
-const parse = (schema, value) => {
-  const result = schema.safeParse(value)
-  if (!result.success) throw new UserError(result.error.issues[0].message)
-  return result.data
-}
-
 const refundsOf = async (db, session, saleId) => (await db.collection(C.refunds).find({ saleId }, { session }).toArray()).map(fromDoc)
 
 export const requestRefund = async ({ db, client, user, shopId, at = new Date() }, input) => {
-  const request = parse(requestSchema, input)
+  const request = parseInput(requestSchema, input)
   try {
     return await withTransaction(client, async (session) => {
       const existing = await db.collection(C.refunds).findOne({ clientId: request.clientId }, { session })

@@ -5,9 +5,7 @@ import { admin, username } from "better-auth/plugins"
 import { newId } from "@/lib/id"
 import { ac, accessRoles } from "../lib/access"
 
-export const AUTH_COLLECTIONS = { user: "users", session: "sessions", account: "accounts", verification: "verifications", rateLimit: "rate_limits" }
-
-export const USER_ID_PATTERN = /^u-[a-z0-9-]{1,40}$/
+const AUTH_COLLECTIONS = { user: "users", session: "sessions", account: "accounts", verification: "verifications", rateLimit: "rate_limits" }
 
 export const newUserId = () => `u-${newId().replaceAll("-", "").slice(0, 16)}`
 

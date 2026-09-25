@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { UserError } from "@/features/auth/server/session-errors"
+import { UserError, parseInput } from "@/lib/errors"
 import { COLLECTIONS as C, fromDoc } from "@/lib/db/collections"
 import { newId } from "@/lib/id"
 import { registerFor } from "./register"
@@ -22,13 +22,8 @@ const holdSchema = z.object({
   }),
 })
 
-export const listHeldCarts = async (db, { shopId, registerId }) =>
-  (await db.collection(C.heldCarts).find({ shopId, registerId }, { sort: { parkedAt: -1 } }).toArray()).map(fromDoc)
-
 export const holdCart = async ({ db, user, shopId, at = new Date() }, input) => {
-  const parsed = holdSchema.safeParse(input)
-  if (!parsed.success) throw new UserError(parsed.error.issues[0].message)
-  const { cart, label, registerId } = parsed.data
+  const { cart, label, registerId } = parseInput(holdSchema, input)
   const register = await registerFor(db, undefined, shopId, registerId)
   const known = await db.collection(C.variants).countDocuments({ _id: { $in: cart.lines.map(({ variantId }) => variantId) }, shopId })
   if (known !== new Set(cart.lines.map(({ variantId }) => variantId)).size) throw new UserError("Unknown item")

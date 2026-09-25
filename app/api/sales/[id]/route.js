@@ -1,5 +1,6 @@
 import { saleDetail } from "@/features/sales/server/queries"
-import { denied, noStore, viewerScope } from "@/features/sales/server/request"
+import { viewerScope } from "@/features/sales/server/request"
+import { denied, noStore } from "@/lib/http"
 
 export const GET = async (_request, { params }) => {
   const { id } = await params

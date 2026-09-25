@@ -1,7 +1,7 @@
 import { expect } from "@playwright/test"
 import { E2E_ENV } from "../playwright.config"
 
-export const PEOPLE = { owner: "asif", supervisor: "bilal", cashier: "hamza" }
+const PEOPLE = { owner: "asif", supervisor: "bilal", cashier: "hamza" }
 
 export const signIn = async (browser, who) => {
   const context = await browser.newContext()

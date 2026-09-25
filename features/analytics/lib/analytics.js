@@ -1,8 +1,8 @@
 import { indexCatalog } from "@/features/catalog/lib/catalog"
 import { netRefund, netRevenue } from "@/features/pricing/lib/pricing"
 import { sumBy } from "@/lib/money"
+import { DAY } from "@/lib/dates"
 
-const DAY = 24 * 60 * 60 * 1000
 const time = (at) => new Date(at).getTime()
 
 const localMidnight = (now) => new Date(now).setHours(0, 0, 0, 0)

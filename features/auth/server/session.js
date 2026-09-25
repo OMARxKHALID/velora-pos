@@ -2,13 +2,11 @@ import "server-only"
 import { cache } from "react"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
+import { getDb, getMongoClient } from "@/lib/db/client"
+import { authEnv } from "@/lib/env"
+import { AccessDenied } from "@/lib/errors"
 import { toSessionUser } from "../lib/roles"
 import { getAuth } from "./auth"
-import { AccessDenied } from "./session-errors"
-
-export { AccessDenied, UserError } from "./session-errors"
-
-export { pinSecret } from "@/lib/env"
 
 export const getSession = cache(async () => {
   const requestHeaders = await headers()
@@ -41,3 +39,10 @@ export const actionResult = async (work) => {
     return { error: "Something went wrong. Try again." }
   }
 }
+
+export const recordAction = (roles, work) =>
+  actionResult(async () => {
+    const user = await authorize(...roles)
+    const record = await work({ db: getDb(), client: getMongoClient(), user, shopId: user.shopId, approvalSecret: authEnv().BETTER_AUTH_SECRET })
+    return { record }
+  })
