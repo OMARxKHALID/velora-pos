@@ -6,18 +6,19 @@ The point of sale for Velora Group's shops, starting with **Velora Shoes**. It r
 
 | Area | What you can do |
 | --- | --- |
-| **Sell** | Scan barcodes or pick shoes by size and colour. Take cash, card or split payments. Apply a supervisor-approved discount. Print an 80mm receipt. `F2` opens payment |
+| **Sell** | Scan barcodes or pick shoes by size and colour. Take cash, card, JazzCash, Easypaisa, bank transfer or split payments. Apply a supervisor-approved discount. Print an 80mm receipt. `F2` opens payment |
 | **Held sales** | Put a sale on hold, serve the next customer, and resume it later from any screen at the same counter |
 | **Offline selling** | Keep selling without internet. Sales are saved on the device and upload once each when the connection returns |
 | **Shifts** | Open a shift with a cash float and close it with a blind cash count. The Z-report shows any shortage or overage |
-| **Returns** | Cashiers request returns and supervisors approve them. Money goes back the way it was paid, tax included |
-| **Products** | Add and edit shoes; every colour and size gets its own SKU and barcode. Archive items, print labels, import and export CSV |
-| **Stock** | See stock per size and colour, receive deliveries, and correct stock with a reason. Every change is recorded in a history that can't be edited |
+| **Returns and swaps** | Cashiers request returns and supervisors approve them. Money goes back the way it was paid, tax included. A size or colour swap moves stock both ways at no charge, and swapped pairs cannot be refunded later |
+| **Products** | Add and edit products; every colour and size gets its own SKU and barcode. Categories (socks, polish, brushes) set their own sizes (EU, XS to XXL or one size), icon and PCT code. Archive items, print labels, import and export CSV, which creates any missing categories |
+| **Stock** | See stock per size and colour, receive deliveries, and correct stock with a reason. A stock count has you scan the shelf without seeing the system numbers, then books only the differences. Every change is recorded in a history that can't be edited |
 | **Overview** | Sales, profit, busiest hours, best and slow sellers, low stock, cash shortages and staff signals, in the shop's time zone |
-| **Staff** | Add supervisors and cashiers, change roles, set passwords and supervisor PINs, turn access off |
-| **Settings** | Sales tax, product offers, cart discounts, customer details at checkout, low-stock threshold |
+| **Staff** | Add supervisors and cashiers at a shop, keep their profile (photo, CNIC, phone, address, emergency contact), change roles, set passwords and supervisor PINs, mark leave, turn access off. Someone on leave, or at a closed shop, cannot sign in or approve discounts |
+| **Shops and counters** | The owner adds, edits, closes and deletes shops, and gives each counter its own POSID, receipt numbers, copies and drawer rules. Each shop has its own settings |
+| **Settings** | Per shop: sales tax (added on top or included in the price), payment methods, cash rounding, FBR reporting, product offers, cart discounts, receipt design, customer details at checkout, low-stock threshold, products per row |
 
-Card payments are recorded, not charged: take the card on the bank's terminal and type the slip's approval code. There is no FBR integration yet, so receipts and Z-reports say they are not tax invoices.
+Card payments are recorded, not charged: take the card on the bank's terminal and type the slip's approval code. Wallet and bank payments need the transaction ID. FBR reporting is simulated: with it on (it needs the shop's NTN and every counter's POSID), each sale, return and swap gets a fiscal number and QR code from a per-counter sequence, and offline sales show "FBR pending" until they sync. Nothing is sent to FBR yet, and with it off receipts say they are not tax invoices.
 
 ### Who sees what
 
@@ -81,6 +82,8 @@ Open http://localhost:3000.
 | `SAMPLE_PASSWORD` | no | Password for the sample accounts. Defaults to `velora-sample` |
 
 `GET /api/health` reports whether the app can reach the database.
+
+After an update that adds collections (categories, exchanges and drawer events came with the shop, FBR and stock-count features), run `bun run db:indexes` once. Category names are only kept unique by that index.
 
 ## Selling offline
 
@@ -159,8 +162,7 @@ e2e/                   Playwright browser tests
 
 ## Not built yet
 
-- FBR invoicing
+- sending invoices to FBR (numbers are simulated)
 - card terminal, receipt printer and cash drawer integration
-- more than one counter per shop in the interface
 - stock transfers between shops
 - product types for the clothing and cosmetics shops

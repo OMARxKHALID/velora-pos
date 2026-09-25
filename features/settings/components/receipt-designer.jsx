@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Panel } from "@/features/analytics/components/panel"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { Receipt } from "@/features/pos/components/receipt"
-import { receiptDefaults, receiptDesign } from "@/features/pos/lib/receipt-design"
+import { receiptDefaults, receiptDesign, sampleSale } from "@/features/pos/lib/receipt-design"
 import { SettingToggle } from "./setting-toggle"
 
 const papers = [
@@ -26,7 +26,8 @@ const toggles = [
 ]
 
 export const ReceiptDesigner = ({ settings, update, shopId = null, scopeBar = null }) => {
-  const sample = useLedgerStore(({ sales }) => (shopId ? sales.findLast((sale) => sale.shopId === shopId) : sales.at(-1)))
+  const firstShopId = useLedgerStore(({ shops }) => shops[0]?.id)
+  const sample = sampleSale(shopId ?? firstShopId)
   const design = receiptDesign(settings)
 
   const change = (patch) => update({ receipt: { ...design, ...patch } })
@@ -86,7 +87,7 @@ export const ReceiptDesigner = ({ settings, update, shopId = null, scopeBar = nu
       <div className="space-y-2 @4xl:sticky @4xl:top-20">
         <p className="text-xs font-medium text-muted-foreground">Preview</p>
         <div className="overflow-x-auto border bg-muted/40 p-4">
-          {sample ? <Receipt sale={sample} design={design} /> : <p className="w-[302px] py-12 text-center text-sm text-muted-foreground">Make a sale to see a preview.</p>}
+          <Receipt sale={sample} design={design} />
         </div>
       </div>
     </div>
