@@ -1,3 +1,14 @@
+# Backend phase 2: products and stock on the server
+
+Lint clean; 127 tests pass with a MongoDB replica set, including races; production build succeeds. The new read endpoints were checked over HTTP with real sessions, and the phase 1 browser run still passes.
+
+- **Product types**: `features/catalog/types/` with a `footwear` module (fields, colour × EU size items, SKUs, labels). The browser demo and the server build items with the same shared planner, so they cannot drift.
+- **Catalog service** (one transaction each): add and edit products with opening stock, archive, delete (refused once there is stock history), CSV import (all or nothing, colours matched regardless of case). Product numbers and barcodes come from counters in the database.
+- **Stock service**: deliveries and adjustments. Stock changes with one conditional update, so two people can never take the same last pair and every history entry carries the exact running balance.
+- **Audit log** of product creation, deletion and every change to name, brand, price, cost, discount or status, with who and when.
+- **Read endpoints**: `GET /api/catalog` (cost prices removed for cashiers) and `GET /api/movements` (paged, filterable, supervisors and owner only). Every query is limited to the signed-in person's shop.
+- **Plan change**: stock is shared by selling, returns and the dashboard, so the screens move to the server together after phases 3 and 4 instead of one by one; switching them earlier would show two different stock counts.
+
 # Backend phase 1: sign-in and staff on the server
 
 Lint clean; 114 tests pass with a MongoDB replica set; production build succeeds. Checked in Chromium against a seeded database: wrong password rejected, demo sign-in, a cashier kept out of owner pages, the owner adding a cashier and a supervisor, setting a PIN, turning access off (the person is signed out at once and cannot sign back in), a discount credited to the supervisor whose PIN was used, demo reset, and sign-out.

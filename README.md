@@ -86,7 +86,9 @@ lib/db/              MongoDB client, collections, indexes, transactions
 scripts/             db:indexes and db:seed
 ```
 
-The move to MongoDB is in progress. Phase 0 (database foundations) is done; the screens still run on this browser's demo data until their phase moves them to the server.
+The move to MongoDB is in progress. Done: phase 0 (database foundations), phase 1 (sign-in and staff), phase 2 (products and stock services). Stock is shared by selling, returns and the dashboard, so the screens switch from this browser's demo data to the server together once selling (phase 3) and returns (phase 4) are on the server too; until then only sign-in and staff use the server.
+
+Each shop type is a module in `features/catalog/types/` (only `footwear` today) that defines its product fields, how its items are built (colour × EU size), SKUs and labels. The selling, stock and refund code only uses the shared item fields, so a clothes or cosmetics shop is a new module rather than a rewrite.
 
 Business rules (sales, refunds, shifts, stock movements, catalog, analytics) are pure functions in `features/*/lib` with tests, so they can move to a server unchanged. Reducers take an optional shop and register, and default to the first shop.
 

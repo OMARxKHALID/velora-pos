@@ -1,4 +1,6 @@
-import { SHOP_ID, indexCatalog, makeVariant, sameColor, variantKey } from "./catalog"
+import { productTypeFor } from "../types"
+import { SHOP_ID, indexCatalog, sameColor, variantKey } from "./catalog"
+import { planProductSave } from "./plan-product"
 import { applyPurchase } from "@/features/demo/lib/ledger"
 
 const sameText = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase()
@@ -27,27 +29,19 @@ export const applySaveProduct = (state, { productId = null, input, barcodes = {}
   }
 
   const { variantsByProduct, variantByBarcode } = indexCatalog(state)
-  const current = variantsByProduct[product.id] ?? []
-  const used = usedVariantIds(state)
   let barcodeSeq = state.barcodeSeq
-
-  const wanted = product.colors.flatMap((color) => product.sizes.map((size) => ({ color, size, id: variantKey(product.id, color, size) })))
-  const wantedIds = new Set(wanted.map(({ id }) => id))
-  if (wantedIds.size !== wanted.length) throw new Error("Each size can only be listed once")
-
-  const claimed = {}
-  const kept = wanted.map(({ color, size, id }) => {
-    const found = current.find((variant) => variant.id === id)
-    const base = found ?? makeVariant(product, color, size, (barcodeSeq += 1))
-    const barcode = barcodes[id] ?? base.barcode
-    const owner = variantByBarcode[barcode]
-    if (owner && owner.id !== id) throw new Error(`Barcode ${barcode} already belongs to ${owner.sku}`)
-    if (claimed[barcode]) throw new Error(`Barcode ${barcode} is used twice (${claimed[barcode]} and ${base.sku})`)
-    claimed[barcode] = base.sku
-    return { ...base, price: product.price, cost: product.cost, barcode, active: true }
+  const { keep, retire } = planProductSave({
+    type: productTypeFor(product.productType),
+    product,
+    current: variantsByProduct[product.id] ?? [],
+    usedIds: usedVariantIds(state),
+    barcodes,
+    barcodeOwner: (barcode, id) => {
+      const owner = variantByBarcode[barcode]
+      return owner && owner.id !== id ? owner.sku : null
+    },
+    nextSerial: () => (barcodeSeq += 1),
   })
-
-  const retired = current.filter(({ id }) => !wantedIds.has(id) && used.has(id)).map((variant) => ({ ...variant, active: false }))
 
   return {
     state: {
@@ -55,7 +49,7 @@ export const applySaveProduct = (state, { productId = null, input, barcodes = {}
       productSeq,
       barcodeSeq,
       products: existing ? state.products.map((item) => (item.id === product.id ? product : item)) : [...state.products, product],
-      variants: [...state.variants.filter(({ productId: owner }) => owner !== product.id), ...kept, ...retired],
+      variants: [...state.variants.filter(({ productId: owner }) => owner !== product.id), ...keep, ...retire],
     },
     record: product,
   }

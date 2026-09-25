@@ -1,6 +1,7 @@
 import { SHOP_NAME } from "@/features/shops/lib/constants"
 import { REGISTER_CODE, REGISTER_ID, SHOP_ID } from "@/features/catalog/lib/catalog"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
+import { footwear } from "@/features/catalog/types/footwear"
 import { COLLECTIONS as C, toDoc } from "@/lib/db/collections"
 import { createSeed } from "./seed"
 
@@ -14,10 +15,10 @@ export const seedDocuments = (now = Date.now()) => {
     [C.settings]: [{ _id: SHOP_ID, shopId: SHOP_ID, ...defaultPricingSettings() }],
     [C.counters]: [
       { _id: "barcode", seq: state.barcodeSeq },
-      { _id: `product:${SHOP_ID}`, seq: state.productSeq },
+      { _id: "product", seq: state.productSeq },
     ],
     [C.products]: state.products.map(toDoc),
-    [C.variants]: state.variants.map((variant) => toDoc({ ...variant, shopId: shopOf[variant.productId] })),
+    [C.variants]: state.variants.map((variant) => toDoc({ ...variant, shopId: shopOf[variant.productId], label: footwear.labelFor(variant.attributes) })),
     [C.stock]: Object.entries(state.stock).map(([variantId, quantity]) => ({ _id: `${SHOP_ID}:${variantId}`, shopId: SHOP_ID, variantId, quantity })),
     [C.movements]: state.movements.map(toDoc),
     [C.sales]: state.sales.map(toDoc),
