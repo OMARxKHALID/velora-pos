@@ -87,9 +87,9 @@ export const StockCountScreen = ({ user }) => {
     if (lines.length && !window.confirm("Throw away this count?")) event.preventDefault()
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     try {
-      const { changed } = countStock({ counts: lines.map(({ variant, counted }) => ({ variantId: variant.id, counted })), userId: user.id })
+      const { changed } = await countStock({ counts: lines.map(({ variant, counted }) => ({ variantId: variant.id, counted })) })
       setSaved({ changed, shoes: groups.length, pairs: sumBy(lines, ({ counted }) => counted) })
       setCounts({})
       setProductIds([])

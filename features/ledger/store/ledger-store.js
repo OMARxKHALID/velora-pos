@@ -180,6 +180,8 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
       decideRefund: mutate("decideRefund", ({ refundId, approve }) => [refundId, approve]),
       receivePurchase: mutate("receiveDelivery"),
       adjustStock: mutate("adjustStock"),
+      countStock: mutate("countStock"),
+      openDrawer: (input) => call("openDrawer", input),
       saveProduct: mutate("saveProduct"),
       setProductStatus: mutate("setProductStatus", ({ productId, status }) => [productId, status]),
       deleteProduct: mutate("deleteProduct", ({ productId }) => [productId]),

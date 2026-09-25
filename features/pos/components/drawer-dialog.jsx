@@ -9,15 +9,15 @@ import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 
-export const DrawerDialog = ({ register, shift, user, onClose }) => {
+export const DrawerDialog = ({ register, shift, onClose }) => {
   const openDrawer = useLedgerStore(({ openDrawer }) => openDrawer)
   const [note, setNote] = useState("")
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     try {
-      openDrawer({ registerId: register.id, shiftId: shift.id, userId: user.id, reason: "no-sale", note })
-      toast.success("Drawer opened", { description: "Logged on this shift's Z-report. Demo build: no real drawer is connected." })
+      await openDrawer({ registerId: register.id, shiftId: shift.id, reason: "no-sale", note })
+      toast.success("Drawer opened", { description: "Logged on this shift's Z-report. No drawer hardware is connected yet." })
       onClose()
     } catch (error) {
       toast.error(error.message)

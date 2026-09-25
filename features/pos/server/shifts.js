@@ -46,9 +46,10 @@ export const closeShift = async ({ db, client, user, shopId, at = new Date() }, 
     if (!shift || shift.status !== "open") throw new UserError("Shift is not open")
     const sales = await db.collection(C.sales).find({ shiftId }, { session }).toArray()
     const refunds = await db.collection(C.refunds).find({ $or: [{ payoutShiftId: shiftId }, { approvedInShiftId: shiftId }] }, { session }).toArray()
+    const drawerEvents = await db.collection(C.drawerEvents).find({ shiftId }, { session }).toArray()
     let record
     try {
-      ;({ record } = applyCloseShift({ shifts: [fromDoc(shift)], sales: sales.map(fromDoc), refunds: refunds.map(fromDoc) }, { shiftId, countedCash, closedBy: user.id, note, at }))
+      ;({ record } = applyCloseShift({ shifts: [fromDoc(shift)], sales: sales.map(fromDoc), refunds: refunds.map(fromDoc), drawerEvents: drawerEvents.map(fromDoc) }, { shiftId, countedCash, closedBy: user.id, note, at }))
     } catch (error) {
       throw new UserError(error.message)
     }

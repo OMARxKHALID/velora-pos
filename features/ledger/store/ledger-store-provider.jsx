@@ -5,13 +5,13 @@ import { useQueryClient } from "@tanstack/react-query"
 import { liveQuery } from "dexie"
 import { useStore } from "zustand"
 import { signOut } from "@/features/auth/actions"
-import { adjustStockAction, receiveDeliveryAction } from "@/features/inventory/actions"
+import { adjustStockAction, countStockAction, receiveDeliveryAction } from "@/features/inventory/actions"
 import { deleteCategoryAction, deleteProductAction, importCatalogAction, saveCategoryAction, saveProductAction, setProductStatusAction } from "@/features/catalog/actions"
 import { resetSampleDataAction } from "@/features/sample-data/actions"
 import { forgetDevice } from "@/features/offline/lib/forget-device"
 import { outboxFor } from "@/features/offline/lib/outbox"
 import { tillDb } from "@/features/offline/lib/till-db"
-import { closeShiftAction, discardHeldCartAction, holdCartAction, openShiftAction, recordSaleAction, reserveReceiptsAction, takeHeldCartAction } from "@/features/pos/actions"
+import { closeShiftAction, discardHeldCartAction, holdCartAction, openDrawerAction, openShiftAction, recordSaleAction, reserveReceiptsAction, takeHeldCartAction } from "@/features/pos/actions"
 import { decideRefundAction, requestRefundAction } from "@/features/refunds/actions"
 import { exchangeItemAction } from "@/features/sales/actions"
 import { updateSettingsAction } from "@/features/settings/actions"
@@ -33,6 +33,8 @@ const actions = {
   decideRefund: decideRefundAction,
   receiveDelivery: receiveDeliveryAction,
   adjustStock: adjustStockAction,
+  countStock: countStockAction,
+  openDrawer: openDrawerAction,
   saveProduct: saveProductAction,
   setProductStatus: setProductStatusAction,
   deleteProduct: deleteProductAction,

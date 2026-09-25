@@ -358,7 +358,7 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
       {closing && <CloseShiftDialog shift={shift} user={user} onCancel={() => setClosing(false)} onClosed={onShiftClosed} />}
       {parkedOpen && <ParkedSalesDialog heldCarts={heldCarts} onResume={handleResume} onClose={() => setParkedOpen(false)} />}
       {queueOpen && <OfflineQueueDialog onClose={() => setQueueOpen(false)} />}
-      {drawerOpen && <DrawerDialog register={register} shift={shift} user={user} onClose={() => setDrawerOpen(false)} />}
+      {drawerOpen && <DrawerDialog register={register} shift={shift} onClose={() => setDrawerOpen(false)} />}
       {holdOpen && <HoldSaleDialog suggestion={customerName || `Order #${heldCarts.length + 1}`} onHold={handleHold} onClose={() => setHoldOpen(false)} />}
     </div>
   )
