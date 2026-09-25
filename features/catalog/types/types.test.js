@@ -27,5 +27,6 @@ test("footwear fields are checked: colours, sizes and audience", () => {
   expect(fieldsSchema.safeParse({ category: "Sneakers", audience: "men", colors: ["Navy Blue", "navy-blue"], sizes: ["41"] }).error.issues[0].message).toMatch("same colour")
   expect(fieldsSchema.safeParse({ category: "Sneakers", audience: "men", colors: ["Black"], sizes: ["41", "41"] }).error.issues[0].message).toMatch("only be listed once")
   expect(fieldsSchema.safeParse({ category: "Sneakers", audience: "pets", colors: ["Black"], sizes: ["41"] }).success).toBe(false)
-  expect(fieldsSchema.safeParse({ category: "Sneakers", audience: "men", colors: ["Black"], sizes: ["XL"] }).success).toBe(false)
+  expect(fieldsSchema.safeParse({ category: "Sneakers", audience: "men", colors: ["Black"], sizes: ["XXXL"] }).success).toBe(false)
+  expect(fieldsSchema.safeParse({ category: "Socks", audience: "unisex", colors: ["White"], sizes: ["XL", "M", "One size"] }).data.sizes).toEqual(["M", "XL", "One size"])
 })

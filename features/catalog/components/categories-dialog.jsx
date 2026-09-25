@@ -18,9 +18,9 @@ export const CategoriesDialog = ({ onClose }) => {
 
   const countOf = (category) => products.filter((product) => product.category.toLowerCase() === category.name.toLowerCase()).length
 
-  const handleDelete = (category) => {
+  const handleDelete = async (category) => {
     try {
-      deleteCategory({ categoryId: category.id })
+      await deleteCategory(category.id)
       toast.success("Category removed", { description: category.name })
     } catch (error) {
       toast.error(error.message)

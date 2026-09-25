@@ -73,6 +73,8 @@ const clothingSizes = ["XS", "S", "M", "L", "XL", "XXL"]
 
 export const ONE_SIZE = "One size"
 
+export const SIZE_PATTERN = new RegExp(`^(\\d{2}|XS|S|M|L|XL|XXL|${ONE_SIZE})$`)
+
 export const SIZE_TYPES = {
   shoe: { label: "Shoe sizes (EU)", sizes: Array.from({ length: 20 }, (_, index) => String(28 + index)) },
   clothing: { label: "Letter sizes (XS–XXL)", sizes: clothingSizes },
@@ -174,6 +176,7 @@ export const seedCatalog = () => {
     id: `p-${String(index + 1).padStart(2, "0")}`,
     code: String(index + 1).padStart(2, "0"),
     shopId: SHOP_ID,
+    productType: "footwear",
     name,
     brand,
     category,

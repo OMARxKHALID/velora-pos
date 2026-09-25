@@ -6,7 +6,7 @@ import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 
 const UNREACHABLE = "Could not reach the server. Check the connection and try again."
 
-const DATE_FIELDS = new Set(["soldAt", "syncedAt", "createdAt", "updatedAt", "decidedAt", "openedAt", "closedAt", "receivedAt", "parkedAt", "at"])
+const DATE_FIELDS = new Set(["soldAt", "syncedAt", "createdAt", "updatedAt", "decidedAt", "openedAt", "closedAt", "receivedAt", "parkedAt", "reportedAt", "at"])
 
 export const parseLedger = (text) => JSON.parse(text, (key, value) => (DATE_FIELDS.has(key) && typeof value === "string" ? Date.parse(value) : value))
 
@@ -184,6 +184,8 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
       setProductStatus: mutate("setProductStatus", ({ productId, status }) => [productId, status]),
       deleteProduct: mutate("deleteProduct", ({ productId }) => [productId]),
       importCatalog: mutate("importCatalog", ({ rows }) => [rows]),
+      saveCategory: mutate("saveCategory"),
+      deleteCategory: mutate("deleteCategory", (categoryId) => [categoryId]),
       holdCart: mutate("holdCart"),
       takeHeldCart: mutate("takeHeldCart", (id) => [id]),
       discardHeldCart: mutate("discardHeldCart", (id) => [id]),

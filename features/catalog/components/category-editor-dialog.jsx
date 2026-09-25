@@ -25,10 +25,10 @@ export const CategoryEditorDialog = ({ category = null, inUse = false, onClose, 
   const [draft, setDraft] = useState({ name: category?.name ?? "", sizeType: category?.sizeType ?? "one", icon: category?.icon ?? "tag", pctCode: category?.pctCode ?? "", lowStockAt: category?.lowStockAt ?? "" })
   const change = (patch) => setDraft((current) => ({ ...current, ...patch }))
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
     try {
-      const saved = saveCategory({ categoryId: category?.id ?? null, ...draft })
+      const saved = await saveCategory({ categoryId: category?.id ?? null, ...draft })
       toast.success(category ? "Category updated" : "Category added", { description: saved.name })
       onSaved?.(saved)
       onClose()

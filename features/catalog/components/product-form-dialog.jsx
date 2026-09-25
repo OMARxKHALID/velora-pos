@@ -177,11 +177,11 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
           )
       const saved = await saveProduct({
         productId: product?.id ?? null,
-        input: { ...values, productType: product?.productType ?? "footwear", price, cost: toPaisa(values.cost), sizes: values.sizes.toSorted((a, b) => Number(a) - Number(b)) },
+        input: { ...values, productType: product?.productType ?? "footwear", price, cost: toPaisa(values.cost), sizes: values.sizes.toSorted(compareSizes) },
         openingStock,
       })
       toast.success(product ? "Product updated" : "Product added", {
-        description: product ? `${values.name} · ${formatMoney(price)}` : `${values.name} · ${saved.pairs} pairs in stock, ready to sell at ${formatMoney(price)}`,
+        description: product ? `${values.name} · ${formatMoney(price)}` : `${values.name} · ${saved.pairs} ${unit} in stock, ready to sell at ${formatMoney(price)}`,
       })
       onClose()
     } catch (error) {

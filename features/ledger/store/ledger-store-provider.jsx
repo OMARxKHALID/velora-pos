@@ -6,7 +6,7 @@ import { liveQuery } from "dexie"
 import { useStore } from "zustand"
 import { signOut } from "@/features/auth/actions"
 import { adjustStockAction, receiveDeliveryAction } from "@/features/inventory/actions"
-import { deleteProductAction, importCatalogAction, saveProductAction, setProductStatusAction } from "@/features/catalog/actions"
+import { deleteCategoryAction, deleteProductAction, importCatalogAction, saveCategoryAction, saveProductAction, setProductStatusAction } from "@/features/catalog/actions"
 import { resetSampleDataAction } from "@/features/sample-data/actions"
 import { forgetDevice } from "@/features/offline/lib/forget-device"
 import { outboxFor } from "@/features/offline/lib/outbox"
@@ -36,6 +36,8 @@ const actions = {
   setProductStatus: setProductStatusAction,
   deleteProduct: deleteProductAction,
   importCatalog: importCatalogAction,
+  saveCategory: saveCategoryAction,
+  deleteCategory: deleteCategoryAction,
   updateSettings: updateSettingsAction,
   resetSampleData: resetSampleDataAction,
 }

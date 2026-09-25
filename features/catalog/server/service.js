@@ -6,11 +6,12 @@ import { COLLECTIONS as C, fromDoc, toDoc } from "@/lib/db/collections"
 import { isDuplicateKey, withTransaction } from "@/lib/db/transaction"
 import { newId } from "@/lib/id"
 import { productTypeFor } from "../types"
-import { sameColor } from "../lib/catalog"
+import { PCT_PATTERN, SIZE_PATTERN, sameColor } from "../lib/catalog"
+import { ensureCategories } from "./categories"
 import { planProductSave } from "../lib/plan-product"
 
 const caseInsensitive = { locale: "en", strength: 2 }
-const AUDITED = ["name", "brand", "price", "cost", "discountPct", "status"]
+const AUDITED = ["name", "brand", "price", "cost", "discountPct", "status", "category", "pctCode"]
 
 const commonSchema = z
   .object({
@@ -20,6 +21,7 @@ const commonSchema = z
     price: z.number().int({ error: "Prices are whole paisa" }).positive({ error: "Price must be above 0" }),
     cost: z.number().int({ error: "Costs are whole paisa" }).min(0, { error: "Cost cannot be negative" }),
     discountPct: z.number().min(0).max(90, { error: "Discount is too big" }).default(0),
+    pctCode: z.string().trim().refine((code) => !code || PCT_PATTERN.test(code), { error: "Use the 8-digit PCT code, like 6403.9900" }).default(""),
   })
   .refine(({ cost, price }) => cost <= price, { error: "Cost cannot be higher than the price", path: ["cost"] })
 
@@ -176,7 +178,8 @@ const importRowSchema = z.object({
   category: z.string().trim().min(1).max(40),
   audience: z.enum(["men", "women", "kids", "unisex"]),
   color: z.string().trim().min(1).max(40),
-  size: z.string().trim().regex(/^\d{2}$/),
+  size: z.string().trim().regex(SIZE_PATTERN),
+  pctCode: z.string().trim().refine((code) => !code || PCT_PATTERN.test(code)).default(""),
   price: z.number().int().positive(),
   cost: z.number().int().min(0),
   barcode: z.string().trim().regex(/^(\d{8,14})?$/).default(""),
@@ -200,6 +203,11 @@ export const importCatalog = async ({ db, client, user, shopId, at = new Date() 
   try {
     return await withTransaction(client, async (session) => {
       const totals = { created: 0, updated: 0, pairs: 0 }
+      await ensureCategories(db, session, {
+        shopId,
+        at,
+        rows: groupRows(valid).map((group) => ({ category: group[0].category, sizes: group.map(({ size }) => String(size)) })),
+      })
       for (const group of groupRows(valid)) {
         const [first] = group
         const existing = await db.collection(C.products).findOne({ shopId, brand: first.brand.trim(), name: first.product.trim() }, { session, collation: caseInsensitive })
@@ -218,6 +226,7 @@ export const importCatalog = async ({ db, client, user, shopId, at = new Date() 
             audience: first.audience,
             price: first.price,
             cost: first.cost,
+            pctCode: first.pctCode || existing?.pctCode || "",
             discountPct: existing?.discountPct ?? 0,
             colors,
             sizes: [...new Set([...known.sizes, ...group.map(({ size }) => String(size))])],
