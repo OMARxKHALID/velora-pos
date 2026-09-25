@@ -5,7 +5,7 @@ import { dropCollections, loadDocuments, seedDocuments } from "./seed-documents"
 
 const documents = seedDocuments(new Date(2026, 8, 16, 18).getTime())
 
-describe("demo data as database documents", () => {
+describe("sample data as database documents", () => {
   test("one footwear shop with its counter, and every record keyed by its id", () => {
     expect(documents[C.shops]).toEqual([expect.objectContaining({ _id: "shop-shoes", type: "footwear" })])
     expect(documents[C.registers][0]).toMatchObject({ _id: "reg-1", shopId: "shop-shoes", lastReceiptSeq: documents[C.sales].length })

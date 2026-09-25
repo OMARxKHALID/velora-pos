@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { parseCsv } from "@/lib/csv"
-import { createSeed } from "@/features/demo/lib/seed"
-import { shiftSummary } from "@/features/demo/lib/ledger"
+import { createSeed } from "@/features/sample-data/lib/seed"
+import { shiftSummary } from "@/features/ledger/lib/rules"
 import { generateZReportCsv } from "./z-report"
 
 test("the Z-report CSV carries the shift's totals and every sale", () => {

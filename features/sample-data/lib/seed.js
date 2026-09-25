@@ -10,7 +10,7 @@ import {
   applySale,
   emptyLedger,
   expectedCash,
-} from "./ledger"
+} from "@/features/ledger/lib/rules"
 
 const MINUTE = 60000
 const HOUR = 60 * MINUTE

@@ -7,7 +7,7 @@ import { useStore } from "zustand"
 import { signOut } from "@/features/auth/actions"
 import { adjustStockAction, receiveDeliveryAction } from "@/features/inventory/actions"
 import { deleteProductAction, importCatalogAction, saveProductAction, setProductStatusAction } from "@/features/catalog/actions"
-import { resetDemoTeamAction } from "@/features/demo/actions"
+import { resetSampleDataAction } from "@/features/sample-data/actions"
 import { forgetDevice } from "@/features/offline/lib/forget-device"
 import { outboxFor } from "@/features/offline/lib/outbox"
 import { tillDb } from "@/features/offline/lib/till-db"
@@ -35,7 +35,7 @@ const actions = {
   deleteProduct: deleteProductAction,
   importCatalog: importCatalogAction,
   updateSettings: updateSettingsAction,
-  resetDemo: resetDemoTeamAction,
+  resetSampleData: resetSampleDataAction,
 }
 
 export const LedgerStoreContext = createContext(null)

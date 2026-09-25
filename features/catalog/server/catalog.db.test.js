@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test"
 import { hasTestDatabase, useTestDatabase } from "@/test/db"
-import { loadDocuments, seedDocuments } from "@/features/demo/lib/seed-documents"
+import { loadDocuments, seedDocuments } from "@/features/sample-data/lib/seed-documents"
 import { adjustStock, receiveDelivery } from "@/features/inventory/server/service"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { auditPage, catalogSnapshot, movementsPage } from "./queries"

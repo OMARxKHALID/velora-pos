@@ -1,5 +1,5 @@
 import { indexCatalog } from "@/features/catalog/lib/catalog"
-import { applySale } from "@/features/demo/lib/ledger"
+import { applySale } from "@/features/ledger/lib/rules"
 import { cartTotals } from "@/features/pricing/lib/pricing"
 
 export const NOT_READY = "This till has no offline receipt numbers yet. Reconnect once to keep selling offline."

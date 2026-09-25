@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { staffName } from "@/features/demo/lib/staff"
+import { staffName } from "@/features/staff/lib/people"
 import { SALE_RANGES, salesForExport, salesPage } from "@/features/sales/server/queries"
 import { denied, noStore, viewerScope } from "@/features/sales/server/request"
 import { COLLECTIONS as C } from "@/lib/db/collections"

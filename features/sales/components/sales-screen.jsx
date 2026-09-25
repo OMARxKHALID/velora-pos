@@ -9,7 +9,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TablePagination, resetsPage } from "@/components/ui/table-pagination"
-import { useStaffName } from "@/features/demo/hooks/use-directory"
+import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS } from "@/features/shops/lib/shops"

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from "bun:test"
 import { hasTestDatabase, useTestDatabase } from "@/test/db"
 import { issueApproval } from "@/features/auth/server/approval-token"
-import { loadDocuments, seedDocuments } from "@/features/demo/lib/seed-documents"
+import { loadDocuments, seedDocuments } from "@/features/sample-data/lib/seed-documents"
 import { ledgerSnapshot } from "@/features/ledger/server/snapshot"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { newId } from "@/lib/id"

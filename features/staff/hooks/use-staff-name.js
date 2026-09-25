@@ -1,5 +1,5 @@
 import { useCallback } from "react"
-import { staffName } from "../lib/staff"
+import { staffName } from "../lib/people"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 
 export const useStaffName = () => {

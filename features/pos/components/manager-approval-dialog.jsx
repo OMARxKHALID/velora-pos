@@ -10,7 +10,7 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { Segmented } from "@/components/ui/segmented"
 import { approveDiscountAction } from "@/features/auth/actions"
-import { supervisorsOf } from "@/features/demo/lib/staff"
+import { supervisorsOf } from "@/features/staff/lib/people"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { managerPinSchema } from "../schemas"
 

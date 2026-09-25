@@ -1,7 +1,8 @@
 import { parseArgs } from "node:util"
 import { z } from "zod"
 import { createAuth, newUserId } from "@/features/auth/server/create-auth"
-import { createAccount } from "@/features/demo/server/team"
+import { createAccount } from "@/features/auth/server/accounts"
+import { ensureFirstShop } from "@/features/shops/server/first-shop"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { createMongoClient } from "@/lib/db/connect"
 import { ensureIndexes } from "@/lib/db/indexes"
@@ -52,6 +53,8 @@ try {
       updatedAt: now,
     })
     console.log(`Owner ${username} created (${id}).`)
+    const created = await ensureFirstShop(db)
+    if (created.length) console.log("Shop, counter and settings created. Sign in and add products and staff.")
   }
 } finally {
   await client.close()

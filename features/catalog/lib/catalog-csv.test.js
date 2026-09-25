@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { createSeed } from "@/features/demo/lib/seed"
+import { createSeed } from "@/features/sample-data/lib/seed"
 import { exportCatalogCsv, importTemplateCsv, parseCatalogImport } from "./catalog-csv"
 
 test("re-importing an export is clean and never adds stock", () => {

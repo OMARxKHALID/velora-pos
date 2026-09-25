@@ -1,5 +1,5 @@
-import { shiftSummary } from "@/features/demo/lib/ledger"
-import { staffName } from "@/features/demo/lib/staff"
+import { shiftSummary } from "@/features/ledger/lib/rules"
+import { staffName } from "@/features/staff/lib/people"
 import { formatFullDateTime } from "@/lib/dates"
 import { toCsv } from "@/lib/csv"
 

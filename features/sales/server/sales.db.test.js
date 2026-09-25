@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from "bun:test"
 import { hasTestDatabase, useTestDatabase } from "@/test/db"
 import { movementsPage } from "@/features/catalog/server/queries"
-import { loadDocuments, seedDocuments } from "@/features/demo/lib/seed-documents"
+import { loadDocuments, seedDocuments } from "@/features/sample-data/lib/seed-documents"
 import { staffActivity } from "@/features/staff/server/staff"
 import { COLLECTIONS as C } from "@/lib/db/collections"
 import { findSale, saleDetail, salesPage } from "./queries"

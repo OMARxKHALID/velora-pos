@@ -35,7 +35,7 @@ import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS, shopName, shops } from "@/features/shops/lib/shops"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { navItems } from "./nav-items"
-import { ResetDemoDialog } from "./reset-demo-dialog"
+import { ResetSampleDataDialog } from "@/features/sample-data/components/reset-sample-data-dialog"
 import { ThemeToggle } from "./theme-toggle"
 import { VeloraLogo } from "./velora-logo"
 
@@ -73,7 +73,7 @@ const ShopSwitcher = ({ user }) => {
   )
 }
 
-export const AppSidebar = ({ user, demoMode = false }) => {
+export const AppSidebar = ({ user, sampleData = false }) => {
   const pathname = usePathname()
   const items = navItems.filter(({ roles }) => roles.includes(user.role))
   const pendingRefunds = useLedgerStore(({ refunds }) => refunds.filter(({ status }) => status === "pending").length)
@@ -142,10 +142,10 @@ export const AppSidebar = ({ user, demoMode = false }) => {
                   <DropdownMenuLabel>Signed in as {roleLabels[user.role]}</DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                {user.role === "admin" && demoMode && (
+                {user.role === "admin" && sampleData && (
                   <DropdownMenuItem onClick={() => setResetOpen(true)}>
                     <ArrowCounterClockwiseIcon />
-                    Reset demo data
+                    Reset sample data
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem variant="destructive" onClick={() => forgetDevice().finally(() => signOut())}>
@@ -158,7 +158,7 @@ export const AppSidebar = ({ user, demoMode = false }) => {
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
-      {user.role === "admin" && demoMode && <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />}
+      {user.role === "admin" && sampleData && <ResetSampleDataDialog open={resetOpen} onOpenChange={setResetOpen} />}
     </Sidebar>
   )
 }

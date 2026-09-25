@@ -1,9 +1,7 @@
-import { SHOP_NAME } from "@/features/shops/lib/constants"
-import { REGISTER_CODE, REGISTER_ID, SHOP_ID } from "@/features/catalog/lib/catalog"
-import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
+import { SHOP_ID } from "@/features/catalog/lib/catalog"
 import { footwear } from "@/features/catalog/types/footwear"
+import { firstShopDocuments } from "@/features/shops/lib/first-shop"
 import { COLLECTIONS as C, toDoc } from "@/lib/db/collections"
-import { SHOP_TIME_ZONE } from "@/lib/zoned"
 import { createSeed } from "./seed"
 
 const DATE_FIELDS = ["soldAt", "syncedAt", "createdAt", "updatedAt", "decidedAt", "openedAt", "closedAt", "receivedAt", "parkedAt"]
@@ -17,10 +15,12 @@ export const seedDocuments = (now = Date.now()) => {
   const state = createSeed(now)
   const shopOf = Object.fromEntries(state.products.map(({ id, shopId }) => [id, shopId]))
 
+  const { shop, register, settings } = firstShopDocuments(new Date(now))
+
   return {
-    [C.shops]: [{ _id: SHOP_ID, code: "SH1", type: "footwear", name: SHOP_NAME, timezone: SHOP_TIME_ZONE, createdAt: new Date(now) }],
-    [C.registers]: [{ _id: REGISTER_ID, shopId: SHOP_ID, code: REGISTER_CODE, lastReceiptSeq: state.receiptSeq, lastOfflineSeq: 0 }],
-    [C.settings]: [{ _id: SHOP_ID, shopId: SHOP_ID, ...defaultPricingSettings() }],
+    [C.shops]: [shop],
+    [C.registers]: [{ ...register, lastReceiptSeq: state.receiptSeq }],
+    [C.settings]: [settings],
     [C.counters]: [
       { _id: "barcode", seq: state.barcodeSeq },
       { _id: "product", seq: state.productSeq },

@@ -1,3 +1,15 @@
+# Phase 7: a real POS that can load sample data
+
+Lint clean; 155 tests pass with a MongoDB replica set; production build succeeds; 6 Playwright browser tests pass against the built app.
+
+- **Not a demo any more.** The app is the shop's POS; sample data is something you can load, not what it is. `DEMO_MODE` and `DEMO_PASSWORD` are now `SAMPLE_DATA` and `SAMPLE_PASSWORD` (default `velora-sample`); "Reset demo data" is **Reset sample data**; the sign-in page lists the sample accounts only when `SAMPLE_DATA=true`. Receipts and Z-reports no longer say "demo", only that they are not tax invoices.
+- **A new shop can start empty.** `db:create-owner` now also creates the shop, its counter and default settings (once), so a fresh database is ready to sell after the owner adds staff and products. Checked by signing in as a new owner on an empty database: every screen loads with no errors.
+- **Code in its proper place.** The sale, return, shift and stock rules moved from `features/demo` to `features/ledger/lib/rules.js`; staff helpers to `features/staff`; the sample team, generated history and reset to `features/sample-data`; account creation to `features/auth/server/accounts.js`. Staff names no longer fall back to the sample team.
+- **Dead code removed**: the browser-only catalog reducers and the old simulated sync queue (the real one is `features/offline`), plus a few unused helpers.
+- **Browser tests in the repository** (`e2e/`, Playwright, official docs read): wrong password, each role's landing page and blocked pages, signed-out access, a till sale reaching the supervisor's stock and sales list, and selling offline through a reload and back online. They run on a separate `velora_e2e` database. CI now builds the app and runs them, keeping the report when they fail.
+- **README rewritten** for running a shop: starting empty or with sample data, every setting, and deploying on Vercel with MongoDB Atlas (network access, secrets, first owner, tills, backups, what to do if a password leaks).
+- The till shows the counter code from its shift.
+
 # Backend phase 6: selling offline
 
 Lint clean; 165 tests pass with a MongoDB replica set; production build succeeds. Checked in Chromium with the network switched off: the till sold with receipt `SH1-R1-X00001`, reopened from a reload with no connection, sold `X00002` from a second tab (both tabs showed the queue), and when the network came back both sales reached the server once, stock went from 6 to 4, and the owner's sales list marked them "Sold offline". A second browser on the same shift carried on at `X00003`.

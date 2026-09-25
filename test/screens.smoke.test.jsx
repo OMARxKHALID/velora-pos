@@ -13,9 +13,9 @@ import { SalesScreen } from "@/features/sales/components/sales-screen"
 import { SettingsScreen } from "@/features/settings/components/settings-screen"
 import { StaffScreen } from "@/features/staff/components/staff-screen"
 import { toSessionUser } from "@/features/auth/lib/roles"
-import { initialStaff } from "@/features/demo/lib/staff"
-import { applyCloseShift, applyOpenShift, applySale, shiftSummary } from "@/features/demo/lib/ledger"
-import { createSeed } from "@/features/demo/lib/seed"
+import { SAMPLE_TEAM } from "@/features/sample-data/lib/team"
+import { applyCloseShift, applyOpenShift, applySale, shiftSummary } from "@/features/ledger/lib/rules"
+import { createSeed } from "@/features/sample-data/lib/seed"
 import { createLedgerStore } from "@/features/ledger/store/ledger-store"
 import { LedgerStoreContext } from "@/features/ledger/store/ledger-store-provider"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
@@ -33,7 +33,7 @@ const users = {
 const seededStore = ({ openShift = false, settings = {} } = {}) => {
   let state = { ...createSeed(), heldCarts: [], settings: { ...defaultPricingSettings(), ...settings } }
   if (openShift) state = applyOpenShift(state, { cashierId: "u-cashier", openingCash: 1000000, at: Date.now() }).state
-  const store = createLedgerStore({ directory: { ...initialStaff } })
+  const store = createLedgerStore({ directory: { ...SAMPLE_TEAM } })
   store.setState({ ...state, hydrated: true })
   store.getInitialState = store.getState
   return store
@@ -111,7 +111,7 @@ describe("screens render against seeded data", () => {
       cashierId: "u-cashier",
       shiftId: shift.id,
     })
-    store.getState().setDirectory({ ...initialStaff, "u-zain": { id: "u-zain", name: "Zain Malik", role: "cashier", username: "zain", shop: "Shoe Shop", disabled: true } })
+    store.getState().setDirectory({ ...SAMPLE_TEAM, "u-zain": { id: "u-zain", name: "Zain Malik", role: "cashier", username: "zain", shop: "Shoe Shop", disabled: true } })
     expect(render(store, <SalesScreen user={users.admin} />, [salesFor(store, users.admin)])).toContain(sale.number)
     const staffPage = render(store, <StaffScreen />)
     expect(staffPage).toContain("Zain Malik")
@@ -133,13 +133,13 @@ describe("screens render against seeded data", () => {
     expect(cart).toContain("Held")
 
     const receipt = render(store, <Receipt sale={sale} />)
-    expect(receipt).toContain("DEMO RECEIPT")
+    expect(receipt).toContain("NOT A TAX INVOICE")
     expect(receipt).toContain("GST (15%)")
     expect(receipt).not.toContain("FBR")
 
     const zReport = render(store, <ZReportPrint shift={closed} summary={shiftSummary(store.getState(), closed)} />)
     expect(zReport).toContain("TOTAL COLLECTED")
-    expect(zReport).toContain("Demo report")
+    expect(zReport).toContain("Not a tax document")
     expect(zReport).not.toContain("FBR")
   })
 })

@@ -1,14 +1,14 @@
 import { beforeAll, describe, expect, test } from "bun:test"
 import { hasTestDatabase, useTestDatabase } from "@/test/db"
 import { COLLECTIONS as C } from "@/lib/db/collections"
-import { resetDemoTeam, seedDemoTeam } from "@/features/demo/server/team"
+import { resetSampleTeam, seedSampleTeam } from "@/features/sample-data/server/sample-data"
 import { changeRole, createStaff, directoryFor, listPeople, removeStaff, setAccess, setPassword, setSupervisorPin } from "@/features/staff/server/staff"
 import { readApproval } from "./approval-token"
 import { approveDiscount } from "./approvals"
 import { createAuth } from "./create-auth"
 
 const SECRET = "test-secret-that-is-long-enough-123456"
-const PASSWORD = "velora-demo"
+const PASSWORD = "velora-sample"
 
 describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
   const context = useTestDatabase()
@@ -26,10 +26,10 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     deps.auth = createAuth({ db: context.db, client: context.client, secret: SECRET, baseURL: "http://localhost:3000", rateLimit: false })
     deps.db = context.db
     deps.pinSecret = SECRET
-    await seedDemoTeam({ auth: deps.auth, db: context.db, password: PASSWORD, pinSecret: SECRET })
+    await seedSampleTeam({ auth: deps.auth, db: context.db, password: PASSWORD, pinSecret: SECRET })
   })
 
-  test("the demo team signs in with their usernames, and the ids stay the ones old records use", async () => {
+  test("the sample team signs in with their usernames, and the ids stay the ones old records use", async () => {
     for (const username of ["asif", "BILAL", " hamza"]) expect(await signIn(username.trim())).not.toBeNull()
     expect(await signIn("asif", "wrong-password")).toBeNull()
     const session = await deps.auth.api.getSession({ headers: await signIn("hamza") })
@@ -119,9 +119,9 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     expect(await context.db.collection(C.pinFailures).countDocuments({ supervisorId: "u-manager" })).toBe(5)
   })
 
-  test("resetting the demo restores the team and keeps the owner signed in", async () => {
+  test("resetting the sample data restores the team and keeps the owner signed in", async () => {
     const ownerSession = await signIn("asif")
-    await resetDemoTeam({ auth: deps.auth, db: context.db, password: PASSWORD, pinSecret: SECRET, keepSignedIn: "u-admin" })
+    await resetSampleTeam({ auth: deps.auth, db: context.db, password: PASSWORD, pinSecret: SECRET, keepSignedIn: "u-admin" })
     const people = await listPeople(context.db)
     expect(people.map(({ id }) => id).toSorted()).toEqual(["u-admin", "u-cashier", "u-manager"])
     expect(people.every(({ banned, removedAt }) => !banned && !removedAt)).toBe(true)

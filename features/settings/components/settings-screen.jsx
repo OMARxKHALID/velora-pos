@@ -5,11 +5,11 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Segmented } from "@/components/ui/segmented"
 import { ArrowCounterClockwiseIcon, LockKeyIcon } from "@phosphor-icons/react"
-import { ResetDemoDialog } from "@/components/layout/reset-demo-dialog"
+import { ResetSampleDataDialog } from "@/features/sample-data/components/reset-sample-data-dialog"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
-import { MAX_CASHIER_DISCOUNT } from "@/features/demo/lib/ledger"
-import { supervisorsOf } from "@/features/demo/lib/staff"
+import { MAX_CASHIER_DISCOUNT } from "@/features/ledger/lib/rules"
+import { supervisorsOf } from "@/features/staff/lib/people"
 import { setSupervisorPinAction } from "@/features/staff/actions"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { Panel } from "@/features/analytics/components/panel"
@@ -122,7 +122,7 @@ const SupervisorPins = () => {
   )
 }
 
-export const SettingsScreen = ({ demoMode = false }) => {
+export const SettingsScreen = ({ sampleData = false }) => {
   const settings = useLedgerStore(({ settings }) => settings)
   const setSettings = useLedgerStore(({ setSettings }) => setSettings)
   const [resetOpen, setResetOpen] = useState(false)
@@ -223,7 +223,7 @@ export const SettingsScreen = ({ demoMode = false }) => {
         </div>
       </Panel>
 
-      <Panel title="Checkout & counter" description="Configure counter behavior, receipt details, and demo data.">
+      <Panel title="Checkout & counter" description="Configure counter behavior, receipt details, and sample data.">
         <div className="space-y-5 p-4">
           <Toggle
             on={settings.customerInfoEnabled !== false}
@@ -260,12 +260,12 @@ export const SettingsScreen = ({ demoMode = false }) => {
               </FieldDescription>
             </Field>
           </div>
-          {demoMode && <div className="border-t" />}
-          {demoMode && <div className="flex flex-col gap-3 @lg:flex-row @lg:items-start @lg:justify-between">
+          {sampleData && <div className="border-t" />}
+          {sampleData && <div className="flex flex-col gap-3 @lg:flex-row @lg:items-start @lg:justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">Reset demo data</p>
+              <p className="text-sm font-medium">Reset sample data</p>
               <p className="text-xs text-muted-foreground">
-                Restore 30 days of sample sales, stock, shifts, the demo team and these settings.
+                Restore 30 days of sample sales, stock, shifts, the sample team and these settings.
               </p>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={() => setResetOpen(true)}>
@@ -280,7 +280,7 @@ export const SettingsScreen = ({ demoMode = false }) => {
       </Panel>
 
       <p className="text-xs text-muted-foreground @4xl:col-span-2">Pricing changes apply from the next sale. Past sales remain locked in the ledger.</p>
-      {demoMode && <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />}
+      {sampleData && <ResetSampleDataDialog open={resetOpen} onOpenChange={setResetOpen} />}
     </div>
   )
 }

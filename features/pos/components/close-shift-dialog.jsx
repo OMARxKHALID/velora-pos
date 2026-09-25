@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { Textarea } from "@/components/ui/textarea"
-import { useStaffName } from "@/features/demo/hooks/use-directory"
+import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { toPaisa } from "@/lib/money"
 import { closeShiftSchema } from "../schemas"

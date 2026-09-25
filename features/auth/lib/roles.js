@@ -12,8 +12,6 @@ export const roleBlurbs = {
   cashier: "Processes checkout and counts cash at closing.",
 }
 
-export const isRole = (role) => typeof role === "string" && ROLES.includes(role)
-
 export const homeFor = (role) => (role === "admin" ? "/dashboard" : role === "manager" ? "/sales" : "/pos")
 
 export const titleFor = (role) => `${roleLabels[role]} · ${role === "admin" ? GROUP_NAME : SHOP_NAME}`

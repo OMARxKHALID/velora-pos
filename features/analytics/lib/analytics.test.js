@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test"
 import { seedCatalog } from "@/features/catalog/lib/catalog"
-import { applyOpenShift, applyPurchase, applyRefundDecision, applyRefundRequest, applySale, emptyLedger } from "@/features/demo/lib/ledger"
-import { createSeed } from "@/features/demo/lib/seed"
-import { initialStaff } from "@/features/demo/lib/staff"
+import { applyOpenShift, applyPurchase, applyRefundDecision, applyRefundRequest, applySale, emptyLedger } from "@/features/ledger/lib/rules"
+import { createSeed } from "@/features/sample-data/lib/seed"
+import { SAMPLE_TEAM } from "@/features/sample-data/lib/team"
 import { brandPerformance, cashierIdsFor, cashierStats, dailySeries, hourlySeries, lowStock, notSelling, paymentSplit, periodFor, stockValue, summarize } from "./analytics"
 
 test("net revenue and profit subtract approved refunds, keeping cost when restocked", () => {
@@ -80,7 +80,7 @@ test("low stock follows the shop setting when one is given", () => {
 
 test("the staff panel lists current cashiers and anyone who has sold", () => {
   const state = createSeed(new Date(2026, 8, 16, 15).getTime())
-  const staff = { ...initialStaff, "u-cashier-new": { id: "u-cashier-new", name: "New", role: "cashier" }, "u-cashier-gone": { id: "u-cashier-gone", name: "Gone", role: "cashier", removed: true } }
+  const staff = { ...SAMPLE_TEAM, "u-cashier-new": { id: "u-cashier-new", name: "New", role: "cashier" }, "u-cashier-gone": { id: "u-cashier-gone", name: "Gone", role: "cashier", removed: true } }
   const ids = cashierIdsFor(state, staff)
   expect(ids).toContain("u-cashier")
   expect(ids).toContain("u-cashier-new")

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { createSeed } from "@/features/demo/lib/seed"
+import { createSeed } from "@/features/sample-data/lib/seed"
 import { ALL_SHOPS, scopeState, shops } from "./shops"
 
 test("scoping to a shop keeps only that shop's records", () => {

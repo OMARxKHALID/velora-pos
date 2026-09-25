@@ -15,8 +15,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { refundableQuantity } from "@/features/demo/lib/ledger"
-import { useStaffName } from "@/features/demo/hooks/use-directory"
+import { refundableQuantity } from "@/features/ledger/lib/rules"
+import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useQuery } from "@tanstack/react-query"
 import { getJson } from "@/lib/get-json"
 import { printNode } from "@/features/pos/lib/print-node"

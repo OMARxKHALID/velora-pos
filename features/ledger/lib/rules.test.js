@@ -9,14 +9,13 @@ import {
   applyRefundDecision,
   applyRefundRequest,
   applySale,
-  applySync,
   emptyLedger,
   openShiftFor,
   previewRefund,
   refundCapFor,
   refundMethodsFor,
   shiftSummary,
-} from "./ledger"
+} from "./rules"
 
 const catalog = seedCatalog()
 const shoe = catalog.variants[0]
@@ -95,17 +94,12 @@ describe("ledger", () => {
     expect(closed.difference).toBe(-50000)
   })
 
-  test("offline sales queue once and sync once", () => {
+  test("a sale rung up on the till without a connection is marked as not yet on the server", () => {
     const { state: opened, record: shift } = withShift()
     const input = { lines: [{ variantId: shoe.id, quantity: 1 }], payments: [{ method: "card", amount: shoe.price }], cashierId: "u-cashier", shiftId: shift.id, at, offline: true }
-    const { state: sold, record: sale } = applySale(opened, input)
-    expect(sold.outbox).toEqual([{ kind: "sale", id: sale.id }])
-    expect(sale.syncedAt).toBeNull()
-    const { state: synced, record: count } = applySync(sold, { at })
-    expect(count).toBe(1)
-    expect(synced.outbox).toEqual([])
-    expect(synced.sales.at(-1).syncedAt).toBe(at)
-    expect(applySync(synced, { at }).record).toBe(0)
+    const { record: sale } = applySale(opened, input)
+    expect(sale).toMatchObject({ offline: true, syncedAt: null })
+    expect(applySale(opened, { ...input, offline: false }).record).toMatchObject({ offline: false, syncedAt: at })
   })
 
   test("sale records customer details and custom tax label", () => {
@@ -141,23 +135,20 @@ describe("ledger", () => {
     expect(sale.customerPhone).toBeUndefined()
   })
 
-  test("multiple offline sales with split payments queue and sync accurately", () => {
+  test("split payments count towards cash and card in the shift summary", () => {
     const { state: opened, record: shift } = withShift()
     const cashPortion = Math.floor(shoe.price / 2)
     const cardPortion = shoe.price - cashPortion
 
-    const { state: s1, record: saleOnline } = applySale(opened, {
+    const { state: s1 } = applySale(opened, {
       lines: [{ variantId: shoe.id, quantity: 1 }],
       payments: [{ method: "cash", amount: shoe.price }],
       cashierId: "u-cashier",
       shiftId: shift.id,
       at,
-      offline: false,
     })
-    expect(s1.outbox).toEqual([])
-    expect(saleOnline.syncedAt).toBe(at)
 
-    const { state: s2, record: saleOff1 } = applySale(s1, {
+    const { state: s2 } = applySale(s1, {
       lines: [{ variantId: shoe.id, quantity: 1 }],
       payments: [
         { method: "cash", amount: cashPortion },
@@ -166,37 +157,21 @@ describe("ledger", () => {
       cashierId: "u-cashier",
       shiftId: shift.id,
       at: at + 1000,
-      offline: true,
     })
-    expect(s2.outbox).toEqual([{ kind: "sale", id: saleOff1.id }])
-    expect(saleOff1.syncedAt).toBeNull()
 
-    const { state: s3, record: saleOff2 } = applySale(s2, {
+    const { state: s3 } = applySale(s2, {
       lines: [{ variantId: shoe.id, quantity: 1 }],
       payments: [{ method: "card", amount: shoe.price }],
       cashierId: "u-cashier",
       shiftId: shift.id,
       at: at + 2000,
-      offline: true,
     })
-    expect(s3.outbox).toEqual([{ kind: "sale", id: saleOff1.id }, { kind: "sale", id: saleOff2.id }])
-    expect(saleOff2.syncedAt).toBeNull()
 
     const summary = shiftSummary(s3, shift)
     expect(summary.saleCount).toBe(3)
     expect(summary.revenue).toBe(shoe.price * 3)
     expect(summary.cashSales).toBe(shoe.price + cashPortion)
     expect(summary.cardSales).toBe(cardPortion + shoe.price)
-
-    const syncTime = at + 5000
-    const { state: synced, record: count } = applySync(s3, { at: syncTime })
-    expect(count).toBe(2)
-    expect(synced.outbox).toEqual([])
-
-    const syncedSales = synced.sales
-    expect(syncedSales.find((s) => s.id === saleOnline.id).syncedAt).toBe(at)
-    expect(syncedSales.find((s) => s.id === saleOff1.id).syncedAt).toBe(syncTime)
-    expect(syncedSales.find((s) => s.id === saleOff2.id).syncedAt).toBe(syncTime)
   })
 
   test("the same checkout submitted twice sells only once", () => {
@@ -451,40 +426,3 @@ describe("stock inputs are checked before anything is booked", () => {
   })
 })
 
-describe("everything that changes money or stock waits for the connection", () => {
-  test("refunds, decisions, shifts, deliveries and adjustments queue while offline and sync once", () => {
-    let state = stocked()
-    const opened = applyOpenShift(state, { cashierId: "u-cashier", openingCash: 0, at, offline: true })
-    state = opened.state
-    const { state: sold, record: sale } = applySale(state, {
-      lines: [{ variantId: shoe.id, quantity: 2 }],
-      payments: [{ method: "cash", amount: shoe.price * 2 }],
-      cashierId: "u-cashier",
-      shiftId: opened.record.id,
-      at,
-      offline: true,
-    })
-    const request = { saleId: sale.id, lines: [{ variantId: shoe.id, quantity: 1 }], reason: "Wrong size", method: "cash", requestedBy: "u-cashier", shiftId: opened.record.id, at, offline: true }
-    const { state: requested, record: refund } = applyRefundRequest(sold, request)
-    const decided = applyRefundDecision(requested, { refundId: refund.id, approve: true, userId: "u-manager", at, offline: true }).state
-    const delivered = applyPurchase(decided, { lines: [{ variantId: shoe.id, quantity: 3, unitCost: shoe.cost }], supplier: "Test", receivedBy: "u-manager", at, offline: true }).state
-    const adjusted = applyAdjustment(delivered, { variantId: shoe.id, quantity: -1, reason: "damaged", userId: "u-manager", at, offline: true })
-    const closed = applyCloseShift(adjusted.state, { shiftId: opened.record.id, countedCash: 0, closedBy: "u-cashier", at, offline: true }).state
-
-    expect(closed.outbox.map(({ kind }) => kind)).toEqual(["shift", "sale", "refund", "purchase", "movement"])
-    expect(closed.refunds.at(-1).syncedAt).toBeNull()
-    expect(closed.shifts.at(-1).syncedAt).toBeNull()
-
-    const { state: synced, record: count } = applySync(closed, { at: at + 1 })
-    expect(count).toBe(5)
-    expect(synced.outbox).toEqual([])
-    expect([synced.sales.at(-1), synced.refunds.at(-1), synced.shifts.at(-1), synced.purchases.at(-1)].map(({ syncedAt }) => syncedAt)).toEqual([at + 1, at + 1, at + 1, at + 1])
-    expect(synced.movements.find(({ id }) => id === adjusted.record.id).syncedAt).toBe(at + 1)
-  })
-
-  test("work done online is not queued", () => {
-    const { state } = withShift()
-    expect(state.outbox).toEqual([])
-    expect(state.shifts.at(-1).syncedAt).toBe(at)
-  })
-})

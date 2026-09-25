@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { readApproval } from "@/features/auth/server/approval-token"
 import { UserError } from "@/features/auth/server/session-errors"
-import { MAX_CASHIER_DISCOUNT, PAYMENT_METHODS, applySale } from "@/features/demo/lib/ledger"
+import { MAX_CASHIER_DISCOUNT, PAYMENT_METHODS, applySale } from "@/features/ledger/lib/rules"
 import { moveStock } from "@/features/inventory/server/stock"
 import { cartTotals, effectiveRate } from "@/features/pricing/lib/pricing"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/lib/db/collections"

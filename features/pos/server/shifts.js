@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { UserError } from "@/features/auth/server/session-errors"
-import { applyCloseShift, applyOpenShift } from "@/features/demo/lib/ledger"
+import { applyCloseShift, applyOpenShift } from "@/features/ledger/lib/rules"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/lib/db/collections"
 import { isDuplicateKey, withTransaction } from "@/lib/db/transaction"
 import { MAX_BLOCKS } from "../lib/receipts"

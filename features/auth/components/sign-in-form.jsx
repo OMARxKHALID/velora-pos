@@ -10,10 +10,10 @@ import { roleBlurbs, roleLabels } from "../lib/roles"
 
 const icons = { admin: CrownIcon, manager: UserGearIcon, cashier: CashRegisterIcon }
 
-const DemoAccounts = ({ accounts, password, onPick }) => (
+const SampleAccounts = ({ accounts, password, onPick }) => (
   <div className="space-y-2 border border-dashed p-3">
     <p className="text-xs text-muted-foreground">
-      Demo accounts. The password for each is <span className="font-mono font-semibold text-foreground">{password}</span>
+      Sample accounts. The password for each is <span className="font-mono font-semibold text-foreground">{password}</span>
     </p>
     <div className="grid gap-2">
       {accounts.map(({ username, name, role }) => {
@@ -43,14 +43,14 @@ const DemoAccounts = ({ accounts, password, onPick }) => (
   </div>
 )
 
-export const SignInForm = ({ demo }) => {
+export const SignInForm = ({ sampleAccounts }) => {
   const [state, action, pending] = useActionState(signIn, null)
   const usernameRef = useRef(null)
   const passwordRef = useRef(null)
 
   const handlePick = (username) => {
     usernameRef.current.value = username
-    passwordRef.current.value = demo.password
+    passwordRef.current.value = sampleAccounts.password
     passwordRef.current.form.requestSubmit()
   }
 
@@ -71,7 +71,7 @@ export const SignInForm = ({ demo }) => {
           {pending ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-      {demo && <DemoAccounts accounts={demo.accounts} password={demo.password} onPick={handlePick} />}
+      {sampleAccounts && <SampleAccounts accounts={sampleAccounts.accounts} password={sampleAccounts.password} onPick={handlePick} />}
     </div>
   )
 }

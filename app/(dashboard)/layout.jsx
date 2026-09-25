@@ -20,7 +20,7 @@ const DashboardLayout = async ({ children }) => {
     <QueryProvider>
     <LedgerStoreProvider user={user} directory={directory}>
       <SidebarProvider defaultOpen={sidebarOpen}>
-        <AppSidebar user={user} demoMode={appEnv().DEMO_MODE} />
+        <AppSidebar user={user} sampleData={appEnv().SAMPLE_DATA} />
         <SidebarInset className="min-w-0">
           <AppHeader user={user} />
           <div data-slot="page-content" className="@container flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">

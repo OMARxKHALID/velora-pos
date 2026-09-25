@@ -1,6 +1,6 @@
 "use client"
 
-import { useStaffName } from "@/features/demo/hooks/use-directory"
+import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { formatFullDateTime } from "@/lib/dates"
 import { formatMoney } from "@/lib/money"
 
@@ -79,7 +79,7 @@ export const ZReportPrint = ({ shift, summary, printedAt, ref }) => {
 
       <div className="my-3 border-t border-dashed border-black" />
 
-      <p className="text-center text-[9px] font-semibold tracking-wider uppercase">Demo report · not a tax document</p>
+      <p className="text-center text-[9px] font-semibold tracking-wider uppercase">Not a tax document</p>
       <p className="mt-1 text-center text-[9px] text-zinc-600">Printed: {formatFullDateTime(printedAt ?? shift.closedAt ?? shift.openedAt ?? 0)}</p>
     </div>
   )

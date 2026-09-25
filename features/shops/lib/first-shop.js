@@ -1,0 +1,10 @@
+import { REGISTER_CODE, REGISTER_ID, SHOP_ID } from "@/features/catalog/lib/catalog"
+import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
+import { SHOP_TIME_ZONE } from "@/lib/zoned"
+import { SHOP_NAME } from "./constants"
+
+export const firstShopDocuments = (now = new Date()) => ({
+  shop: { _id: SHOP_ID, code: "SH1", type: "footwear", name: SHOP_NAME, timezone: SHOP_TIME_ZONE, createdAt: now },
+  register: { _id: REGISTER_ID, shopId: SHOP_ID, code: REGISTER_CODE, lastReceiptSeq: 0, lastOfflineSeq: 0 },
+  settings: { _id: SHOP_ID, shopId: SHOP_ID, ...defaultPricingSettings() },
+})

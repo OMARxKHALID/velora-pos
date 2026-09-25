@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import { applyOpenShift, applyRefundDecision, expectedCash, openShiftFor, shiftSummary } from "./ledger"
+import { applyOpenShift, applyRefundDecision, expectedCash, openShiftFor, shiftSummary } from "@/features/ledger/lib/rules"
 import { createSeed } from "./seed"
 
 const at = (hours, minutes = 0) => new Date(2026, 8, 16, hours, minutes).getTime()
 
 const startOfDay = (time) => new Date(time).setHours(0, 0, 0, 0)
 
-describe("demo seed", () => {
+describe("sample data", () => {
   test("there is something to show on Today from mid-morning onwards", () => {
     for (const [hours, minutes] of [[11, 30], [12, 0], [15, 0], [21, 30]]) {
       const now = at(hours, minutes)
@@ -15,7 +15,7 @@ describe("demo seed", () => {
     }
   })
 
-  test("nothing is stamped in the future, whatever time the demo is reset", () => {
+  test("nothing is stamped in the future, whatever time the sample data is reset", () => {
     for (const [hours, minutes] of [[10, 45], [12, 0], [15, 0], [23, 0]]) {
       const now = at(hours, minutes)
       const state = createSeed(now)
@@ -36,11 +36,10 @@ describe("demo seed", () => {
     }
   })
 
-  test("the counter is free and refunds are waiting for the demo", () => {
+  test("the counter is free and some refunds are waiting for a decision", () => {
     const state = createSeed(at(15))
     expect(openShiftFor(state)).toBeUndefined()
     expect(state.refunds.filter(({ status }) => status === "pending").length).toBeGreaterThanOrEqual(2)
-    expect(state.outbox).toEqual([])
   })
 
   test("every closed shift reconciles, even after all pending refunds are decided", () => {

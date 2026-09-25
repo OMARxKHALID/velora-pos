@@ -17,7 +17,8 @@
     "db:down": "docker compose down",
     "db:indexes": "bun scripts/db-indexes.js",
     "db:seed": "bun scripts/db-seed.js",
-    "db:create-owner": "bun scripts/create-owner.js"
+    "db:create-owner": "bun scripts/create-owner.js",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -46,6 +47,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "^4",
     "esbuild": "^0.28.2",
     "eslint": "^9",

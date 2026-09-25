@@ -3,12 +3,12 @@ import { VeloraLogo } from "@/components/layout/velora-logo"
 import { SignInForm } from "@/features/auth/components/sign-in-form"
 import { homeFor } from "@/features/auth/lib/roles"
 import { getSession } from "@/features/auth/server/session"
-import { initialStaff } from "@/features/demo/lib/staff"
+import { SAMPLE_TEAM } from "@/features/sample-data/lib/team"
 import { appEnv, authEnv } from "@/lib/env"
 
-const demoAccounts = () =>
-  appEnv().DEMO_MODE
-    ? { password: authEnv().DEMO_PASSWORD, accounts: Object.values(initialStaff).map(({ username, name, role }) => ({ username, name, role })) }
+const sampleAccounts = () =>
+  appEnv().SAMPLE_DATA
+    ? { password: authEnv().SAMPLE_PASSWORD, accounts: Object.values(SAMPLE_TEAM).map(({ username, name, role }) => ({ username, name, role })) }
     : null
 
 const LoginPage = async () => {
@@ -37,7 +37,7 @@ const LoginPage = async () => {
             <span className="h-px flex-1 bg-linear-to-l from-transparent to-[#d4af37]/60" />
           </div>
         </div>
-        <p className="relative text-xs text-[#a8a091]">Velora Group © 2026 · Demo build</p>
+        <p className="relative text-xs text-[#a8a091]">Velora Group © 2026</p>
       </section>
 
       <section className="flex min-w-0 w-full items-center justify-center bg-[radial-gradient(ellipse_at_top,var(--accent),transparent_60%)] px-4 py-8 sm:p-8 md:p-12">
@@ -49,7 +49,7 @@ const LoginPage = async () => {
             <h1 className="font-heading text-2xl sm:text-3xl font-semibold tracking-wider uppercase">Sign in</h1>
             <p className="text-xs sm:text-sm text-muted-foreground">Use the username and password the owner gave you.</p>
           </div>
-          <SignInForm demo={demoAccounts()} />
+          <SignInForm sampleAccounts={sampleAccounts()} />
           <p className="text-xs text-muted-foreground">Forgot your password? Ask the owner to set a new one in Staff.</p>
         </div>
       </section>

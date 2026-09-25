@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from "bun:test"
 import { hasTestDatabase, useTestDatabase } from "@/test/db"
-import { loadDocuments, seedDocuments } from "@/features/demo/lib/seed-documents"
-import { resetDemoData } from "@/features/demo/server/team"
+import { loadDocuments, seedDocuments } from "@/features/sample-data/lib/seed-documents"
+import { resetSampleData } from "@/features/sample-data/server/sample-data"
 import { ledgerSnapshot } from "@/features/ledger/server/snapshot"
 import { recordSale } from "@/features/pos/server/sales"
 import { closeShift, openShift } from "@/features/pos/server/shifts"
@@ -88,8 +88,8 @@ describe.skipIf(!hasTestDatabase)("returns, settings and what each role can read
     expect(other.products).toEqual([])
   })
 
-  test("demo reset puts the shop back to fresh sample data", async () => {
-    await resetDemoData({ db: context.db })
+  test("resetting sample data puts the shop back to fresh sample data", async () => {
+    await resetSampleData({ db: context.db })
     expect(await context.db.collection(C.shifts).countDocuments({ status: "open" })).toBe(0)
     expect(await context.db.collection(C.auditLog).countDocuments()).toBe(0)
     expect((await context.db.collection(C.settings).findOne({ _id: SHOP })).taxEnabled).toBe(false)

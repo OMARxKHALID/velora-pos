@@ -11,7 +11,7 @@ const SettingsPage = async () => {
     <>
       <PageHeader title="Settings" description="Tax, discounts and each supervisor's approval PIN." />
       <LedgerReady>
-        <SettingsScreen demoMode={appEnv().DEMO_MODE} />
+        <SettingsScreen sampleData={appEnv().SAMPLE_DATA} />
       </LedgerReady>
     </>
   )

@@ -9,8 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { REGISTER_CODE } from "@/features/catalog/lib/catalog"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
-import { useStaffName } from "@/features/demo/hooks/use-directory"
-import { openShiftFor } from "@/features/demo/lib/ledger"
+import { useStaffName } from "@/features/staff/hooks/use-staff-name"
+import { openShiftFor } from "@/features/ledger/lib/rules"
 import { OfflineQueueDialog } from "@/features/offline/components/offline-queue-dialog"
 import { heldAt } from "../lib/held-carts"
 import { numbersLeft } from "../lib/receipts"
@@ -256,7 +256,7 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
           Cashier <span className="font-semibold text-foreground">{nameOf(shift.cashierId)}</span>
         </span>
         <span className="hidden whitespace-nowrap xl:inline">
-          Counter <span className="font-semibold text-foreground">{REGISTER_CODE}</span>
+          Counter <span className="font-semibold text-foreground">{shift.registerCode ?? REGISTER_CODE}</span>
         </span>
         <span className="ml-auto hidden whitespace-nowrap 2xl:inline">Scanner ready · F2 to charge</span>
         <Button size="sm" variant="ghost" className="ml-auto shrink-0 2xl:ml-0" disabled={Boolean(closeBlockedReason)} title={closeBlockedReason} onClick={() => setClosing(true)}>

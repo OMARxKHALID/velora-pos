@@ -1,5 +1,5 @@
 import { createStore } from "zustand/vanilla"
-import { emptyLedger } from "@/features/demo/lib/ledger"
+import { emptyLedger } from "@/features/ledger/lib/rules"
 import { buildOfflineSale, overlayStock } from "@/features/offline/lib/offline-sale"
 import { SessionEnded, countersFor, flushOutbox, outboxFor, queueOfflineSale, readSnapshot, retryEntry, removeEntry, saveSnapshot, sendOfflineSale } from "@/features/offline/lib/outbox"
 import { TOP_UP_BELOW, numbersLeft } from "@/features/pos/lib/receipts"
@@ -188,8 +188,8 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
           throw error
         }
       },
-      resetDemo: async () => {
-        await call("resetDemo")
+      resetSampleData: async () => {
+        await call("resetSampleData")
         await load()
         set({ epoch: get().epoch + 1 })
       },

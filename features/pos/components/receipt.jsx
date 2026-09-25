@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react"
 import JsBarcode from "jsbarcode"
 import { SHOP_NAME } from "@/features/shops/lib/constants"
-import { useStaffName } from "@/features/demo/hooks/use-directory"
+import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { formatMoney } from "@/lib/money"
 
 const when = new Intl.DateTimeFormat("en-PK", { dateStyle: "medium", timeStyle: "short" })
@@ -65,7 +65,7 @@ export const Receipt = ({ sale, ref }) => {
       {sale.change > 0 && <Row label="Change" value={formatMoney(sale.change)} />}
       <Rule />
       {!sale.syncedAt && <p className="text-center text-[10px] font-bold">SAVED OFFLINE · SYNCS AUTOMATICALLY</p>}
-      <p className="text-center text-[10px]">DEMO RECEIPT · NOT A TAX INVOICE</p>
+      <p className="text-center text-[10px]">NOT A TAX INVOICE</p>
       <div className="mt-3 flex justify-center">
         <svg ref={barcode} />
       </div>
