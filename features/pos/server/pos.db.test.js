@@ -117,6 +117,27 @@ describe.skipIf(!hasTestDatabase)("selling on the server", () => {
     await context.db.collection(C.settings).updateOne({ _id: SHOP }, { $set: { taxEnabled: false, taxRate: 0, customerInfoEnabled: true } })
   })
 
+  test("wallet and bank payments need a transaction ID, and a split sale with a blank card slip goes through", async () => {
+    const variant = await pick()
+    const lines = [{ variantId: variant._id, quantity: 1 }]
+    const wallet = (reference) => ({ clientId: newId(), shiftId: shift.id, lines, payments: [{ method: "jazzcash", amount: variant.price, ...(reference && { reference }) }] })
+    await expect(recordSale(cashier(), wallet())).rejects.toThrow("transaction ID")
+    const paid = await recordSale(cashier(), wallet("TX9"))
+    expect(paid.payments[0]).toMatchObject({ method: "jazzcash", reference: "TX9" })
+    const split = await recordSale(cashier(), { clientId: newId(), shiftId: shift.id, lines, payments: [{ method: "cash", amount: 100000 }, { method: "card", amount: variant.price - 100000, reference: null }] })
+    expect(split.payments).toHaveLength(2)
+  })
+
+  test("prices that include tax and cash rounding follow the shop settings", async () => {
+    await context.db.collection(C.settings).updateOne({ _id: SHOP }, { $set: { taxEnabled: true, taxRate: 18, pricesIncludeTax: true, cashRounding: 10 } })
+    const variant = await pick()
+    const sale = await recordSale(cashier(), { clientId: newId(), shiftId: shift.id, lines: [{ variantId: variant._id, quantity: 1 }], payments: [{ method: "cash", amount: variant.price + 500000 }] })
+    expect(sale).toMatchObject({ taxInclusive: true, total: variant.price, taxTotal: Math.round((variant.price * 18) / 118 / 100) * 100, cashRounding: -(variant.price % 1000) })
+    expect(sale.items[0].saleValue + sale.items[0].taxCharged).toBe(variant.price)
+    expect(sale.change).toBe(variant.price + 500000 - (variant.price + sale.cashRounding))
+    await context.db.collection(C.settings).updateOne({ _id: SHOP }, { $set: { taxEnabled: false, taxRate: 0, pricesIncludeTax: false, cashRounding: 1 } })
+  })
+
   test("a held cart is shared by the counter and can be resumed only once", async () => {
     const variant = await pick()
     const held = await holdCart(cashier(), { cart: { lines: [{ variantId: variant._id, quantity: 2 }], customerName: "Sana" } })

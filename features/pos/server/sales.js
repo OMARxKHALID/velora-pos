@@ -26,7 +26,7 @@ const saleSchema = z.object({
   discountPct: z.number().int().min(0).max(90).default(0),
   approvalToken: z.string().max(1000).nullish(),
   payments: z
-    .array(z.object({ method: z.enum(PAYMENT_METHODS), amount: z.number().int().positive(), reference: z.string().trim().max(30).optional() }))
+    .array(z.object({ method: z.enum(PAYMENT_METHODS), amount: z.number().int().positive(), reference: z.string().trim().max(30).nullish() }))
     .min(1, { error: "Add a payment" })
     .max(4),
   customerName: z.string().trim().max(60).optional(),
