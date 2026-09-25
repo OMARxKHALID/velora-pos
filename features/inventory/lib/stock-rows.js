@@ -1,6 +1,5 @@
 import { sumBy } from "@/lib/money"
 
-// `threshold` is the shop-wide "running low" setting. Without it each size uses its own limit.
 export const stockRows = (stock, { products, variantsByProduct }, threshold = null) => {
   const limitFor = (variant) => (Number.isFinite(threshold) ? threshold : variant.lowStockAt)
 

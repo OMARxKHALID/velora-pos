@@ -63,11 +63,6 @@ function TableFooter({
   )
 }
 
-/**
- * Rows that have an onClick are keyboard reachable too (Tab, then Enter or Space), not just clickable.
- * Column visibility in tables uses container queries (@lg / @2xl / @4xl on the table's own width), so
- * it follows the space the table really has, whatever the sidebar or a dialog is doing around it.
- */
 function TableRow({
   className,
   onClick,

@@ -78,7 +78,6 @@ export const createSeed = (now = Date.now()) => {
     const weekend = [0, 6].includes(new Date(day).getDay())
 
     if (day === start + 14 * DAY) {
-      // Depending on the weekday the seed starts on, nothing may be low yet. That must not break the reset.
       const lowLines = variants
         .filter(({ id }) => (state.stock[id] ?? 0) <= 1)
         .slice(0, 140)
@@ -88,8 +87,6 @@ export const createSeed = (now = Date.now()) => {
 
     for (const plan of shifts) {
       const openAt = day + plan.from * HOUR
-      // Today's shift is already closed a few minutes ago, so the counter is free for a live demo,
-      // but there is still something to show on "Today" from mid-morning onwards.
       const closeAt = isToday ? Math.min(day + plan.to * HOUR, now - 10 * MINUTE) : day + plan.to * HOUR
       if (isToday && closeAt <= openAt + 30 * MINUTE) continue
 
@@ -111,7 +108,6 @@ export const createSeed = (now = Date.now()) => {
 
         const discounted = random() < plan.discountChance
         const discountPct = discounted ? pick([5, 10, 15]) : 0
-        // Same rules the cart uses: shop offers first, then the cashier's cart discount, both whole rupees.
         const withDiscount = lines.map((line) => {
           const variant = variants.find(({ id }) => id === line.variantId)
           return {

@@ -107,7 +107,6 @@ export const StockScreen = ({ user }) => {
                       </p>
                     </div>
                   </div>
-                  {/* On narrow screens the size column is hidden, so the sizes sit under the name. */}
                   <div className="mt-2.5 max-w-[calc(100cqw-6rem)] overflow-x-auto pb-1 @2xl:hidden">
                     <SizeChips sizes={row.sizes} threshold={lowLimit} />
                   </div>

@@ -77,8 +77,6 @@ const List = ({ rows, empty }) =>
     <p className="px-4 py-8 text-center text-sm text-muted-foreground">{empty}</p>
   )
 
-// Everything the dashboard shows comes from one pass over the ledger, recomputed only when the data,
-// the shop or the range changes (not on every unrelated store update).
 const buildView = (full, scope, period, staff, lowThreshold) => {
   const state = scopeState(full, scope)
   const current = summarize(state, period.from, period.to)

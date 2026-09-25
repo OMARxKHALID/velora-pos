@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { emptyLedger, applyPurchase, applySale, applyOpenShift } from "@/features/demo/lib/ledger"
-import { indexCatalog, seedCatalog, variantKey } from "./catalog"
+import { colorCode, indexCatalog, seedCatalog, variantKey } from "./catalog"
 import { applyDeleteProduct, applyImportCatalog, applySaveProduct, applySetProductStatus } from "./catalog-ledger"
 
 const base = () => ({ ...emptyLedger(), ...seedCatalog() })
@@ -58,5 +58,35 @@ describe("catalog ledger", () => {
     expect(record).toEqual({ created: 1, updated: 1, pairs: 4 })
     expect(indexCatalog(state).variantByBarcode["8901234567890"].attributes.size).toBe("43")
     expect(state.products.find(({ name }) => name === "Velora Aurum Runner").sizes).toContain("46")
+  })
+})
+
+describe("colours", () => {
+  test("colours that share their first letters are separate items", () => {
+    const { state, record } = applySaveProduct(base(), { input: { ...input, colors: ["Brown", "Bronze", "Blue", "Blush"], sizes: ["42"] } })
+    const mine = indexCatalog(state).variantsByProduct[record.id]
+    expect(new Set(mine.map(({ id }) => id)).size).toBe(4)
+    expect(new Set(mine.map(({ sku }) => sku)).size).toBe(4)
+    expect(mine.map(({ id }) => indexCatalog(state).variantById[id].attributes.color)).toEqual(["Brown", "Bronze", "Blue", "Blush"])
+  })
+
+  test("the same colour written twice is refused", () => {
+    expect(() => applySaveProduct(base(), { input: { ...input, colors: ["Navy Blue", "navy-blue"] } })).toThrow("Navy Blue and navy-blue are the same colour")
+  })
+
+  test("colour names without Latin letters still get their own code", () => {
+    expect(colorCode("سیاہ")).not.toBe("")
+    expect(colorCode("سیاہ")).not.toBe(colorCode("سفید"))
+    expect(colorCode("Black/Gold")).toBe("BLACK-GOLD")
+  })
+
+  test("an import that writes an existing colour in lower case adds to it", () => {
+    const state = base()
+    const product = state.products[1]
+    const rows = [{ product: product.name, brand: product.brand, category: product.category, audience: product.audience, color: product.colors[0].toLowerCase(), size: "46", price: product.price, cost: product.cost, barcode: "", stock: 2 }]
+    const { state: next, record } = applyImportCatalog(state, { rows, userId: "u-manager", at })
+    expect(record).toEqual({ created: 0, updated: 1, pairs: 2 })
+    expect(next.products.find(({ id }) => id === product.id).colors).toEqual(product.colors)
+    expect(next.stock[variantKey(product.id, product.colors[0], "46")]).toBe(2)
   })
 })

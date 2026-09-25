@@ -47,16 +47,6 @@ function DialogOverlay({
   )
 }
 
-/**
- * Shared dialog shell.
- *
- * - The popup is a bounded flex column (never taller than the visible viewport, never wider than it).
- * - The body is the ONLY scroll area, a single min-width-0 grid column, so a long label or a wide child
- *   can no longer stretch every sibling past the edge of the dialog.
- * - The close button lives on the popup, not in the scroll area, so it stays put while the body scrolls.
- * - `className` sizes the popup (e.g. "sm:max-w-lg"); `bodyClassName` tweaks the body;
- *   `flush` removes body padding/gap for dialogs that manage their own layout (e.g. the receipt).
- */
 function DialogContent({
   className,
   bodyClassName,
@@ -122,7 +112,6 @@ function DialogHeader({
   )
 }
 
-/** `sticky` pins the actions to the bottom of the scrolling body so the primary button is never below the fold. */
 function DialogFooter({
   className,
   showCloseButton = false,

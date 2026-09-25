@@ -11,7 +11,6 @@ const Row = ({ label, value, strong }) => (
   </div>
 )
 
-// Printed on 80mm paper, so the type sizes here are fixed on purpose and do not follow the app's UI scale.
 export const ZReportPrint = ({ shift, summary, printedAt, ref }) => {
   const nameOf = useStaffName()
   const diff = shift.difference ?? 0

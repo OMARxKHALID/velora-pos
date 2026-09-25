@@ -32,7 +32,7 @@ export const generateZReportCsv = (state, shift, staff) => {
     ["Total Collected (PKR)", rupees(summary.revenue), "Net sales + tax"],
     ["Net Cash Sales (PKR)", rupees(summary.cashSales), "Cash collected net of change"],
     ["Card Sales (PKR)", rupees(summary.cardSales), "Bank POS terminal payments"],
-    ["Card Refunds (PKR)", rupees(summary.cardRefunds), "Approved refunds asked for in this shift"],
+    ["Card Refunds (PKR)", rupees(summary.cardRefunds), "Approved while this shift was open"],
     ["Cash Refunds Paid (PKR)", rupees(summary.cashRefunds), "Cash paid out of this drawer"],
     [],
     ["--- CASH DRAWER RECONCILIATION ---"],

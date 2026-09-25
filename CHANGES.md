@@ -1,3 +1,24 @@
+# Correctness and hardening pass
+
+Lint clean, all 88 tests pass, production build succeeds. Checked in Chromium: a cashier sale, closing a shift from a second tab, and upgrading data saved by the previous version.
+
+## Bugs fixed
+- **Colours sharing their first three letters became one item.** Brown and Bronze (also Blue and Blush, Navy and Navy Blue) got the same id and SKU and shared one stock count. Ids and SKUs now carry the whole colour name, and the same colour entered twice (`Navy Blue` / `navy-blue`) is refused.
+- **Sales could be booked to a closed or unknown shift**, or to someone else's shift. A sale now needs an open shift on this counter, run by the cashier making the sale, and the seller must be an active cashier.
+- **Closed Z-reports changed afterwards.** A shift's report is now frozen when it closes. Card refunds count in the shift that is open when they are approved, the same rule as cash.
+- **CSV import failed on `black` for an existing `Black`.** Colours now match regardless of case.
+- **A full or blocked browser storage lost sales silently.** The app now shows an error when a change cannot be saved.
+- **Two tabs could overwrite each other.** Every change now starts from the latest saved data, so a second tab cannot double-open a shift or reuse a receipt number.
+- Opening cash, counted cash, purchases and adjustments reject NaN, fractions, negative costs and unknown items with a clear message. Opening a shift twice from one form opens it once.
+- Returned stock is booked at the cost it was sold at.
+
+## Other
+- Data saved by the previous version is migrated (item ids, SKUs, frozen shift reports) instead of wiped. Items in a cart that was open during the upgrade are dropped from that cart.
+- Security headers (`nosniff`, `SAMEORIGIN`, referrer and permissions policy); `X-Powered-By` removed.
+- `package.json` declares Bun 1.4 or newer.
+- New tests for the migration, the store, stock rows, sale status and the Z-report CSV.
+- Comments removed from the codebase.
+
 # Responsive + consistency pass
 
 Verified in headless Chromium at 360, 390, 430, 768, 820, 1024, 1180 and 1366 px (plus 844x390 landscape phone).

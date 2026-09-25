@@ -15,7 +15,7 @@ import { Segmented } from "@/components/ui/segmented"
 import { useDemoStore } from "@/features/demo/store/demo-store-provider"
 import { formatMoney, toPaisa } from "@/lib/money"
 import { useCatalog } from "../hooks/use-catalog"
-import { sizePresets, variantKey } from "../lib/catalog"
+import { sameColor, sizePresets, variantKey } from "../lib/catalog"
 import { mostUsedColors, suggestColors, swatchStyle } from "../lib/colors"
 import { ColorDot } from "./color-dot"
 import { OpeningStockGrid, stockKey, toPairs } from "./opening-stock-grid"
@@ -69,7 +69,7 @@ const ColorPicker = ({ value, onChange, popular }) => {
 
   const handleAdd = (color) => {
     const name = color.trim().replace(/\s+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
-    if (name && !value.includes(name)) onChange([...value, name])
+    if (name && !value.some((color) => sameColor(color, name))) onChange([...value, name])
     setDraft("")
   }
 

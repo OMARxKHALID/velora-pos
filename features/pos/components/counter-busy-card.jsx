@@ -8,7 +8,6 @@ import { REGISTER_CODE } from "@/features/catalog/lib/catalog"
 import { useStaffName } from "@/features/demo/hooks/use-directory"
 import { CloseShiftDialog } from "./close-shift-dialog"
 
-// Two cashiers cannot sell on one drawer. The second cashier counts the drawer and closes the first shift (a handover).
 export const CounterBusyCard = ({ user, shift, onClosed }) => {
   const nameOf = useStaffName()
   const [closing, setClosing] = useState(false)

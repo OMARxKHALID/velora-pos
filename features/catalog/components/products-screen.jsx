@@ -78,7 +78,6 @@ export const ProductsScreen = ({ user }) => {
   const [labelling, setLabelling] = useState(null)
   const [deleting, setDeleting] = useState(null)
   const search = useDeferredValue(query.trim().toLowerCase())
-  // Only products that were never stocked or sold can be deleted. Work the used set out once, not per row.
   const usedVariants = useMemo(() => new Set(movements.map(({ variantId }) => variantId)), [movements])
   const canDelete = (product) => !(variantsByProduct[product.id] ?? []).some(({ id }) => usedVariants.has(id))
 

@@ -12,7 +12,6 @@ import { formatMoney, sumBy } from "@/lib/money"
 
 const audiences = ["All", "men", "women", "kids", "unisex"]
 
-// A model is "low" when what is left across all its sizes is about two sizes' worth of the shop's low-stock setting.
 const LOW_MODEL_FACTOR = 2
 
 const Chip = ({ active, children, onClick }) => (

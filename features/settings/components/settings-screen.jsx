@@ -29,7 +29,6 @@ const Toggle = ({ on, onChange, label, description }) => (
   </div>
 )
 
-// A text field that shows what the person is typing, but snaps back to the saved value when that changes elsewhere.
 const useSyncedDraft = (saved) => {
   const [previous, setPrevious] = useState(saved)
   const [draft, setDraft] = useState(saved)

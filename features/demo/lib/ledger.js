@@ -8,6 +8,14 @@ export const PAYMENT_METHODS = ["cash", "card"]
 
 const pricingDefaults = { taxEnabled: false, taxRate: 0, productDiscountEnabled: true, cartDiscountEnabled: true }
 
+const isMoney = (amount) => Number.isInteger(amount) && amount >= 0
+
+const variantOrThrow = (state, variantId) => {
+  const variant = indexCatalog(state).variantById[variantId]
+  if (!variant) throw new Error("Unknown item")
+  return variant
+}
+
 export const emptyLedger = () => ({
   products: [],
   variants: [],
@@ -61,12 +69,14 @@ export const applySale = (
     registerCode = REGISTER_CODE,
   }
 ) => {
-  // The same checkout submitted twice (double tap, retry after a sync) must not sell twice.
   const existing = state.sales.find((sale) => sale.clientId === clientId)
   if (existing) return { state, record: existing }
 
   if (!lines.length) throw new Error("Cart is empty")
-  if (!shiftId) throw new Error("Open a shift before selling")
+  const shift = state.shifts.find(({ id }) => id === shiftId)
+  if (!shift || shift.status !== "open") throw new Error("Open a shift before selling")
+  if (shift.registerId !== registerId) throw new Error("This shift belongs to another counter")
+  if (shift.cashierId !== cashierId) throw new Error("This shift belongs to another cashier")
   if (!payments?.length) throw new Error("Add a payment")
   if (payments.some(({ method, amount }) => !PAYMENT_METHODS.includes(method) || !Number.isInteger(amount) || amount <= 0)) {
     throw new Error("Invalid payment")
@@ -183,7 +193,6 @@ export const refundableQuantity = (state, saleId, variantId) => {
   return sold - claimed
 }
 
-// What the customer actually handed over per method (change comes out of the cash).
 export const paidByMethod = (sale) => ({
   cash: sumBy(sale.payments.filter(({ method }) => method === "cash"), ({ amount }) => amount) - sale.change,
   card: sumBy(sale.payments.filter(({ method }) => method === "card"), ({ amount }) => amount),
@@ -194,12 +203,9 @@ export const refundMethodsFor = (sale) => {
   return PAYMENT_METHODS.filter((method) => paid[method] > 0)
 }
 
-// How much can still go back through one method: what was paid that way, minus refunds already asked for.
 export const refundCapFor = (state, sale, method) =>
   paidByMethod(sale)[method] - sumBy(liveRefunds(state, sale.id).filter((refund) => refund.method === method), ({ total }) => total)
 
-// Single source of truth for refund maths. The refund dialog previews with it and the ledger books with it,
-// so the customer is quoted exactly what is recorded. Tax goes back in proportion to the goods returned.
 export const previewRefund = (state, saleId, lines) => {
   const sale = state.sales.find(({ id }) => id === saleId)
   if (!sale) throw new Error("Sale not found")
@@ -267,7 +273,6 @@ export const applyRefundRequest = (state, { saleId, lines, reason, method, reque
     status: "pending",
     decidedBy: null,
     decidedAt: null,
-    // The drawer that physically pays a cash refund is the one open when it is approved.
     payoutShiftId: null,
     createdAt: at,
   }
@@ -281,19 +286,20 @@ export const applyRefundDecision = (state, { refundId, approve, userId, at }) =>
   if (refund.status !== "pending") throw new Error("Refund already decided")
 
   const sale = state.sales.find(({ id }) => id === refund.saleId)
-  const payoutShiftId = approve && refund.method === "cash" ? (openShiftFor(state, sale?.registerId)?.id ?? null) : null
+  const openShiftId = approve ? (openShiftFor(state, sale?.registerId)?.id ?? null) : null
+  const payoutShiftId = refund.method === "cash" ? openShiftId : null
   if (approve && refund.method === "cash" && !payoutShiftId) throw new Error("Open a counter shift first. Cash refunds are paid from the drawer.")
-  const decided = { ...refund, status: approve ? "approved" : "rejected", decidedBy: userId, decidedAt: at, payoutShiftId }
+  const decided = { ...refund, status: approve ? "approved" : "rejected", decidedBy: userId, decidedAt: at, payoutShiftId, approvedInShiftId: openShiftId }
   let next = { ...state, refunds: state.refunds.map((item) => (item.id === refundId ? decided : item)) }
 
   if (approve) {
-    const { variantById } = indexCatalog(state)
     for (const item of refund.items.filter(({ restock }) => restock)) {
+      const soldAt = sale?.items.find(({ variantId }) => variantId === item.variantId)?.unitCost
       next = moveStock(next, {
         variantId: item.variantId,
         quantity: item.quantity,
         type: "return",
-        unitCost: variantById[item.variantId].cost,
+        unitCost: soldAt ?? variantOrThrow(state, item.variantId).cost,
         ref: { kind: "Refund", id: refund.id, number: refund.saleNumber },
         userId,
         at,
@@ -305,13 +311,15 @@ export const applyRefundDecision = (state, { refundId, approve, userId, at }) =>
   return { state: next, record: decided }
 }
 
-export const applyOpenShift = (state, { cashierId, openingCash, at, shopId = SHOP_ID, registerId = REGISTER_ID }) => {
+export const applyOpenShift = (state, { cashierId, openingCash, at, clientId = newId(), shopId = SHOP_ID, registerId = REGISTER_ID }) => {
+  const existing = state.shifts.find((shift) => shift.clientId === clientId)
+  if (existing) return { state, record: existing }
   if (openShiftFor(state, registerId)) throw new Error("A shift is already open on this counter")
-  if (openingCash < 0) throw new Error("Opening cash cannot be negative")
+  if (!isMoney(openingCash)) throw new Error("Opening cash must be a whole amount, not negative")
 
   const shift = {
     id: newId(),
-    clientId: newId(),
+    clientId,
     shopId,
     registerId,
     cashierId,
@@ -334,14 +342,18 @@ const cashSalesFor = (state, shift) =>
     ({ payments, change }) => sumBy(payments.filter(({ method }) => method === "cash"), ({ amount }) => amount) - change
   )
 
-// Cash refunds leave the drawer of the shift that paid them out, not the shift that asked for them.
 const cashRefundsFor = (state, shift) => sumBy(state.refunds.filter(({ payoutShiftId }) => payoutShiftId === shift.id), ({ total }) => total)
+
+const cardRefundsFor = (state, shift) =>
+  sumBy(
+    state.refunds.filter(({ approvedInShiftId, status, method }) => approvedInShiftId === shift.id && status === "approved" && method === "card"),
+    ({ total }) => total
+  )
 
 export const expectedCash = (state, shift) => shift.openingCash + cashSalesFor(state, shift) - cashRefundsFor(state, shift)
 
-export const shiftSummary = (state, shift) => {
+export const liveSummary = (state, shift) => {
   const sales = state.sales.filter(({ shiftId }) => shiftId === shift.id)
-  const cardRefunds = state.refunds.filter(({ shiftId, status, method }) => shiftId === shift.id && status === "approved" && method === "card")
   const paidBy = (method) =>
     sumBy(sales, ({ payments }) => sumBy(payments.filter((payment) => payment.method === method), ({ amount }) => amount))
 
@@ -356,25 +368,43 @@ export const shiftSummary = (state, shift) => {
     cashSales: cashSalesFor(state, shift),
     cardSales: paidBy("card"),
     cashRefunds: cashRefundsFor(state, shift),
-    cardRefunds: sumBy(cardRefunds, ({ total }) => total),
+    cardRefunds: cardRefundsFor(state, shift),
     openingCash: shift.openingCash,
     expectedCash: expectedCash(state, shift),
   }
 }
 
+export const shiftSummary = (state, shift) => (shift.status === "closed" && shift.summary ? shift.summary : liveSummary(state, shift))
+
 export const applyCloseShift = (state, { shiftId, countedCash, closedBy, note = null, at }) => {
   const shift = state.shifts.find(({ id }) => id === shiftId)
   if (!shift || shift.status !== "open") throw new Error("Shift is not open")
-  if (countedCash < 0) throw new Error("Counted cash cannot be negative")
+  if (!isMoney(countedCash)) throw new Error("Counted cash must be a whole amount, not negative")
 
-  const expected = expectedCash(state, shift)
-  const closed = { ...shift, status: "closed", closedAt: at, closedBy, countedCash, expectedCash: expected, difference: countedCash - expected, closeNote: note?.trim() || null }
+  const summary = liveSummary(state, shift)
+  const expected = summary.expectedCash
+  const closed = {
+    ...shift,
+    status: "closed",
+    closedAt: at,
+    closedBy,
+    countedCash,
+    expectedCash: expected,
+    difference: countedCash - expected,
+    closeNote: note?.trim() || null,
+    summary,
+  }
 
   return { state: { ...state, shifts: state.shifts.map((item) => (item.id === shiftId ? closed : item)) }, record: closed }
 }
 
 export const applyPurchase = (state, { lines, supplier, receivedBy, at, shopId = SHOP_ID }) => {
   if (!lines.length) throw new Error("Add at least one item")
+  for (const { variantId, quantity, unitCost } of lines) {
+    variantOrThrow(state, variantId)
+    if (!Number.isInteger(quantity) || quantity < 1) throw new Error("Quantity must be at least 1")
+    if (!isMoney(unitCost)) throw new Error("Cost must be a whole amount, not negative")
+  }
   const purchase = {
     id: newId(),
     shopId,
@@ -387,7 +417,6 @@ export const applyPurchase = (state, { lines, supplier, receivedBy, at, shopId =
 
   let next = { ...state, purchases: [...state.purchases, purchase] }
   for (const { variantId, quantity, unitCost } of lines) {
-    if (quantity < 1) throw new Error("Quantity must be at least 1")
     next = moveStock(next, { variantId, quantity, type: "purchase", unitCost, ref: { kind: "Purchase", id: purchase.id, number: supplier }, userId: receivedBy, at, shopId })
   }
 
@@ -396,9 +425,9 @@ export const applyPurchase = (state, { lines, supplier, receivedBy, at, shopId =
 
 export const applyAdjustment = (state, { variantId, quantity, reason, note, userId, at, shopId = SHOP_ID }) => {
   if (!reason) throw new Error("A reason is required")
-  if (!quantity) throw new Error("Quantity cannot be zero")
-  const { variantById } = indexCatalog(state)
-  const next = moveStock(state, { variantId, quantity, type: "adjustment", unitCost: variantById[variantId].cost, reason, note, ref: null, userId, at, shopId })
+  if (!Number.isInteger(quantity) || !quantity) throw new Error("Quantity must be a whole number and not zero")
+  const variant = variantOrThrow(state, variantId)
+  const next = moveStock(state, { variantId, quantity, type: "adjustment", unitCost: variant.cost, reason, note, ref: null, userId, at, shopId })
   return { state: next, record: next.movements.at(-1) }
 }
 

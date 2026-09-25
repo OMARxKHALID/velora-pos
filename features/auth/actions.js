@@ -6,8 +6,6 @@ import { homeFor } from "./lib/demo-users"
 import { USER_ID_PATTERN, cleanIdentity, encodeSession, serializeDisabled } from "./lib/session-cookie"
 import { DISABLED_COOKIE, SESSION_COOKIE, getDisabledStaff, requireRole } from "./lib/session"
 
-// Secure cookies are only accepted over https. Follow the actual protocol so the demo also signs in
-// on http://localhost and over a local network, while production behind https stays secure.
 const cookieOptions = async () => ({
   httpOnly: true,
   sameSite: "lax",
@@ -43,7 +41,6 @@ export const setStaffAccess = async (userId, enabled) => {
   return { disabled: [...disabled] }
 }
 
-// "Reset demo data" also turns everyone's access back on.
 export const resetStaffAccess = async () => {
   await requireRole("admin")
   const cookieStore = await cookies()

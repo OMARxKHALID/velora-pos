@@ -17,7 +17,6 @@ const Row = ({ label, value, strong }) => (
 
 const Rule = () => <div className="my-3 border-t border-dashed border-black" />
 
-// Printed on 80mm paper, so the type sizes here are fixed on purpose and do not follow the app's UI scale.
 export const Receipt = ({ sale, ref }) => {
   const barcode = useRef(null)
   const nameOf = useStaffName()

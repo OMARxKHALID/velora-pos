@@ -43,7 +43,6 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
   const refundable = Object.fromEntries(sale.items.map(({ variantId }) => [variantId, refundableQuantity(state, sale.id, variantId)]))
   const selfApprove = user.role !== "cashier"
   const methods = refundMethodsFor(sale)
-  // One id per dialog, so a double tap on "Refund now" cannot file the same refund twice.
   const [clientId] = useState(newId)
 
   const form = useForm({
@@ -58,7 +57,6 @@ export const RefundRequestDialog = ({ sale, user, onClose }) => {
   const lines = useWatch({ control: form.control, name: "lines" })
   const reason = useWatch({ control: form.control, name: "reason" })
   const method = useWatch({ control: form.control, name: "method" })
-  // The same maths the ledger books with, so the customer is quoted exactly what is recorded.
   const quote = previewRefund(state, sale.id, lines)
   const overCap = quote.total > refundCapFor(state, sale, method)
   const openShift = openShiftFor({ shifts })

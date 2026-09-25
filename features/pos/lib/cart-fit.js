@@ -1,4 +1,3 @@
-// A held cart does not reserve stock. When it is resumed later, keep only what is still on the shelf.
 export const fitToStock = (lines, stock) => {
   const adjusted = []
   const fitted = lines.flatMap((line) => {

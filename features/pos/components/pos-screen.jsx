@@ -34,8 +34,6 @@ import { VariantPickerDialog } from "./variant-picker-dialog"
 
 const time = new Intl.DateTimeFormat("en-PK", { hour: "numeric", minute: "2-digit" })
 
-// Fills the space under the app header (see --app-header-h / --app-page-pad in globals.css). It never gets shorter than
-// min-h, so on a landscape phone the page scrolls instead of squeezing the product grid down to nothing.
 const screenHeight = "h-[calc(100dvh-var(--app-header-h)-2*var(--app-page-pad))] min-h-[34rem]"
 
 const PosSkeleton = () => (
@@ -77,11 +75,9 @@ const PosWorkspace = ({ user, shift, onShiftClosed }) => {
   const [closing, setClosing] = useState(false)
   const [parkedOpen, setParkedOpen] = useState(false)
   const [holdOpen, setHoldOpen] = useState(false)
-  // One id per checkout, so pressing Pay twice can never record the same sale twice.
   const [checkoutId, setCheckoutId] = useState(newId)
   const wide = useMediaQuery("(min-width: 1024px)")
 
-  // A restored cart can point at items that no longer exist (for example after the demo data was reset).
   useEffect(() => {
     prune(new Set(variants.map(({ id }) => id)))
   }, [variants, prune])

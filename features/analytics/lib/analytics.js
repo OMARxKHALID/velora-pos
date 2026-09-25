@@ -53,7 +53,6 @@ export const summarize = (state, from, to) => {
 
 const profitOf = (sales) => sumBy(sales, ({ items }) => sumBy(items, itemProfit))
 
-// Approved refunds are taken off the day (or hour) they were approved, so a chart always adds up to the headline number.
 const bucket = ({ sales, impacts }, from, to, matches = () => true) => {
   const soldHere = sales.filter((sale) => matches(sale.soldAt) && time(sale.soldAt) >= from && time(sale.soldAt) < to)
   const refundedHere = impacts.filter((impact) => matches(impact.at) && time(impact.at) >= from && time(impact.at) < to)
@@ -71,7 +70,6 @@ export const dailySeries = (summary, from, days) =>
     return { day: start, revenue, profit }
   })
 
-// Shows opening hours by default and stretches to include any sale or refund made outside them.
 export const hourlySeries = (summary, { fromHour = 10, toHour = 22 } = {}) => {
   const hours = [...summary.sales.map(({ soldAt }) => new Date(soldAt).getHours()), ...summary.impacts.map(({ at }) => new Date(at).getHours())]
   const first = Math.min(fromHour, ...hours)
@@ -142,7 +140,6 @@ export const cashierStats = (state, sales, refunds, from, to, cashierIds) => {
   })
 }
 
-// Everyone who has sold, plus current cashiers who simply have not sold yet.
 export const cashierIdsFor = (state, staff = {}) => [
   ...new Set([...Object.values(staff).filter((person) => person.role === "cashier" && !person.removed).map(({ id }) => id), ...state.sales.map(({ cashierId }) => cashierId)]),
 ]

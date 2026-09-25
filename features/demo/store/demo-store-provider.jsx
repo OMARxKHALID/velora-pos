@@ -1,14 +1,14 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from "react"
+import { toast } from "sonner"
 import { useStore } from "zustand"
 import { logout } from "@/features/auth/actions"
-import { STORAGE_KEY } from "../lib/storage"
+import { SAVE_FAILED_EVENT, STORAGE_KEY } from "../lib/storage"
 import { createDemoStore } from "./demo-store"
 
 export const DemoStoreContext = createContext(null)
 
-// The server only knows the session cookie; the team list lives here. Anyone removed, or moved to another role, is signed out.
 const useSignOutIfGone = (store, user) => {
   const onTeam = useStore(store, ({ hydrated, staff }) => !hydrated || (staff[user.id]?.role === user.role && !staff[user.id].removed))
   useEffect(() => {
@@ -29,8 +29,18 @@ export const DemoStoreProvider = ({ user, children }) => {
     hydrate()
 
     const handleStorage = (event) => event.key === STORAGE_KEY && event.newValue && store.persist.rehydrate()
+    const handleSaveFailed = () =>
+      toast.error("This browser could not save the last change", {
+        id: SAVE_FAILED_EVENT,
+        description: "Storage is full or blocked, so it will be lost on refresh. Reset the demo data to free space.",
+        duration: Infinity,
+      })
     window.addEventListener("storage", handleStorage)
-    return () => window.removeEventListener("storage", handleStorage)
+    window.addEventListener(SAVE_FAILED_EVENT, handleSaveFailed)
+    return () => {
+      window.removeEventListener("storage", handleStorage)
+      window.removeEventListener(SAVE_FAILED_EVENT, handleSaveFailed)
+    }
   }, [store])
 
   return <DemoStoreContext.Provider value={store}>{children}</DemoStoreContext.Provider>

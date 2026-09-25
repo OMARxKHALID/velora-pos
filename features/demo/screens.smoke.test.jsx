@@ -18,8 +18,6 @@ import { CartStoreProvider } from "@/features/pos/store/cart-store-provider"
 import { createDemoStore } from "./store/demo-store"
 import { DemoStoreContext } from "./store/demo-store-provider"
 
-// Renders each screen on the server against a fully seeded store. It catches the crashes that unit tests cannot:
-// a wrong import, an undefined field, a hook used in the wrong order.
 const users = {
   admin: toSessionUser({ id: "u-admin", name: "ASIF", role: "admin" }),
   manager: toSessionUser({ id: "u-manager", name: "Bilal Ahmed", role: "manager" }),
@@ -30,7 +28,6 @@ const seededStore = ({ openShift = false } = {}) => {
   const store = createDemoStore()
   store.getState().resetDemo()
   store.setState({ hydrated: true })
-  // Server rendering reads a store's *initial* state. Point it at the seeded one.
   store.getInitialState = store.getState
   if (openShift) store.getState().openShift({ cashierId: "u-cashier", openingCash: 1000000 })
   return store
@@ -64,11 +61,9 @@ describe("screens render against seeded data", () => {
 
     const open = seededStore({ openShift: true })
     const html = render(open, <PosScreen user={users.cashier} />)
-    // On the server the layout is the narrow one, so the cart lives in the bottom bar.
     expect(html).toContain("Shift since")
     expect(html).toContain("Cart is empty")
 
-    // Someone else's open shift: the second cashier is told the counter is in use.
     const other = toSessionUser({ id: "u-cashier-2", name: "Second Cashier", role: "cashier" })
     expect(render(open, <PosScreen user={other} />)).toContain("is in use")
   })

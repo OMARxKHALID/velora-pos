@@ -1,4 +1,4 @@
-import { SHOP_ID, indexCatalog, makeVariant, variantKey } from "./catalog"
+import { SHOP_ID, indexCatalog, makeVariant, sameColor, variantKey } from "./catalog"
 import { applyPurchase } from "@/features/demo/lib/ledger"
 
 const sameText = (a, b) => a.trim().toLowerCase() === b.trim().toLowerCase()
@@ -12,6 +12,8 @@ export const applySaveProduct = (state, { productId = null, input, barcodes = {}
   if (duplicate && duplicate.id !== productId) throw new Error(`${input.brand} ${input.name} already exists`)
   if (!input.colors.length || !input.sizes.length) throw new Error("Add at least one colour and one size")
   if (input.cost > input.price) throw new Error("Cost cannot be higher than the price")
+  const clash = input.colors.flatMap((color, index) => input.colors.slice(index + 1).filter((other) => sameColor(other, color)).map((other) => [color, other]))[0]
+  if (clash) throw new Error(`${clash[0]} and ${clash[1]} are the same colour`)
 
   const existing = productId ? state.products.find(({ id }) => id === productId) : null
   if (productId && !existing) throw new Error("Product not found")
@@ -31,6 +33,7 @@ export const applySaveProduct = (state, { productId = null, input, barcodes = {}
 
   const wanted = product.colors.flatMap((color) => product.sizes.map((size) => ({ color, size, id: variantKey(product.id, color, size) })))
   const wantedIds = new Set(wanted.map(({ id }) => id))
+  if (wantedIds.size !== wanted.length) throw new Error("Each size can only be listed once")
 
   const claimed = {}
   const kept = wanted.map(({ color, size, id }) => {
@@ -92,7 +95,10 @@ export const applyImportCatalog = (state, { rows, userId, at }) => {
   for (const group of groups) {
     const [first] = group
     const existing = findProduct(next, first.product, first.brand)
-    const colors = [...new Set([...(existing?.colors ?? []), ...group.map(({ color }) => color)])]
+    const colors = [...(existing?.colors ?? []), ...group.map(({ color }) => color)].reduce(
+      (list, color) => (list.some((known) => sameColor(known, color)) ? list : [...list, color]),
+      []
+    )
     const sizes = [...new Set([...(existing?.sizes ?? []), ...group.map(({ size }) => String(size))])].toSorted((a, b) => Number(a) - Number(b))
     const productId = existing?.id ?? null
     const pendingId = productId ?? `p-${String(next.productSeq + 1).padStart(2, "0")}`

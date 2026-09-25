@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { parseCsv, toCsv } from "@/lib/csv"
-import { indexCatalog } from "./catalog"
+import { colorCode, indexCatalog } from "./catalog"
 
 const headers = ["product", "brand", "category", "audience", "color", "size", "price", "cost", "barcode", "stock", "sku", "status"]
 const required = ["product", "brand", "category", "audience", "color", "size", "price", "cost"]
@@ -68,7 +68,7 @@ export const parseCatalogImport = (text) => {
 
   const seen = new Map()
   for (const row of rows) {
-    const key = `${row.product}|${row.brand}|${row.color}|${row.size}`.toLowerCase()
+    const key = `${row.product}|${row.brand}`.toLowerCase() + `|${colorCode(row.color)}|${row.size}`
     if (seen.has(key)) errors.push({ line: 0, message: `${row.product} ${row.color} ${row.size} appears twice` })
     seen.set(key, true)
     if (!row.barcode) continue

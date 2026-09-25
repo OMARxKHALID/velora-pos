@@ -150,7 +150,6 @@
   html {
     @apply font-sans [-webkit-text-size-adjust:100%];
   }
-  /* "clip" (not "hidden") so body does not become a scroll container: that is what stopped the sticky header from sticking. */
   body {
     @apply bg-background text-foreground [-webkit-tap-highlight-color:transparent] overflow-x-clip min-h-dvh;
   }
@@ -171,7 +170,6 @@
   }
 }
 
-/* Shell geometry lives in one place so full-height screens (the POS) do not repeat magic numbers. */
 :root {
   --app-header-h: 3.5rem;
   --app-page-pad: 1rem;

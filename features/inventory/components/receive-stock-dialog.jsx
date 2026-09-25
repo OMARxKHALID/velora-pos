@@ -54,7 +54,6 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
   }
 
   const handleAddLowStock = () => {
-    // Only shoes that are still on sale, judged by the shop's low-stock setting.
     const low = variants.filter(({ id, productId }) => productById[productId]?.status === "active" && (stock[id] ?? 0) <= lowLimit)
     replace(low.map(({ id }) => ({ variantId: id, quantity: 6 })))
     form.clearErrors("lines")

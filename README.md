@@ -43,6 +43,8 @@ Next.js 16 (App Router) · React 19 · Tailwind CSS 4 · shadcn/ui (Base UI) · 
 
 ## Develop
 
+Needs Bun 1.4 or newer. Older versions cannot read `bun.lock`.
+
 ```bash
 bun install
 bun dev

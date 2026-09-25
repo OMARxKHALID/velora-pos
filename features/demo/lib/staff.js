@@ -34,12 +34,13 @@ export const initialStaff = {
   },
 }
 
-// Names of people who left stay on the record so old sales and movements still read correctly.
 export const staffName = (id, staff = initialStaff) => staff?.[id]?.name ?? initialStaff[id]?.name ?? "Unknown"
 
 export const activeStaff = (staff) => Object.values(staff ?? {}).filter((person) => !person.removed)
 
 export const canApprove = (staff, id) => Boolean(staff?.[id]) && !staff[id].removed && staff[id].role !== "cashier"
+
+export const canSell = (staff, id) => Boolean(staff?.[id]) && !staff[id].removed && staff[id].role === "cashier"
 
 export const approverFor = (staff) => activeStaff(staff).find((person) => person.role === "manager") ?? null
 

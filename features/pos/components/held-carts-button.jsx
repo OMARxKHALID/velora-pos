@@ -10,8 +10,6 @@ const CountBadge = ({ count, className }) => (
   <span className={cn("flex size-5 items-center justify-center bg-primary text-2xs font-bold text-primary-foreground tabular-nums", className)}>{count}</span>
 )
 
-// One control for held carts. "panel" sits in the cart's action row, "bar" in the sell-screen header when the
-// cart is hidden, and "mobile" in the bottom bar. Only the one that fits the current layout is rendered.
 export const HeldCartsButton = ({ count, onClick, variant = "panel", className }) => {
   const active = count > 0
 

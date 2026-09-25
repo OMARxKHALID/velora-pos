@@ -58,11 +58,22 @@ const catalog = [
   ["Velora Scout Kids Boot", "Velora", "Kids", "kids", 7900, ["Brown", "Black"], 0],
 ]
 
-const slug = (text) => text.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3)
-
 export const sizePresets = sizeRuns
 
-const colorCode = (color) => color.split("/").map(slug).join("")
+const hashCode = (text) => {
+  let hash = 0
+  for (const char of text) hash = (Math.imul(hash, 31) + char.codePointAt(0)) | 0
+  return `X${(hash >>> 0).toString(36).toUpperCase()}`
+}
+
+const slug = (text) => {
+  const plain = text.normalize("NFKD").toUpperCase().replace(/[^A-Z0-9]/g, "")
+  return plain || (text.trim() ? hashCode(text.trim().toLowerCase()) : "")
+}
+
+export const colorCode = (color) => color.split("/").map(slug).join("-")
+
+export const sameColor = (a, b) => colorCode(a) === colorCode(b)
 
 export const variantKey = (productId, color, size) => `${productId}-${colorCode(color)}-${size}`
 

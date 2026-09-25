@@ -1,4 +1,3 @@
-// Page setup per kind of print. Receipts are 80mm thermal paper (about 302px wide); everything else is a normal page.
 const pageStyles = {
   receipt: "@page { size: 80mm auto; margin: 0 } html, body { margin: 0; background: #fff }",
   sheet: "@page { size: A4; margin: 10mm } html, body { margin: 0; background: #fff }",
@@ -14,7 +13,6 @@ const whenLoaded = (doc) => {
       link.addEventListener("error", resolve, { once: true })
     }))
   ).then(() => doc.fonts?.ready)
-  // A slow stylesheet should delay the print dialog, not block it forever.
   return Promise.race([ready, new Promise((resolve) => setTimeout(resolve, PRINT_TIMEOUT))])
 }
 
@@ -34,7 +32,6 @@ export const printNode = async (node, { paper = "sheet" } = {}) => {
 
   const cleanup = () => frame.remove()
   frame.contentWindow.addEventListener("afterprint", cleanup, { once: true })
-  // Some browsers never fire afterprint. Do not leave the frame behind forever.
   setTimeout(cleanup, 120000)
   frame.contentWindow.focus()
   frame.contentWindow.print()
