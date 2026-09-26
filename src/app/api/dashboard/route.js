@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { RANGES, loadDashboard } from "@/features/analytics/server/dashboard"
+import { RANGES, cachedDashboard } from "@/features/analytics/server/dashboard"
 import { getSession } from "@/features/auth/server/session"
 import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { COLLECTIONS as C } from "@/server/db/collections"
@@ -19,5 +19,5 @@ export const GET = async (request) => {
   const { range, shop } = query.data
   if (shop !== ALL_SHOPS && !allShops.includes(shop)) return denied(400, "Unknown shop")
   const shopIds = shop === ALL_SHOPS ? allShops : [shop]
-  return Response.json(await loadDashboard(db, { shopIds, scope: shop, range }), { headers: noStore })
+  return Response.json(await cachedDashboard(shopIds, shop, range), { headers: noStore })
 }

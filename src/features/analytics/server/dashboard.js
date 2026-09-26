@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache"
+import { getDb } from "@/server/db/client"
 import { COLLECTIONS as C, fromDoc } from "@/server/db/collections"
 import { SHOP_TIME_ZONE, hourIn, startOfDayIn } from "@/shared/lib/zoned"
 import { periodFor } from "../lib/analytics"
@@ -5,6 +7,8 @@ import { dashboardView } from "../lib/dashboard-view"
 import { DAY } from "@/shared/lib/dates"
 
 export const RANGES = ["today", "7d", "30d"]
+
+const UNUSED_SALE_FIELDS = { fbr: 0, customerName: 0, customerPhone: 0, "items.productName": 0, "items.sku": 0, "items.attributes": 0, "items.pctCode": 0, "payments.reference": 0 }
 
 const asTimes = (doc) => {
   const out = fromDoc(doc)
@@ -23,7 +27,7 @@ export const loadDashboard = async (db, { shopIds, scope, range, now = Date.now(
     db.collection(C.products).find(inShops).toArray(),
     db.collection(C.variants).find(inShops).toArray(),
     db.collection(C.stock).find(inShops).toArray(),
-    db.collection(C.sales).find({ ...inShops, soldAt: { $gte: since } }, { sort: { soldAt: 1 } }).toArray(),
+    db.collection(C.sales).find({ ...inShops, soldAt: { $gte: since } }, { sort: { soldAt: 1 }, projection: UNUSED_SALE_FIELDS }).toArray(),
     db.collection(C.refunds).find({ ...inShops, status: "approved", decidedAt: { $gte: new Date(period.prevFrom) } }).toArray(),
     db.collection(C.shifts).find({ ...inShops, status: "closed", closedAt: { $gte: new Date(period.from) } }).toArray(),
     db.collection(C.settings).findOne({ _id: shopIds[0] }),
@@ -33,7 +37,7 @@ export const loadDashboard = async (db, { shopIds, scope, range, now = Date.now(
 
   const loaded = new Set(sales.map(({ _id }) => _id))
   const missing = [...new Set(refunds.map(({ saleId }) => saleId).filter((id) => !loaded.has(id)))]
-  const olderSales = missing.length ? await db.collection(C.sales).find({ _id: { $in: missing } }).toArray() : []
+  const olderSales = missing.length ? await db.collection(C.sales).find({ _id: { $in: missing } }, { projection: UNUSED_SALE_FIELDS }).toArray() : []
 
   const full = {
     products: products.map(fromDoc),
@@ -58,3 +62,5 @@ export const loadDashboard = async (db, { shopIds, scope, range, now = Date.now(
     now,
   })
 }
+
+export const cachedDashboard = unstable_cache((shopIds, scope, range) => loadDashboard(getDb(), { shopIds, scope, range }), ["dashboard"], { revalidate: 30 })
