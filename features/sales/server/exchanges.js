@@ -23,6 +23,7 @@ const exchangeInSession = async (db, session, { user, shopId, at }, request) => 
   const sale = await db.collection(C.sales).findOne({ _id: request.saleId, shopId }, { session })
   if (!sale) throw new UserError("Sale not found")
   if (user.role === "cashier" && sale.cashierId !== user.id) throw new UserError("You can only swap your own sales. Ask a supervisor.")
+  await db.collection(C.sales).updateOne({ _id: sale._id }, { $inc: { claimSeq: 1 } }, { session })
 
   const variants = await docsOf(db, session, C.variants, { _id: { $in: [request.fromVariantId, request.toVariantId] }, shopId })
   const products = await docsOf(db, session, C.products, { _id: { $in: [...new Set(variants.map(({ productId }) => productId))] }, shopId })

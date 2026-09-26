@@ -45,6 +45,14 @@ describe.skipIf(!hasTestDatabase)("returns, settings and what each role can read
     expect(await context.db.collection(C.movements).findOne({ "ref.id": refund.id })).toMatchObject({ type: "return", quantity: 1, unitCost: variant.cost })
   })
 
+  test("two returns sent at the same moment cannot claim the same pair", async () => {
+    const other = await recordSale(as("u-cashier"), { clientId: newId(), shiftId: shift.id, lines: [{ variantId: variant._id, quantity: 1 }], payments: [{ method: "card", amount: variant.price }] })
+    const ask = () => requestRefund(as("u-cashier"), { clientId: newId(), saleId: other.id, lines: [{ variantId: variant._id, quantity: 1 }], reason: "Wrong size", method: "card" })
+    const results = await Promise.allSettled([ask(), ask(), ask()])
+    expect(results.filter(({ status }) => status === "fulfilled")).toHaveLength(1)
+    expect(await context.db.collection(C.refunds).countDocuments({ saleId: other.id })).toBe(1)
+  })
+
   test("a cashier cannot return someone else's sale, and money goes back the way it came", async () => {
     await expect(requestRefund(as("u-cashier-2"), { clientId: newId(), saleId: sale.id, lines: [{ variantId: variant._id, quantity: 1 }], reason: "Wrong size", method: "cash" })).rejects.toThrow("your own sales")
     await expect(requestRefund(as("u-cashier"), { clientId: newId(), saleId: sale.id, lines: [{ variantId: variant._id, quantity: 1 }], reason: "Wrong size", method: "card" })).rejects.toThrow("not paid by card")

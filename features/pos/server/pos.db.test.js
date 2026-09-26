@@ -100,8 +100,10 @@ describe.skipIf(!hasTestDatabase)("selling on the server", () => {
     await expect(sell({ discountPct: 10, approvalToken: token({ supervisorId: "u-manager-gone" }) })).rejects.toThrow("no longer active")
     await expect(sell({ discountPct: 10, approvalToken: issueApproval("wrong-secret-that-is-long-enough-123", { cashierId: "u-cashier", supervisorId: "u-manager", discountPct: 10 }) })).rejects.toThrow("expired")
 
-    const sale = await sell({ discountPct: 10, approvalToken: token() })
+    const approvalToken = token()
+    const sale = await sell({ discountPct: 10, approvalToken })
     expect(sale).toMatchObject({ manualDiscountBy: "u-manager", flags: ["big_discount"] })
+    await expect(sell({ discountPct: 10, approvalToken })).rejects.toThrow("already used")
     expect(sale.cartDiscount).toBe(Math.floor((variant.price * 10) / 10000) * 100)
     const small = await sell({ discountPct: 5 })
     expect(small.manualDiscountBy).toBeNull()

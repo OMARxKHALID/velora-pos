@@ -19,10 +19,8 @@ export const approveDiscount = async ({ db, pinSecret, approvalSecret }, { cashi
   if (shopId && !supervisor.shopIds?.includes(shopId)) throw new UserError("Choose a supervisor from this shop")
   if (await blockedReason(db, supervisor, now)) throw new UserError("This supervisor is on leave or their shop is closed. Choose another.")
   if (!supervisor.pinHash) throw new UserError("This supervisor has no PIN yet. The owner can set one in Settings.")
-  if (!matchesPin(pinSecret, supervisor.pinHash, supervisorId, pin)) {
-    await attempts.fail(supervisorId, now)
-    throw new UserError("Wrong PIN")
-  }
+  if (!(await attempts.claim(supervisorId, now))) throw new UserError("Too many wrong PINs. Try again in a few minutes.")
+  if (!matchesPin(pinSecret, supervisor.pinHash, supervisorId, pin)) throw new UserError("Wrong PIN")
 
   await attempts.clear(supervisorId)
   return { approvedBy: supervisorId, approvalToken: issueApproval(approvalSecret, { cashierId, supervisorId, discountPct, now: now.getTime() }) }

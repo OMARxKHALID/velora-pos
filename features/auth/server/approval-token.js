@@ -20,7 +20,7 @@ export const readApproval = (secret, token, { cashierId, discountPct, now = Date
   try {
     const { c, s, p, e } = JSON.parse(Buffer.from(body, "base64url").toString("utf8"))
     if (c !== cashierId || p !== discountPct || typeof e !== "number" || e < now) return null
-    return { supervisorId: s, expiresAt: e }
+    return { id: signature, supervisorId: s, expiresAt: e }
   } catch {
     return null
   }

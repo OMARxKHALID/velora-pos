@@ -134,6 +134,16 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     expect(approvedBy).toBe("u-manager")
   })
 
+  test("wrong PINs sent at the same moment still stop after five", async () => {
+    const approve = (pin) => approveDiscount({ db: context.db, pinSecret: SECRET, approvalSecret: SECRET }, { cashierId: "u-cashier", discountPct: 10, supervisorId: "u-manager", pin })
+    const results = await Promise.allSettled(Array.from({ length: 20 }, (_, index) => approve(String(index).padStart(4, "0"))))
+    const messages = results.map(({ reason }) => reason.message)
+    expect(messages.filter((message) => message === "Wrong PIN").length).toBeLessThanOrEqual(5)
+    expect(messages.filter((message) => message === "Wrong PIN" || message.startsWith("Too many wrong PINs"))).toHaveLength(20)
+    expect(await context.db.collection(C.pinFailures).countDocuments({ supervisorId: "u-manager" })).toBeLessThanOrEqual(5)
+    await context.db.collection(C.pinFailures).deleteMany({ supervisorId: "u-manager" })
+  })
+
   test("profiles are checked and saved, and a person can move to another shop", async () => {
     const owner = await as("asif")
     const { id } = await createStaff(owner, { name: "Profile Person", role: "cashier", username: "profile", password: "profile-pass-1", cnic: "35202-1234567-1", city: "Lahore" })

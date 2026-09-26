@@ -79,6 +79,19 @@ describe.skipIf(!hasTestDatabase)("sales made offline and uploaded later", () =>
     expect(shifts.find(({ id }) => id === shift.id).offlineNext).toBe(1)
   })
 
+  test("a product offer with a decimal percent still uploads", async () => {
+    const variant = await pick()
+    await context.db.collection(C.products).updateOne({ _id: variant.productId }, { $set: { discountPct: 12.5 } })
+    const offer = Math.floor((variant.price * 12.5) / 10000) * 100
+    const total = variant.price - offer
+    const sale = await syncOfflineSale(as("u-cashier"), offlineSale(variant, { lines: [{ variantId: variant._id, quantity: 1, unitPrice: variant.price, productDiscountPct: 12.5 }], payments: [{ method: "card", amount: total }], total }))
+    expect(sale).toMatchObject({ total, discountTotal: offer })
+    expect(sale.items[0].productDiscount).toBe(offer)
+    expect(sale.flags).not.toContain("price_mismatch")
+    expect(sale.flags).not.toContain("total_mismatch")
+    await context.db.collection(C.products).updateOne({ _id: variant.productId }, { $set: { discountPct: 0 } })
+  })
+
   test("online sales keep their own numbering alongside offline ones", async () => {
     const variant = await pick()
     const sale = await recordSale(as("u-cashier"), { clientId: newId(), shiftId: shift.id, lines: [{ variantId: variant._id, quantity: 1 }], payments: [{ method: "card", amount: variant.price }] })

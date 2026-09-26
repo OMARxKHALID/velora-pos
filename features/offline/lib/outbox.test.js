@@ -6,9 +6,10 @@ import { createTillDb } from "./till-db"
 
 const freshTill = () => createTillDb(`till-${newId()}`, { indexedDB: new IDBFactory(), IDBKeyRange })
 const shift = { id: "shift-1", registerCode: "SH1-R1", receiptBlocks: [{ from: 1, to: 2 }, { from: 7, to: 7 }] }
+let clock = Date.now()
 const queue = (till, cashierId = "u-cashier") => {
   const clientId = newId()
-  return queueOfflineSale(till, { shift, cashierId, sale: { id: clientId, items: [] }, payload: { clientId, soldAt: Date.now() } })
+  return queueOfflineSale(till, { shift, cashierId, sale: { id: clientId, items: [] }, payload: { clientId, soldAt: (clock += 1000) } })
 }
 
 test("each offline sale takes the next number from the shift's blocks, even from two tabs at once", async () => {

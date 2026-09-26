@@ -38,7 +38,7 @@ const offlineSaleSchema = saleSchema.extend({
   soldAt: z.number().int().positive(),
   total: z.number().int().min(0),
   lines: z
-    .array(lineSchema.extend({ unitPrice: z.number().int().min(0), productDiscountPct: z.number().int().min(0).max(90).default(0) }))
+    .array(lineSchema.extend({ unitPrice: z.number().int().min(0), productDiscountPct: z.number().min(0).max(90).default(0) }))
     .min(1, { error: "Cart is empty" })
     .max(100),
   pricing: z.object({
@@ -59,6 +59,9 @@ const approverFor = async (db, session, { approvalSecret, cashierId, discountPct
   if (!approval) throw new UserError("The supervisor approval has expired or does not match this discount. Ask for it again.")
   const supervisor = await db.collection(C.users).findOne({ _id: approval.supervisorId }, { session, projection: { role: 1, banned: 1, removedAt: 1 } })
   if (!supervisor || supervisor.role !== "manager" || supervisor.banned || supervisor.removedAt) throw new UserError("The approving supervisor is no longer active. Ask another supervisor.")
+  const uses = db.collection(C.approvalUses)
+  if (await uses.findOne({ _id: approval.id }, { session, projection: { _id: 1 } })) throw new UserError("This supervisor approval was already used on another sale. Ask for it again.")
+  await uses.insertOne({ _id: approval.id, supervisorId: approval.supervisorId, cashierId, usedAt: new Date() }, { session })
   return approval.supervisorId
 }
 
@@ -144,6 +147,8 @@ const takeStock = async (db, session, { sale, number, user, at, allowNegative })
   return negative
 }
 
+const lockShift = (db, session, shiftId) => db.collection(C.shifts).updateOne({ _id: shiftId }, { $inc: { writeSeq: 1 } }, { session })
+
 const existingSale = (db, session, clientId) => db.collection(C.sales).findOne({ clientId }, { session })
 
 const recordInSession = async (db, session, { user, shopId, at, approvalSecret }, input) => {
@@ -152,6 +157,7 @@ const recordInSession = async (db, session, { user, shopId, at, approvalSecret }
 
   const shift = await db.collection(C.shifts).findOne({ _id: input.shiftId, shopId }, { session })
   if (!shift || shift.status !== "open") throw new UserError("Open a shift before selling")
+  await lockShift(db, session, shift._id)
   const register = await registerFor(db, session, shopId, shift.registerId)
   const settings = await shopSettings(db, session, shopId)
   const lines = merge(input.lines)
@@ -222,6 +228,7 @@ const syncInSession = async (db, session, { user, shopId, now, approvalSecret },
   const shift = await db.collection(C.shifts).findOne({ _id: input.shiftId, shopId }, { session })
   if (!shift) throw new UserError("The shift for this sale was not found")
   if (shift.cashierId !== user.id) throw new UserError("This sale was made on another cashier's shift")
+  await lockShift(db, session, shift._id)
   const register = await registerFor(db, session, shopId, shift.registerId)
   const current = await shopSettings(db, session, shopId)
   const lines = merge(input.lines)

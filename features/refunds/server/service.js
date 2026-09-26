@@ -19,6 +19,8 @@ const requestSchema = z.object({
 
 const refundsOf = async (db, session, saleId) => (await db.collection(C.refunds).find({ saleId }, { session }).toArray()).map(fromDoc)
 
+const lockSale = (db, session, saleId) => db.collection(C.sales).updateOne({ _id: saleId }, { $inc: { claimSeq: 1 } }, { session })
+
 const exchangesOf = async (db, session, saleId) => (await db.collection(C.exchanges).find({ saleId }, { session }).toArray()).map(fromDoc)
 
 export const requestRefund = async ({ db, client, user, shopId, at = new Date() }, input) => {
@@ -30,6 +32,7 @@ export const requestRefund = async ({ db, client, user, shopId, at = new Date() 
       const sale = await db.collection(C.sales).findOne({ _id: request.saleId, shopId }, { session })
       if (!sale) throw new UserError("Sale not found")
       if (user.role === "cashier" && sale.cashierId !== user.id) throw new UserError("You can only return your own sales. Ask a supervisor.")
+      await lockSale(db, session, sale._id)
       const openShift = await db.collection(C.shifts).findOne({ registerId: sale.registerId, status: "open" }, { session })
       let record
       try {
@@ -60,6 +63,7 @@ export const decideRefund = async ({ db, client, user, shopId, at = new Date() }
     const sale = await db.collection(C.sales).findOne({ _id: refund.saleId }, { session })
     const openShift = await db.collection(C.shifts).findOne({ registerId: sale.registerId, status: "open" }, { session })
     const register = await registerFor(db, session, shopId, sale.registerId)
+    if (approve && openShift) await db.collection(C.shifts).updateOne({ _id: openShift._id }, { $inc: { writeSeq: 1 } }, { session })
     let decided
     let fbrSeq
     try {
