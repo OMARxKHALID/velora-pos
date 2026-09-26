@@ -67,7 +67,7 @@ const pctByCategory = {
 
 export const PCT_PATTERN = /^\d{4}\.\d{4}$/
 
-export const defaultPctCode = (category) => pctByCategory[category] ?? "6403.9900"
+const defaultPctCode = (category) => pctByCategory[category] ?? "6403.9900"
 
 const clothingSizes = ["XS", "S", "M", "L", "XL", "XXL"]
 
@@ -85,7 +85,7 @@ export const CATEGORY_ICONS = ["sneaker", "sneaker-move", "heel", "boot", "sock"
 
 const seedCategoryIcons = { Heels: "heel", Boots: "boot", Sports: "sneaker-move" }
 
-export const makeCategory = ({ name, sizeType = "shoe", icon = "sneaker", pctCode = "" }) => ({
+const makeCategory = ({ name, sizeType = "shoe", icon = "sneaker", pctCode = "" }) => ({
   id: `c-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`,
   name,
   sizeType,
@@ -95,7 +95,7 @@ export const makeCategory = ({ name, sizeType = "shoe", icon = "sneaker", pctCod
 
 const sizeTypeFromSizes = (sizes) => (sizes.every((size) => /^\d+$/.test(size)) ? "shoe" : sizes.length === 1 && sizes[0] === ONE_SIZE ? "one" : "clothing")
 
-export const categoriesFromProducts = (products, existing = []) => {
+const categoriesFromProducts = (products, existing = []) => {
   const known = new Set(existing.map(({ name }) => name.toLowerCase()))
   const added = []
   for (const { category, sizes } of products) {

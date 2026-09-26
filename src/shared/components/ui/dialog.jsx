@@ -13,12 +13,6 @@ function Dialog({
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
-function DialogTrigger({
-  ...props
-}) {
-  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
-}
-
 function DialogPortal({
   ...props
 }) {
@@ -178,8 +172,5 @@ export {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogOverlay,
-  DialogPortal,
   DialogTitle,
-  DialogTrigger,
 }

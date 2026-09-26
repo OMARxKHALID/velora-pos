@@ -1,8 +1,5 @@
 import { SHOP_ID } from "@/features/catalog/lib/catalog"
 
-export const GROUP_NAME = "Velora Group"
-
-export const ROLES = ["admin", "manager", "cashier"]
 export const STAFF_ROLES = ["manager", "cashier"]
 
 export const roleLabels = { admin: "Owner", manager: "Supervisor", cashier: "Cashier" }
@@ -14,8 +11,6 @@ export const roleBlurbs = {
 }
 
 export const homeFor = (role) => (role === "admin" ? "/dashboard" : role === "manager" ? "/sales" : "/pos")
-
-export const titleFor = (role) => (role === "admin" ? `${roleLabels[role]} · ${GROUP_NAME}` : roleLabels[role])
 
 export const toSessionUser = ({ id, name, role, shopIds }) => ({
   id,

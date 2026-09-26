@@ -2,6 +2,7 @@ import { z } from "zod"
 import { UserError, parseInput } from "@/shared/lib/errors"
 import { moveStockMany } from "@/features/inventory/server/stock"
 import { changesBetween, writeAudit } from "@/server/db/audit"
+import { caseInsensitive } from "@/server/db/indexes"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/server/db/collections"
 import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
 import { newId } from "@/shared/lib/id"
@@ -10,7 +11,6 @@ import { PCT_PATTERN, SIZE_PATTERN, sameColor } from "../lib/catalog"
 import { ensureCategories } from "./categories"
 import { planProductSave } from "../lib/plan-product"
 
-const caseInsensitive = { locale: "en", strength: 2 }
 const AUDITED = ["name", "brand", "price", "cost", "discountPct", "status", "category", "pctCode"]
 
 const commonSchema = z

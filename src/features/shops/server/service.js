@@ -2,13 +2,13 @@ import { z } from "zod"
 import { NTN_PATTERN, POSID_PATTERN, STRN_PATTERN } from "@/features/fbr/lib/fbr"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 import { changesBetween, writeAudit } from "@/server/db/audit"
+import { caseInsensitive } from "@/server/db/indexes"
 import { COLLECTIONS as C } from "@/server/db/collections"
 import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
 import { UserError, parseInput } from "@/shared/lib/errors"
 import { newId } from "@/shared/lib/id"
 import { SHOP_TIME_ZONE } from "@/shared/lib/zoned"
 
-const caseInsensitive = { locale: "en", strength: 2 }
 const PHONE_PATTERN = /^[\d\s+()-]{7,20}$/
 const SHOP_AUDITED = ["name", "address", "city", "phone", "ntn", "strn", "active"]
 const REGISTER_AUDITED = ["name", "fbrPosId", "autoPrint", "copies", "drawerOnCash", "manualDrawer"]

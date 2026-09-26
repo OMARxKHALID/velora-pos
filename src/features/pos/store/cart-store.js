@@ -1,6 +1,6 @@
 import { createStore } from "zustand/vanilla"
 import { createJSONStorage, persist } from "zustand/middleware"
-export const CART_STORAGE_KEY = "velora-cart"
+const CART_STORAGE_KEY = "velora-cart"
 
 const blank = { lines: [], discountPct: 0, approvedBy: null, approvalToken: null, customerName: "", customerPhone: "" }
 

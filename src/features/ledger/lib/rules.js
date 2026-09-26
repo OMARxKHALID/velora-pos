@@ -250,7 +250,7 @@ export const refundableQuantity = (state, saleId, variantId) => {
   return sold - claimed - exchangedQuantity(state, saleId, variantId)
 }
 
-export const paidByMethod = (sale) =>
+const paidByMethod = (sale) =>
   Object.fromEntries(
     PAYMENT_METHODS.map((method) => [method, sumBy(sale.payments.filter((payment) => payment.method === method), ({ amount }) => amount) - (method === "cash" ? sale.change : 0)])
   )

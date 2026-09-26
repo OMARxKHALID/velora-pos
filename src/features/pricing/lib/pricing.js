@@ -16,7 +16,7 @@ export const defaultPricingSettings = () => ({
   fbrServiceFee: true,
 })
 
-export const FBR_SERVICE_FEE = 100
+const FBR_SERVICE_FEE = 100
 
 export const effectiveRate = (settings) => (settings.taxEnabled && Number(settings.taxRate) > 0 ? Number(settings.taxRate) : 0)
 

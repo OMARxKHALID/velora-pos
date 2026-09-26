@@ -14,7 +14,7 @@ export const signParams = (params, apiSecret) =>
     )
     .digest("hex")
 
-export const signDelivery = (toSign, apiSecret) =>
+const signDelivery = (toSign, apiSecret) =>
   createHash("sha1")
     .update(toSign + apiSecret)
     .digest("base64")

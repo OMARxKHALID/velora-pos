@@ -7,10 +7,6 @@ import { cn } from "cn"
 
 const Select = SelectPrimitive.Root
 
-function SelectGroup({ className, ...props }) {
-  return <SelectPrimitive.Group data-slot="select-group" className={cn("scroll-my-1.5 p-1.5", className)} {...props} />
-}
-
 function SelectValue({ className, ...props }) {
   return <SelectPrimitive.Value data-slot="select-value" className={cn("flex flex-1 text-left", className)} {...props} />
 }
@@ -54,10 +50,6 @@ function SelectContent({ className, children, side = "bottom", sideOffset = 4, a
   )
 }
 
-function SelectLabel({ className, ...props }) {
-  return <SelectPrimitive.GroupLabel data-slot="select-label" className={cn("px-3 py-2 text-xs font-medium text-muted-foreground", className)} {...props} />
-}
-
 function SelectItem({ className, children, ...props }) {
   return (
     <SelectPrimitive.Item
@@ -76,10 +68,6 @@ function SelectItem({ className, children, ...props }) {
   )
 }
 
-function SelectSeparator({ className, ...props }) {
-  return <SelectPrimitive.Separator data-slot="select-separator" className={cn("pointer-events-none -mx-1.5 my-1.5 h-px bg-border/50", className)} {...props} />
-}
-
 function SelectScrollUpButton({ className, ...props }) {
   return (
     <SelectPrimitive.ScrollUpArrow data-slot="select-scroll-up-button" className={cn("top-0 z-10 flex w-full cursor-default items-center justify-center bg-popover py-1", className)} {...props}>
@@ -96,4 +84,10 @@ function SelectScrollDownButton({ className, ...props }) {
   )
 }
 
-export { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectScrollDownButton, SelectScrollUpButton, SelectSeparator, SelectTrigger, SelectValue }
+export {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+}

@@ -13,18 +13,6 @@ function Sheet({
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
 }
 
-function SheetTrigger({
-  ...props
-}) {
-  return <SheetPrimitive.Trigger data-slot="sheet-trigger" {...props} />
-}
-
-function SheetClose({
-  ...props
-}) {
-  return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
-}
-
 function SheetPortal({
   ...props
 }) {
@@ -148,8 +136,6 @@ function SheetDescription({
 
 export {
   Sheet,
-  SheetTrigger,
-  SheetClose,
   SheetContent,
   SheetHeader,
   SheetFooter,

@@ -1,12 +1,12 @@
 import { z } from "zod"
 import { changesBetween, writeAudit } from "@/server/db/audit"
+import { caseInsensitive } from "@/server/db/indexes"
 import { COLLECTIONS as C, fromDoc } from "@/server/db/collections"
 import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
 import { UserError, parseInput } from "@/shared/lib/errors"
 import { newId } from "@/shared/lib/id"
 import { CATEGORY_ICONS, PCT_PATTERN, SIZE_TYPES } from "../lib/catalog"
 
-const caseInsensitive = { locale: "en", strength: 2 }
 const AUDITED = ["name", "sizeType", "icon", "pctCode", "lowStockAt"]
 
 const categorySchema = z.object({

@@ -2,7 +2,7 @@ export const METHOD_LABELS = { cash: "Cash", card: "Card", jazzcash: "JazzCash",
 
 export const methodLabel = (method) => METHOD_LABELS[method] ?? method
 
-export const OTHER_METHODS = ["jazzcash", "easypaisa", "bank"]
+const OTHER_METHODS = ["jazzcash", "easypaisa", "bank"]
 
 export const enabledOtherMethods = (settings) => OTHER_METHODS.filter((method) => settings?.paymentMethods?.[method])
 

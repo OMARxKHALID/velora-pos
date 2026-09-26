@@ -24,12 +24,12 @@ export const isOnLeave = (person, today = localDate()) => Boolean(person?.leave)
 
 export const worksAtClosedShop = (person, shops) => Boolean(person?.shopId && shops?.some(({ id, active }) => active === false && id === person.shopId))
 
-export const formatCnic = (value) => {
+const formatCnic = (value) => {
   const match = trimmed(value, 20).match(CNIC_PATTERN)
   return match ? `${match[1]}-${match[2]}-${match[3]}` : null
 }
 
-export const formatPhone = (value) => {
+const formatPhone = (value) => {
   const match = trimmed(value, 20).replace(/\s+/g, "").match(PHONE_PATTERN)
   return match ? `0${match[1]} ${match[2]}` : null
 }

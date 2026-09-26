@@ -6,7 +6,6 @@ import { cn } from "cn"
 
 import { Button } from "@/shared/components/ui/button"
 import { Input } from "@/shared/components/ui/input"
-import { Textarea } from "@/shared/components/ui/textarea"
 
 function InputGroup({
   className,
@@ -132,27 +131,10 @@ function InputGroupInput({
   )
 }
 
-function InputGroupTextarea({
-  className,
-  ...props
-}) {
-  return (
-    <Textarea
-      data-slot="input-group-control"
-      className={cn(
-        "flex-1 resize-none border-0 bg-transparent py-2.5 ring-0 focus-visible:ring-0 aria-invalid:ring-0 dark:bg-transparent",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
 export {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupText,
   InputGroupInput,
-  InputGroupTextarea,
 }

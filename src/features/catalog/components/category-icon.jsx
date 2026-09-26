@@ -4,7 +4,7 @@ import { BootIcon, DropIcon, HighHeelIcon, PaintBrushIcon, SneakerIcon, SneakerM
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { categoryFor } from "../lib/catalog"
 
-export const categoryIcons = {
+const categoryIcons = {
   sneaker: SneakerIcon,
   "sneaker-move": SneakerMoveIcon,
   heel: HighHeelIcon,
