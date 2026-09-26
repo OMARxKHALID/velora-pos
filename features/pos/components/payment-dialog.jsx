@@ -322,7 +322,7 @@ const SplitForm = ({ total, methods, onPay }) => {
 
       <div className="space-y-3 border p-4">
         <p className="flex items-start gap-2 text-xs text-muted-foreground">
-          <CreditCardIcon className="mt-0.5 size-4 shrink-0 text-gold" />
+          <CreditCardIcon className="size-4 shrink-0 text-gold" />
           <span>{second === "card" ? "Take the card amount on the bank terminal first, then complete the sale once it is approved." : `Check the ${methodLabel(second)} payment has arrived before completing the sale.`}</span>
         </p>
         {REFERENCE_REQUIRED.includes(second) ? (

@@ -7,6 +7,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/in
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { TableSkeleton } from "@/components/ui/table-skeleton"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
@@ -109,7 +110,7 @@ export const MovementsScreen = ({ user }) => {
             })}
           </TableBody>
         </Table>
-        {isPending && <p className="py-12 text-center text-sm text-muted-foreground">Loading history…</p>}
+        {isPending && <TableSkeleton label="Loading stock history" />}
         {error && !data && <p className="py-12 text-center text-sm text-destructive-foreground">{error.message}</p>}
         {data && !rows.length && <p className="py-12 text-center text-sm text-muted-foreground">No movements match.</p>}
         {data && <TablePagination page={data.page} pageCount={pageCount} total={data.total} size={data.pageSize} onPageChange={setPage} />}

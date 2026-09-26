@@ -9,7 +9,7 @@ export const ScopeBar = ({ shopId }) => {
   if (!shopId) {
     return (
       <div className="flex items-start gap-2 border bg-muted/40 px-3 py-2 text-xs text-muted-foreground @4xl:col-span-2">
-        <TreeStructureIcon className="mt-0.5 size-4 shrink-0 text-gold" />
+        <TreeStructureIcon className="size-4 shrink-0 text-gold" />
         <span>Changes here apply to every shop. Pick a shop in the switcher to change it alone.</span>
       </div>
     )

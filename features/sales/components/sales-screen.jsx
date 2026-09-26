@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem,
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Segmented } from "@/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { TableSkeleton } from "@/components/ui/table-skeleton"
 import { TablePagination, resetsPage } from "@/components/ui/table-pagination"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
@@ -149,7 +150,7 @@ export const SalesScreen = ({ user }) => {
             ))}
           </TableBody>
         </Table>
-        {isPending && <p className="py-12 text-center text-sm text-muted-foreground">Loading sales…</p>}
+        {isPending && <TableSkeleton label="Loading sales" />}
         {error && !data && <p className="py-12 text-center text-sm text-destructive-foreground">{error.message}</p>}
         {data && !rows.length && <p className="py-12 text-center text-sm text-muted-foreground">No sales match these filters.</p>}
         {data && <TablePagination page={data.page} pageCount={pageCount} total={data.total} size={data.pageSize} onPageChange={setPage} />}

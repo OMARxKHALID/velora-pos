@@ -6,7 +6,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, CheckCircleIcon, WarningIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { Segmented } from "@/components/ui/segmented"
-import { Skeleton } from "@/components/ui/skeleton"
+import { PanelsSkeleton } from "@/components/ui/table-skeleton"
 import { StatStrip } from "@/components/ui/stat-strip"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
@@ -76,10 +76,7 @@ export const DashboardScreen = ({ user }) => {
 
   if (isPending)
     return (
-      <div className="space-y-3">
-        <Skeleton className="h-20" />
-        <Skeleton className="h-96" />
-      </div>
+      <PanelsSkeleton />
     )
   if (!view) return <p className="border border-destructive/40 bg-destructive/10 p-4 text-sm">{error?.message ?? "Could not load the dashboard."}</p>
 
