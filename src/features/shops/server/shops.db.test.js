@@ -15,16 +15,15 @@ describe.skipIf(!hasTestDatabase)("shops and counters", () => {
     await loadDocuments(context.db, seedDocuments(new Date(2026, 8, 16, 18).getTime()))
   })
 
-  test("a new shop gets the next code, its first counter and its own settings", async () => {
-    const shop = await saveShop(owner(), { name: "  Second   Shop ", city: "Karachi", ntn: "1234567-8" })
-    expect(shop).toMatchObject({ code: "SH2", name: "Second Shop", city: "Karachi", active: true })
-    const counters = await context.db.collection(C.registers).find({ shopId: shop.id }).toArray()
-    expect(counters.map(({ code }) => code)).toEqual(["SH2-R1"])
-    expect(await context.db.collection(C.settings).findOne({ _id: shop.id })).toMatchObject({ taxEnabled: false, cashRounding: 1 })
-    await expect(saveShop(owner(), { name: "second shop" })).rejects.toThrow("already exists")
-    await expect(saveShop(owner(), { name: "Third", ntn: "12" })).rejects.toThrow("NTN")
-    await expect(saveShop(owner(), { name: "Third", strn: "123" })).rejects.toThrow("STRN")
-    await expect(saveShop(owner(), { name: "Third", phone: "abc" })).rejects.toThrow("phone")
+  test("the shop can be edited but no new shop can be added", async () => {
+    await expect(saveShop(owner(), { name: "Second Shop" })).rejects.toThrow("cannot be added")
+    const shop = await saveShop(owner(), { shopId: FIRST, name: "  Velora   Shoes ", city: "Karachi", ntn: "1234567-8" })
+    expect(shop).toMatchObject({ id: FIRST, code: "SH1", name: "Velora Shoes", city: "Karachi", active: true })
+    expect(await context.db.collection(C.shops).countDocuments()).toBe(1)
+    await expect(saveShop(owner(), { shopId: "shop-missing", name: "Third" })).rejects.toThrow("Shop not found")
+    await expect(saveShop(owner(), { shopId: FIRST, name: "Velora Shoes", ntn: "12" })).rejects.toThrow("NTN")
+    await expect(saveShop(owner(), { shopId: FIRST, name: "Velora Shoes", strn: "123" })).rejects.toThrow("STRN")
+    await expect(saveShop(owner(), { shopId: FIRST, name: "Velora Shoes", phone: "abc" })).rejects.toThrow("phone")
   })
 
   test("counters get their own code, a unique POSID and printer settings", async () => {
@@ -39,15 +38,17 @@ describe.skipIf(!hasTestDatabase)("shops and counters", () => {
 
   test("the snapshot carries every shop with its settings and counters", async () => {
     const snapshot = await ledgerSnapshot(context.db, { user: { id: "u-admin", role: "admin" } })
-    expect(snapshot.shops.map(({ code }) => code)).toEqual(["SH1", "SH2"])
-    expect(snapshot.shops[1]).toMatchObject({ city: "Karachi", ntn: "1234567-8", settings: { cashRounding: 1 } })
+    expect(snapshot.shops.map(({ code }) => code)).toEqual(["SH1"])
+    expect(snapshot.shops[0]).toMatchObject({ city: "Karachi", ntn: "1234567-8", settings: { cashRounding: 1 } })
     expect(snapshot.registers.find(({ code }) => code === "SH1-R2")).toMatchObject({ name: "Till", fbrPosId: "110015", copies: 2 })
   })
 
   test("only an empty shop can be deleted, never the last one, and a shop with an open shift cannot close", async () => {
+    await expect(deleteShop(owner(), { shopId: FIRST })).rejects.toThrow("last shop")
+    const second = { _id: "shop-second", code: "SH2", name: "Second Shop", active: true }
+    await context.db.collection(C.shops).insertOne(second)
+    await context.db.collection(C.registers).insertOne({ _id: "reg-second", shopId: second._id, code: "SH2-R1", name: "Counter 1" })
     await expect(deleteShop(owner(), { shopId: FIRST })).rejects.toThrow("products or history")
-    const shops = await context.db.collection(C.shops).find({}).toArray()
-    const second = shops.find(({ code }) => code === "SH2")
     const closed = await saveShop(owner(), { shopId: second._id, name: "Second Shop", active: false })
     expect(closed.active).toBe(false)
     await context.db.collection(C.users).insertOne({ _id: "u-x", shopIds: [second._id], role: "cashier" })

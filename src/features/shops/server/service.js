@@ -1,13 +1,11 @@
 import { z } from "zod"
 import { NTN_PATTERN, POSID_PATTERN, STRN_PATTERN } from "@/features/fbr/lib/fbr"
-import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 import { changesBetween, writeAudit } from "@/server/db/audit"
 import { caseInsensitive } from "@/server/db/indexes"
 import { COLLECTIONS as C } from "@/server/db/collections"
 import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
 import { UserError, parseInput } from "@/shared/lib/errors"
 import { newId } from "@/shared/lib/id"
-import { SHOP_TIME_ZONE } from "@/shared/lib/zoned"
 
 const PHONE_PATTERN = /^[\d\s+()-]{7,20}$/
 const SHOP_AUDITED = ["name", "address", "city", "phone", "ntn", "strn", "active"]
@@ -16,7 +14,7 @@ const REGISTER_AUDITED = ["name", "fbrPosId", "autoPrint", "copies", "drawerOnCa
 const text = (max) => z.string().trim().max(max).default("")
 
 const shopSchema = z.object({
-  shopId: z.string().min(1).max(64).nullish(),
+  shopId: z.string({ error: "New shops cannot be added yet" }).min(1).max(64),
   name: z.string().trim().min(1, { error: "Enter the shop name" }).max(40),
   address: text(160),
   city: text(40),
@@ -48,38 +46,20 @@ const toShop = ({ _id, ...rest }) => ({ id: _id, ...rest })
 export const saveShop = async ({ db, client, user, at = new Date() }, input) => {
   const request = parseInput(shopSchema, input)
   const name = request.name.replace(/\s+/g, " ")
-  try {
-    return await withTransaction(client, async (session) => {
-      const shops = db.collection(C.shops)
-      const existing = request.shopId ? await shops.findOne({ _id: request.shopId }, { session }) : null
-      if (request.shopId && !existing) throw new UserError("Shop not found")
-      if (await shops.findOne({ name, _id: { $ne: request.shopId ?? "" } }, { session, collation: caseInsensitive })) throw new UserError(`${name} already exists`)
-      if (existing && !request.active && (await db.collection(C.shifts).findOne({ shopId: existing._id, status: "open" }, { session }))) throw new UserError("Close the open shift in this shop first")
+  return withTransaction(client, async (session) => {
+    const shops = db.collection(C.shops)
+    const existing = await shops.findOne({ _id: request.shopId }, { session })
+    if (!existing) throw new UserError("Shop not found")
+    if (await shops.findOne({ name, _id: { $ne: request.shopId } }, { session, collation: caseInsensitive })) throw new UserError(`${name} already exists`)
+    if (!request.active && (await db.collection(C.shifts).findOne({ shopId: existing._id, status: "open" }, { session }))) throw new UserError("Close the open shift in this shop first")
 
-      const details = { name, address: request.address, city: request.city, phone: request.phone, ntn: request.ntn, strn: request.strn, active: request.active }
-      if (existing) {
-        const record = { ...existing, ...details, updatedAt: at }
-        await shops.replaceOne({ _id: existing._id }, record, { session })
-        const changes = changesBetween(existing, record, SHOP_AUDITED)
-        if (Object.keys(changes).length) await writeAudit(db, session, { shopId: existing._id, userId: user.id, kind: "shop.update", target: existing._id, changes, at })
-        return toShop(record)
-      }
-
-      const code = nextCode((await shops.find({}, { session, projection: { code: 1 } }).toArray()).map((shop) => shop.code), "SH")
-      const record = { _id: `shop-${newId().slice(0, 8)}`, code, type: "footwear", timezone: SHOP_TIME_ZONE, ...details, createdAt: at }
-      await shops.insertOne(record, { session })
-      await db.collection(C.registers).insertOne(
-        { _id: `reg-${newId().slice(0, 8)}`, shopId: record._id, code: `${code}-R1`, name: "Counter 1", fbrPosId: "", autoPrint: false, copies: 1, drawerOnCash: true, manualDrawer: true, lastReceiptSeq: 0, lastOfflineSeq: 0, lastFbrSeq: 0 },
-        { session }
-      )
-      await db.collection(C.settings).insertOne({ _id: record._id, shopId: record._id, ...defaultPricingSettings() }, { session })
-      await writeAudit(db, session, { shopId: record._id, userId: user.id, kind: "shop.create", target: record._id, at })
-      return toShop(record)
-    })
-  } catch (error) {
-    if (isDuplicateKey(error)) throw new UserError("Another shop already has that code. Try again.")
-    throw error
-  }
+    const details = { name, address: request.address, city: request.city, phone: request.phone, ntn: request.ntn, strn: request.strn, active: request.active }
+    const record = { ...existing, ...details, updatedAt: at }
+    await shops.replaceOne({ _id: existing._id }, record, { session })
+    const changes = changesBetween(existing, record, SHOP_AUDITED)
+    if (Object.keys(changes).length) await writeAudit(db, session, { shopId: existing._id, userId: user.id, kind: "shop.update", target: existing._id, changes, at })
+    return toShop(record)
+  })
 }
 
 export const saveRegister = async ({ db, client, user, at = new Date() }, input) => {

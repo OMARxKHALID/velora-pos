@@ -46,7 +46,7 @@ const TextField = ({ id, label, value, onChange, placeholder, hint, ...props }) 
   </Field>
 )
 
-export const ShopDialog = ({ shop = null, onClose }) => {
+export const ShopDialog = ({ shop, onClose }) => {
   const saveShop = useLedgerStore(({ saveShop }) => saveShop)
   const deleteShop = useLedgerStore(({ deleteShop }) => deleteShop)
   const [confirming, setConfirming] = useState(false)
@@ -63,20 +63,20 @@ export const ShopDialog = ({ shop = null, onClose }) => {
     }
   }
   const [draft, setDraft] = useState({
-    name: shop?.name ?? "",
-    address: shop?.address ?? "",
-    city: shop?.city ?? "",
-    phone: shop?.phone ?? "",
-    ntn: shop?.ntn ?? "",
-    strn: shop?.strn ?? "",
-    active: shop?.active !== false,
+    name: shop.name,
+    address: shop.address,
+    city: shop.city,
+    phone: shop.phone,
+    ntn: shop.ntn,
+    strn: shop.strn,
+    active: shop.active !== false,
   })
   const change = (patch) => setDraft((current) => ({ ...current, ...patch }))
 
   const handleSubmit = async () => {
     try {
-      const saved = await saveShop({ shopId: shop?.id ?? null, ...draft })
-      toast.success(shop ? "Shop updated" : "Shop added", { description: shop ? saved.name : `${saved.name} is ready with counter ${saved.code}-R1.` })
+      const saved = await saveShop({ shopId: shop.id, ...draft })
+      toast.success("Shop updated", { description: saved.name })
       onClose()
     } catch (error) {
       toast.error(error.message)
@@ -85,9 +85,9 @@ export const ShopDialog = ({ shop = null, onClose }) => {
 
   return (
     <EditorDialog
-      title={shop ? `Edit ${shop.name}` : "New shop"}
+      title={`Edit ${shop.name}`}
       description="Its name, address and tax numbers print on every receipt from this shop."
-      submitLabel={shop ? "Save shop" : "Add shop"}
+      submitLabel="Save shop"
       onClose={onClose}
       onSubmit={handleSubmit}
     >
@@ -102,23 +102,19 @@ export const ShopDialog = ({ shop = null, onClose }) => {
         <TextField id="shop-ntn" label="NTN" value={draft.ntn} onChange={(ntn) => change({ ntn: ntn.replace(/[^\d-]/g, "").slice(0, 9) })} placeholder="1234567-8" inputMode="numeric" className="font-mono" />
         <TextField id="shop-strn" label="STRN" value={draft.strn} onChange={(strn) => change({ strn: strn.replace(/\D/g, "").slice(0, 13) })} placeholder="13 digits" inputMode="numeric" className="font-mono" />
       </div>
-      {shop && (
-        <div className="flex flex-wrap items-center justify-between gap-3 border border-destructive/30 bg-destructive/5 px-3 py-2.5">
-          <p className="text-xs text-muted-foreground">{confirming ? "Delete this shop and its counters for good?" : "Only a shop with no products, sales or staff can be deleted."}</p>
-          <Button type="button" size="sm" variant="destructive" onClick={handleDelete}>
-            <TrashIcon />
-            {confirming ? "Yes, delete" : "Delete shop"}
-          </Button>
-        </div>
-      )}
-      {shop && (
-        <SettingToggle
-          on={draft.active}
-          onChange={(active) => change({ active })}
-          label="Shop is open"
-          description="A closed shop keeps its history, leaves the shop switcher, and its staff can’t sign in until it reopens."
-        />
-      )}
+      <div className="flex flex-wrap items-center justify-between gap-3 border border-destructive/30 bg-destructive/5 px-3 py-2.5">
+        <p className="text-xs text-muted-foreground">{confirming ? "Delete this shop and its counters for good?" : "Only a shop with no products, sales or staff can be deleted."}</p>
+        <Button type="button" size="sm" variant="destructive" onClick={handleDelete}>
+          <TrashIcon />
+          {confirming ? "Yes, delete" : "Delete shop"}
+        </Button>
+      </div>
+      <SettingToggle
+        on={draft.active}
+        onChange={(active) => change({ active })}
+        label="Shop is open"
+        description="A closed shop keeps its history, leaves the shop switcher, and its staff can’t sign in until it reopens."
+      />
     </EditorDialog>
   )
 }

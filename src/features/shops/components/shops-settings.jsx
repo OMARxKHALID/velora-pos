@@ -26,15 +26,7 @@ export const ShopsSettings = ({ scope = ALL_SHOPS }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="max-w-xl text-sm text-muted-foreground">Every shop has its own products, stock, staff and counters. The owner sees them all together on the Overview.</p>
-        {scope === ALL_SHOPS && (
-          <Button size="sm" onClick={() => setEditingShop({ shop: null })}>
-            <PlusIcon />
-            New shop
-          </Button>
-        )}
-      </div>
+      <p className="max-w-xl text-sm text-muted-foreground">Every shop has its own products, stock, staff and counters. The owner sees them all together on the Overview.</p>
 
       <div className="grid items-start gap-4 @4xl:grid-cols-2">
         {shops.map((shop) => (
@@ -50,7 +42,7 @@ export const ShopsSettings = ({ scope = ALL_SHOPS }) => {
             }
             description={[shop.address, shop.city].filter(Boolean).join(", ") || "No address yet"}
             action={
-              <Button size="sm" variant="ghost" onClick={() => setEditingShop({ shop })}>
+              <Button size="sm" variant="ghost" onClick={() => setEditingShop(shop)}>
                 <PencilSimpleIcon />
                 Edit
               </Button>
@@ -93,7 +85,7 @@ export const ShopsSettings = ({ scope = ALL_SHOPS }) => {
         ))}
       </div>
 
-      {editingShop && <ShopDialog shop={editingShop.shop} onClose={() => setEditingShop(null)} />}
+      {editingShop && <ShopDialog shop={editingShop} onClose={() => setEditingShop(null)} />}
       {editingCounter && <CounterDialog shop={editingCounter.shop} register={editingCounter.register} onClose={() => setEditingCounter(null)} />}
     </div>
   )
