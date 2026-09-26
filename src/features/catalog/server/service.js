@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { UserError, parseInput } from "@/shared/lib/errors"
-import { moveStock } from "@/features/inventory/server/stock"
+import { moveStockMany } from "@/features/inventory/server/stock"
 import { changesBetween, writeAudit } from "@/server/db/audit"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/server/db/collections"
 import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
@@ -31,8 +31,8 @@ const parseProductInput = (input) => {
   return { type, input: { ...common, ...parseInput(type.fieldsSchema, type.fieldsOf(input)) } }
 }
 
-const nextSeq = async (db, session, key) =>
-  (await db.collection(C.counters).findOneAndUpdate({ _id: key }, { $inc: { seq: 1 } }, { upsert: true, returnDocument: "after", session })).seq
+const nextSeq = async (db, session, key, count = 1) =>
+  (await db.collection(C.counters).findOneAndUpdate({ _id: key }, { $inc: { seq: count } }, { upsert: true, returnDocument: "after", session })).seq
 
 const friendly = (error, input) => {
   if (!isDuplicateKey(error)) return error
@@ -78,7 +78,10 @@ const saveInSession = async (db, session, { shopId, user, at }, { productId = nu
     : {}
   const serials = []
   const needed = type.variantOptions(product).filter((options) => !current.some(({ id }) => id === type.variantId(product.id, options))).length
-  for (let index = 0; index < needed; index += 1) serials.push(await nextSeq(db, session, "barcode"))
+  if (needed) {
+    const last = await nextSeq(db, session, "barcode", needed)
+    for (let index = needed - 1; index >= 0; index -= 1) serials.push(last - index)
+  }
 
   let plan
   try {
@@ -124,9 +127,7 @@ const saveInSession = async (db, session, { shopId, user, at }, { productId = nu
       { _id: purchaseId, shopId, supplier, items, total: items.reduce((sum, { quantity, unitCost }) => sum + quantity * unitCost, 0), receivedBy: user.id, receivedAt: at },
       { session }
     )
-    for (const { variantId, quantity, unitCost } of items) {
-      await moveStock(db, session, { shopId, variantId, quantity, type: "purchase", unitCost, ref: { kind: "Purchase", id: purchaseId, number: supplier }, userId: user.id, at })
-    }
+    await moveStockMany(db, session, items.map(({ variantId, quantity, unitCost }) => ({ shopId, variantId, quantity, type: "purchase", unitCost, ref: { kind: "Purchase", id: purchaseId, number: supplier }, userId: user.id, at })))
   }
 
   return {

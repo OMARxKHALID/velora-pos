@@ -4,7 +4,7 @@ import { COLLECTIONS as C } from "@/server/db/collections"
 import { withTransaction } from "@/server/db/transaction"
 import { newId } from "@/shared/lib/id"
 import { addReasons, removeReasons } from "../schemas"
-import { moveStock, shopVariants } from "./stock"
+import { moveStock, moveStockMany, shopVariants } from "./stock"
 
 const deliverySchema = z.object({
   supplier: z.string().trim().min(2, { error: "Enter the supplier name" }).max(80),
@@ -44,9 +44,7 @@ export const receiveDelivery = async ({ db, client, user, shopId, at = new Date(
       receivedAt: at,
     }
     await db.collection(C.purchases).insertOne(purchase, { session })
-    for (const { variantId, quantity, unitCost } of items) {
-      await moveStock(db, session, { shopId, variantId, quantity, type: "purchase", unitCost, ref: { kind: "Purchase", id: purchase._id, number: supplier }, userId: user.id, at })
-    }
+    await moveStockMany(db, session, items.map(({ variantId, quantity, unitCost }) => ({ shopId, variantId, quantity, type: "purchase", unitCost, ref: { kind: "Purchase", id: purchase._id, number: supplier }, userId: user.id, at })))
     return { id: purchase._id, pairs: items.reduce((sum, { quantity }) => sum + quantity, 0), total: purchase.total }
   })
 }

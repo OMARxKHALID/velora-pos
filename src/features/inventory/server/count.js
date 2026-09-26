@@ -4,7 +4,7 @@ import { COLLECTIONS as C, fromDoc } from "@/server/db/collections"
 import { withTransaction } from "@/server/db/transaction"
 import { UserError, parseInput } from "@/shared/lib/errors"
 import { newId } from "@/shared/lib/id"
-import { moveStock, shopVariants } from "./stock"
+import { moveStockMany, shopVariants } from "./stock"
 
 const countSchema = z.object({
   counts: z
@@ -30,20 +30,13 @@ export const countStock = async ({ db, client, user, shopId, at = new Date() }, 
     } catch (error) {
       throw new UserError(error.message)
     }
-    for (const { variantId, expected, counted } of record.lines.filter(({ expected, counted }) => expected !== counted)) {
-      await moveStock(db, session, {
-        shopId,
-        variantId,
-        quantity: counted - expected,
-        type: "adjustment",
-        unitCost: variants[variantId].cost,
-        reason: "count",
-        ref: { kind: "Count", id, number: null },
-        userId: user.id,
-        at,
-        allowNegative: true,
-      })
-    }
+    await moveStockMany(
+      db,
+      session,
+      record.lines
+        .filter(({ expected, counted }) => expected !== counted)
+        .map(({ variantId, expected, counted }) => ({ shopId, variantId, quantity: counted - expected, type: "adjustment", unitCost: variants[variantId].cost, reason: "count", ref: { kind: "Count", id, number: null }, userId: user.id, at }))
+    )
     return record
   })
 }

@@ -18,6 +18,29 @@ export const moveStock = async (db, session, { shopId, variantId, quantity, type
   return movement
 }
 
+export const moveStockMany = async (db, session, moves) => {
+  if (!moves.length) return []
+  for (const { quantity } of moves) if (!Number.isInteger(quantity) || quantity === 0) throw new UserError("Quantity must be a whole number and not zero")
+  await db.collection(C.stock).bulkWrite(
+    moves.map(({ shopId, variantId, quantity }) => ({ updateOne: { filter: { _id: stockId(shopId, variantId) }, update: { $inc: { quantity }, $setOnInsert: { shopId, variantId } }, upsert: true } })),
+    { session, ordered: true }
+  )
+  const keys = [...new Set(moves.map(({ shopId, variantId }) => stockId(shopId, variantId)))]
+  const rows = await db.collection(C.stock).find({ _id: { $in: keys } }, { session, projection: { quantity: 1 } }).toArray()
+  const balance = Object.fromEntries(rows.map(({ _id, quantity }) => [_id, quantity]))
+  const movements = moves
+    .toReversed()
+    .map(({ shopId, variantId, quantity, type, unitCost, ref = null, userId, reason = null, note = null, at }) => {
+      const key = stockId(shopId, variantId)
+      const balanceAfter = balance[key]
+      balance[key] -= quantity
+      return { _id: newId(), shopId, variantId, type, quantity, balanceAfter, unitCost, reason, note, ref, userId, createdAt: at }
+    })
+    .toReversed()
+  await db.collection(C.movements).insertMany(movements, { session })
+  return movements
+}
+
 export const shopVariants = async (db, session, shopId, variantIds) => {
   const variants = await db.collection(C.variants).find({ _id: { $in: [...new Set(variantIds)] }, shopId }, { session }).toArray()
   const byId = Object.fromEntries(variants.map((variant) => [variant._id, variant]))
