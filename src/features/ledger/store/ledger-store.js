@@ -175,7 +175,6 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
       syncing: false,
       canSellOffline: Boolean(till && user?.role === "cashier"),
       shopScope: "all",
-      epoch: 0,
       load,
       syncOutbox,
       setDirectory: (staff) => set({ staff }),
@@ -236,11 +235,6 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
           set({ settings, shops })
           throw error
         }
-      },
-      resetSampleData: async () => {
-        await call("resetSampleData")
-        await load()
-        set({ epoch: get().epoch + 1 })
       },
     }
   })

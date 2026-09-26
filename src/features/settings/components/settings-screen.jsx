@@ -5,8 +5,7 @@ import { useState } from "react"
 import { Button } from "@/shared/components/ui/button"
 import { Segmented } from "@/shared/components/ui/segmented"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs"
-import { ArrowCounterClockwiseIcon, LockKeyIcon } from "@phosphor-icons/react"
-import { ResetSampleDataDialog } from "@/features/sample-data/components/reset-sample-data-dialog"
+import { LockKeyIcon } from "@phosphor-icons/react"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/shared/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/shared/components/ui/input-group"
 import { MAX_CASHIER_DISCOUNT } from "@/features/ledger/lib/rules"
@@ -158,12 +157,11 @@ const SupervisorPins = () => {
 
 const columnOptions = [3, 4, 5, 6, 7, 8].map((count) => ({ key: String(count), label: String(count) }))
 
-export const SettingsScreen = ({ user, sampleData = false }) => {
+export const SettingsScreen = ({ user }) => {
   const scope = useShopScope(user)
   const shopId = scope === ALL_SHOPS ? null : scope
   const settings = useSettingsFor(scope)
   const setSettings = useLedgerStore(({ setSettings }) => setSettings)
-  const [resetOpen, setResetOpen] = useState(false)
   const [rateDraft, setRateDraft] = useSyncedDraft(settings.taxRate ? String(settings.taxRate) : "")
   const [thresholdDraft, setThresholdDraft] = useSyncedDraft(String(settings.lowStockThreshold))
 
@@ -344,21 +342,6 @@ export const SettingsScreen = ({ user, sampleData = false }) => {
             />
             <FieldDescription>The most tiles in one row on a wide screen. Smaller screens show fewer so every tile stays easy to tap.</FieldDescription>
           </Field>
-          {sampleData && !shopId && (
-            <>
-              <div className="border-t" />
-              <div className="flex flex-col gap-3 @lg:flex-row @lg:items-start @lg:justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">Reset sample data</p>
-                  <p className="text-xs text-muted-foreground">Restore 30 days of sample sales, stock, shifts, staff and settings for every shop.</p>
-                </div>
-                <Button type="button" variant="outline" size="sm" onClick={() => setResetOpen(true)}>
-                  <ArrowCounterClockwiseIcon />
-                  Reset data
-                </Button>
-              </div>
-            </>
-          )}
           <FieldDescription>
             Changes take effect immediately at the sales counter and on printed receipts.
           </FieldDescription>
@@ -367,7 +350,6 @@ export const SettingsScreen = ({ user, sampleData = false }) => {
       </TabsContent>
 
       <p className="text-xs text-muted-foreground">Pricing changes apply from the next sale. Past sales remain locked in the ledger.</p>
-      {sampleData && <ResetSampleDataDialog open={resetOpen} onOpenChange={setResetOpen} />}
     </Tabs>
     </div>
   )

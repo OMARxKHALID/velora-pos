@@ -1,9 +1,8 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ArrowCounterClockwiseIcon, CaretUpDownIcon, CheckIcon, SignOutIcon, StorefrontIcon } from "@phosphor-icons/react"
+import { CaretUpDownIcon, CheckIcon, SignOutIcon, StorefrontIcon } from "@phosphor-icons/react"
 import {
   Sidebar,
   SidebarContent,
@@ -36,7 +35,6 @@ import { GROUP_NAME } from "@/features/shops/lib/constants"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { StaffAvatar } from "@/features/staff/components/staff-avatar"
 import { navItems } from "./nav-items"
-import { ResetSampleDataDialog } from "@/features/sample-data/components/reset-sample-data-dialog"
 import { ThemeToggle } from "./theme-toggle"
 import { VeloraLogo } from "./velora-logo"
 
@@ -84,13 +82,12 @@ const ShopSwitcher = ({ user }) => {
   )
 }
 
-export const AppSidebar = ({ user, sampleData = false }) => {
+export const AppSidebar = ({ user }) => {
   const pathname = usePathname()
   const items = navItems.filter(({ roles }) => roles.includes(user.role))
   const scope = useShopScope(user)
   const pendingRefunds = useLedgerStore(({ refunds }) => refunds.filter(({ status, shopId }) => status === "pending" && (scope === ALL_SHOPS || shopId === scope)).length)
   const badges = { "/refunds": pendingRefunds }
-  const [resetOpen, setResetOpen] = useState(false)
 
   return (
     <Sidebar collapsible="icon">
@@ -151,12 +148,6 @@ export const AppSidebar = ({ user, sampleData = false }) => {
                   <DropdownMenuLabel>Signed in as {roleLabels[user.role]}</DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                {user.role === "admin" && sampleData && (
-                  <DropdownMenuItem onClick={() => setResetOpen(true)}>
-                    <ArrowCounterClockwiseIcon />
-                    Reset sample data
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuItem variant="destructive" onClick={() => forgetDevice().finally(() => signOut())}>
                   <SignOutIcon />
                   Sign out
@@ -167,7 +158,6 @@ export const AppSidebar = ({ user, sampleData = false }) => {
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
-      {user.role === "admin" && sampleData && <ResetSampleDataDialog open={resetOpen} onOpenChange={setResetOpen} />}
     </Sidebar>
   )
 }

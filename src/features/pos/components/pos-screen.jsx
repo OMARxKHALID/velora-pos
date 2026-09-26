@@ -369,7 +369,6 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
 export const PosScreen = ({ user }) => {
   const hydrated = useLedgerStore(({ hydrated }) => hydrated)
   const shifts = useLedgerStore(({ shifts }) => shifts)
-  const epoch = useLedgerStore(({ epoch }) => epoch)
   const [report, setReport] = useState(null)
   const counter = useCounter(user)
   const shift = counter.register ? openShiftFor({ shifts }, counter.register.id) : null
@@ -382,7 +381,7 @@ export const PosScreen = ({ user }) => {
       {!shift && <OpenShiftCard user={user} counter={counter} />}
       {shift && shift.cashierId !== user.id && <CounterBusyCard shift={shift} onClosed={setReport} />}
       {shift?.cashierId === user.id && (
-        <CartStoreProvider key={epoch}>
+        <CartStoreProvider>
           <PosWorkspace user={user} shift={shift} register={counter.register} shopId={counter.shopId} onShiftClosed={setReport} />
         </CartStoreProvider>
       )}

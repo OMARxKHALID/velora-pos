@@ -8,7 +8,6 @@ import { LedgerStoreProvider } from "@/features/ledger/store/ledger-store-provid
 import { listShops } from "@/features/shops/server/shops"
 import { directoryFor, listPeople, recentStaffActivity } from "@/features/staff/server/staff"
 import { getDb } from "@/server/db/client"
-import { appEnv } from "@/config/env"
 
 const loadDirectory = async (user) => {
   const db = getDb()
@@ -26,7 +25,7 @@ const DashboardLayout = async ({ children }) => {
     <QueryProvider>
     <LedgerStoreProvider user={user} directory={directory}>
       <SidebarProvider defaultOpen={sidebarOpen}>
-        <AppSidebar user={user} sampleData={appEnv().SAMPLE_DATA} />
+        <AppSidebar user={user} />
         <SidebarInset className="min-w-0">
           <AppHeader user={user} />
           <div data-slot="page-content" className="@container flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">

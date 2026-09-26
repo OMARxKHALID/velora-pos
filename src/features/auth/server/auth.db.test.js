@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, test } from "bun:test"
 import { hasTestDatabase, useTestDatabase } from "@/test/db"
 import { COLLECTIONS as C } from "@/server/db/collections"
-import { resetSampleTeam, seedSampleTeam } from "@/features/sample-data/server/sample-data"
+import { seedSampleTeam } from "@/features/sample-data/server/sample-data"
 import { changeRole, createStaff, directoryFor, listPeople, removeStaff, setAccess, setLeave, setPassword, setSupervisorPin, updateProfile } from "@/features/staff/server/staff"
 import { readApproval } from "./approval-token"
 import { approveDiscount } from "./approvals"
@@ -125,18 +125,6 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     for (let attempt = 0; attempt < 5; attempt += 1) await expect(approve({ supervisorId: "u-manager", pin: "0000" })).rejects.toThrow("Wrong PIN")
     await expect(approve({ supervisorId: "u-manager", pin: "1234" })).rejects.toThrow("Too many wrong PINs")
     expect(await context.db.collection(C.pinFailures).countDocuments({ supervisorId: "u-manager" })).toBe(5)
-  })
-
-  test("resetting the sample data restores the team and keeps the owner signed in", async () => {
-    const ownerSession = await signIn("asif")
-    await resetSampleTeam({ auth: deps.auth, db: context.db, password: PASSWORD, pinSecret: SECRET, keepSignedIn: "u-admin" })
-    const people = await listPeople(context.db)
-    expect(people.map(({ id }) => id).toSorted()).toEqual(["u-admin", "u-cashier", "u-manager"])
-    expect(people.every(({ banned, removedAt }) => !banned && !removedAt)).toBe(true)
-    expect(await deps.auth.api.getSession({ headers: ownerSession })).not.toBeNull()
-    expect(await context.db.collection(C.pinFailures).countDocuments()).toBe(0)
-    const { approvedBy } = await approveDiscount({ db: context.db, pinSecret: SECRET, approvalSecret: SECRET }, { cashierId: "u-cashier", discountPct: 10, supervisorId: "u-manager", pin: "1234" })
-    expect(approvedBy).toBe("u-manager")
   })
 
   test("wrong PINs sent at the same moment still stop after five", async () => {
