@@ -1,6 +1,6 @@
 "use client"
 
-import { useDeferredValue, useState } from "react"
+import { memo, useCallback, useDeferredValue, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { MagnifyingGlassIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
@@ -39,7 +39,11 @@ const sizesLeft = (variants, availableFor) => {
   return [...left].map(([size, count]) => ({ size, count })).toSorted((a, b) => compareSizes(a.size, b.size))
 }
 
-const ProductCard = ({ product, sizes, lowLimit, onPick }) => {
+const sizesKey = (sizes) => sizes.map(({ size, count }) => `${size}:${count}`).join("|")
+
+const sameCard = (before, after) => before.product === after.product && before.lowLimit === after.lowLimit && before.onPick === after.onPick && sizesKey(before.sizes) === sizesKey(after.sizes)
+
+const ProductCardView = ({ product, sizes, lowLimit, onPick }) => {
   const available = sumBy(sizes, ({ count }) => count)
   const low = available > 0 && available <= lowLimit
   const inStock = sizes.filter(({ count }) => count > 0).map(({ size }) => size)
@@ -81,17 +85,26 @@ const ProductCard = ({ product, sizes, lowLimit, onPick }) => {
   )
 }
 
+const ProductCard = memo(ProductCardView, sameCard)
+
 export const CatalogPanel = ({ shopId, availableFor, onPick, onScan }) => {
   const { products: allProducts, variantsByProduct } = useCatalog()
   const { lowStockThreshold, posColumns = 6 } = useSettingsFor(shopId)
   const lowLimit = lowStockThreshold * LOW_MODEL_FACTOR
   const categories = useLedgerStore(({ categories }) => categories)
-  const products = allProducts.filter((product) => product.status === "active" && product.shopId === shopId)
-  const brands = ["All", ...new Set(products.map(({ brand }) => brand))]
+  const products = useMemo(() => allProducts.filter((product) => product.status === "active" && product.shopId === shopId), [allProducts, shopId])
+  const brands = useMemo(() => ["All", ...new Set(products.map(({ brand }) => brand))], [products])
   const [query, setQuery] = useState("")
   const [brand, setBrand] = useState("All")
   const [audience, setAudience] = useState("All")
   const search = useDeferredValue(query.trim().toLowerCase())
+  const pickRef = useRef(onPick)
+
+  useLayoutEffect(() => {
+    pickRef.current = onPick
+  })
+
+  const handlePickProduct = useCallback((product) => pickRef.current(product), [])
 
   const handleSearchKeyDown = (event) => {
     const code = query.trim()
@@ -101,11 +114,15 @@ export const CatalogPanel = ({ shopId, availableFor, onPick, onScan }) => {
     setQuery("")
   }
 
-  const visible = products.filter(
-    (product) =>
-      (brand === "All" || product.brand === brand) &&
-      (audience === "All" || product.audience === audience) &&
-      (!search || `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(search))
+  const visible = useMemo(
+    () =>
+      products.filter(
+        (product) =>
+          (brand === "All" || product.brand === brand) &&
+          (audience === "All" || product.audience === audience) &&
+          (!search || `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(search))
+      ),
+    [products, brand, audience, search]
   )
 
   return (
@@ -137,7 +154,7 @@ export const CatalogPanel = ({ shopId, availableFor, onPick, onScan }) => {
             product={product}
             lowLimit={lowLimitFor(categories, product.category, lowLimit) * LOW_MODEL_FACTOR}
             sizes={sizesLeft(variantsByProduct[product.id].filter(({ active }) => active), availableFor)}
-            onPick={onPick}
+            onPick={handlePickProduct}
           />
         ))}
         {!visible.length && <p className="col-span-full py-12 text-center text-sm text-muted-foreground">No products match these filters.</p>}

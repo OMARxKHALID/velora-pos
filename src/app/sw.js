@@ -15,7 +15,7 @@ const serwist = new Serwist({
     { matcher: ({ sameOrigin, url }) => sameOrigin && url.pathname.startsWith("/api/"), handler: new NetworkOnly() },
     { matcher: ({ sameOrigin, request }) => sameOrigin && request.headers.get("RSC") === "1", handler: pages(PAGE_CACHES.rsc) },
     { matcher: ({ sameOrigin, request }) => sameOrigin && request.mode === "navigate", handler: pages(PAGE_CACHES.html) },
-    { matcher: ({ sameOrigin, url }) => sameOrigin && url.pathname.startsWith("/_next/static/"), handler: new CacheFirst({ cacheName: "velora-static" }) },
+    { matcher: ({ sameOrigin, url }) => sameOrigin && url.pathname.startsWith("/_next/static/"), handler: new CacheFirst({ cacheName: "velora-static", plugins: [new ExpirationPlugin({ maxEntries: 300, maxAgeSeconds: 5 * WEEK })] }) },
     {
       matcher: ({ sameOrigin, request }) => sameOrigin && ["image", "font", "style", "script"].includes(request.destination),
       handler: new StaleWhileRevalidate({ cacheName: "velora-assets", plugins: [new ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: WEEK })] }),

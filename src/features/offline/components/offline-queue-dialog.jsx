@@ -1,14 +1,16 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import { ArrowsClockwiseIcon, CloudArrowUpIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Button } from "@/shared/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
-import { ReceiptDialog } from "@/features/pos/components/receipt-dialog"
 import { timeAgo } from "@/shared/lib/dates"
 import { formatMoney } from "@/shared/lib/money"
+
+const ReceiptDialog = dynamic(() => import("@/features/pos/components/receipt-dialog").then((mod) => mod.ReceiptDialog))
 
 const Entry = ({ entry, onRetry, onRemove, onView }) => {
   const [confirming, setConfirming] = useState(false)

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useEffectEvent, useState } from "react"
+import dynamic from "next/dynamic"
 import { BarcodeIcon, CloudArrowUpIcon, CloudSlashIcon, LockKeyIcon, ShoppingBagIcon, SidebarSimpleIcon, VaultIcon, WarningIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Button } from "@/shared/components/ui/button"
@@ -34,10 +35,11 @@ import { HoldSaleDialog } from "./hold-sale-dialog"
 import { OpenShiftCard } from "./open-shift-card"
 import { ParkedSalesDialog } from "./parked-sales-dialog"
 import { PaymentDialog } from "./payment-dialog"
-import { ReceiptDialog } from "./receipt-dialog"
 import { ShiftReportDialog } from "./shift-report-dialog"
 import { VariantPickerDialog } from "./variant-picker-dialog"
 import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
+
+const ReceiptDialog = dynamic(() => import("./receipt-dialog").then((mod) => mod.ReceiptDialog))
 
 const screenHeight = "h-[calc(100dvh-var(--app-header-h)-2*var(--app-page-pad))] min-h-[34rem]"
 
