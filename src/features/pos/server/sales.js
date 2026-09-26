@@ -79,14 +79,16 @@ const indexOf = ({ products, variants }) => ({
   variantById: Object.fromEntries(variants.map((variant) => [variant.id, variant])),
 })
 
-const categoriesOf = async (db, session, shopId) => (await db.collection(C.categories).find({ shopId }, { session }).toArray()).map(fromDoc)
+const shopConfig = async (db, shopId) => {
+  const [settings, shop, categories] = await Promise.all([shopSettings(db, undefined, shopId), db.collection(C.shops).findOne({ _id: shopId }), db.collection(C.categories).find({ shopId }).toArray()])
+  return { settings, shop, categories: categories.map(fromDoc) }
+}
 
-const buildSale = async (db, session, { user, shift, register, shop, catalog, settings, lines, input, at, approvalSecret, number }) => {
+const buildSale = async (db, session, { user, shift, register, shop, categories, catalog, settings, lines, input, at, approvalSecret, number }) => {
   const { rows, subtotal } = cartTotals(lines, input.discountPct, indexOf(catalog), settings)
   const cartDiscount = rows.reduce((sum, { discount }) => sum + discount, 0)
   const needsApproval = cartDiscount > subtotal * MAX_CASHIER_DISCOUNT
   const approvedBy = needsApproval ? await approverFor(db, session, { approvalSecret, cashierId: user.id, discountPct: input.discountPct, token: input.approvalToken, at }) : null
-  const categories = await categoriesOf(db, session, shift.shopId)
   try {
     const { record, state } = applySale(
       { ...catalog, categories, sales: [], stock: {}, movements: [], shifts: [{ ...fromDoc(shift), status: "open" }], receiptSeq: register.lastReceiptSeq, fbrSeq: fbrSeqOf(register) },
@@ -151,7 +153,7 @@ const lockShift = (db, session, shiftId) => db.collection(C.shifts).updateOne({ 
 
 const existingSale = (db, session, clientId) => db.collection(C.sales).findOne({ clientId }, { session })
 
-const recordInSession = async (db, session, { user, shopId, at, approvalSecret }, input) => {
+const recordInSession = async (db, session, { user, shopId, at, approvalSecret, config }, input) => {
   const existing = await existingSale(db, session, input.clientId)
   if (existing) return fromDoc(existing)
 
@@ -159,13 +161,12 @@ const recordInSession = async (db, session, { user, shopId, at, approvalSecret }
   if (!shift || shift.status !== "open") throw new UserError("Open a shift before selling")
   await lockShift(db, session, shift._id)
   const register = await registerFor(db, session, shopId, shift.registerId)
-  const settings = await shopSettings(db, session, shopId)
+  const { settings, shop, categories } = config
   const lines = merge(input.lines)
   const catalog = await loadCatalog(db, session, shopId, lines)
 
-  const shop = await db.collection(C.shops).findOne({ _id: shopId }, { session })
   const number = await nextReceiptNumber(db, session, register)
-  const sale = await buildSale(db, session, { user, shift, register, shop, catalog, settings, lines, input, at, approvalSecret, number })
+  const sale = await buildSale(db, session, { user, shift, register, shop, categories, catalog, settings, lines, input, at, approvalSecret, number })
   await takeStock(db, session, { sale, number, user, at, allowNegative: false })
 
   const stored = { ...sale, number, flags: sale.flags.filter((flag) => flag !== "negative_stock"), syncedAt: at, offline: false }
@@ -221,16 +222,22 @@ const checkTillPrices = (catalog, lines, pricing, inUse) => {
   }
 }
 
-const syncInSession = async (db, session, { user, shopId, now, approvalSecret }, input) => {
+const rememberPrintedNumber = async (db, session, sale, printed) => {
+  if (sale.number === printed || sale.offlineNumber) return sale
+  await db.collection(C.sales).updateOne({ _id: sale._id }, { $set: { offlineNumber: printed } }, { session })
+  return { ...sale, offlineNumber: printed }
+}
+
+const syncInSession = async (db, session, { user, shopId, now, approvalSecret, config }, input) => {
   const existing = await existingSale(db, session, input.clientId)
-  if (existing) return fromDoc(existing)
+  if (existing) return fromDoc(await rememberPrintedNumber(db, session, existing, input.number))
 
   const shift = await db.collection(C.shifts).findOne({ _id: input.shiftId, shopId }, { session })
   if (!shift) throw new UserError("The shift for this sale was not found")
   if (shift.cashierId !== user.id) throw new UserError("This sale was made on another cashier's shift")
   await lockShift(db, session, shift._id)
   const register = await registerFor(db, session, shopId, shift.registerId)
-  const current = await shopSettings(db, session, shopId)
+  const { settings: current, shop, categories } = config
   const lines = merge(input.lines)
   const catalog = await loadCatalog(db, session, shopId, lines)
 
@@ -253,12 +260,11 @@ const syncInSession = async (db, session, { user, shopId, now, approvalSecret },
   const settings = { ...current, ...input.pricing, taxLabel: input.pricing.taxLabel ?? current.taxLabel }
   if (pricingChanged(catalog, lines, current, settings)) flags.add("price_mismatch")
 
-  const shop = await db.collection(C.shops).findOne({ _id: shopId }, { session })
   const numberFree = inBlocks(register.code, shift.receiptBlocks, input.number) && !(await db.collection(C.sales).findOne({ registerId: register._id, number: input.number }, { session, projection: { _id: 1 } }))
   const number = numberFree ? input.number : await nextReceiptNumber(db, session, register)
   if (!numberFree) flags.add("renumbered")
 
-  const sale = await buildSale(db, session, { user, shift, register, shop, catalog: tillCatalog(catalog, lines), settings, lines, input, at, approvalSecret, number })
+  const sale = await buildSale(db, session, { user, shift, register, shop, categories, catalog: tillCatalog(catalog, lines), settings, lines, input, at, approvalSecret, number })
   if (sale.total !== input.total) flags.add("total_mismatch")
 
   if (await takeStock(db, session, { sale, number, user, at, allowNegative: true })) flags.add("negative_stock")
@@ -288,10 +294,12 @@ const settle = async (client, db, clientId, work) => {
 
 export const recordSale = async ({ db, client, user, shopId, approvalSecret, at = new Date() }, input) => {
   const request = parseInput(saleSchema, input)
-  return settle(client, db, request.clientId, (session) => recordInSession(db, session, { user, shopId, at, approvalSecret }, request))
+  const config = await shopConfig(db, shopId)
+  return settle(client, db, request.clientId, (session) => recordInSession(db, session, { user, shopId, at, approvalSecret, config }, request))
 }
 
 export const syncOfflineSale = async ({ db, client, user, shopId, approvalSecret, now = new Date() }, input) => {
   const request = parseInput(offlineSaleSchema, input)
-  return settle(client, db, request.clientId, (session) => syncInSession(db, session, { user, shopId, now, approvalSecret }, request))
+  const config = await shopConfig(db, shopId)
+  return settle(client, db, request.clientId, (session) => syncInSession(db, session, { user, shopId, now, approvalSecret, config }, request))
 }

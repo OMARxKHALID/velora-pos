@@ -1,6 +1,6 @@
 import { COLLECTIONS as C } from "./collections"
 
-const caseInsensitive = { locale: "en", strength: 2 }
+export const caseInsensitive = { locale: "en", strength: 2 }
 
 export const INDEXES = {
   [C.shops]: [{ key: { code: 1 }, name: "code_unique", unique: true }],
@@ -19,6 +19,7 @@ export const INDEXES = {
     { key: { shopId: 1, variantId: 1, createdAt: -1 }, name: "shop_variant_time" },
     { key: { shopId: 1, createdAt: -1 }, name: "shop_time" },
     { key: { "ref.id": 1 }, name: "ref" },
+    { key: { userId: 1, createdAt: -1 }, name: "user_time" },
   ],
   [C.sales]: [
     { key: { clientId: 1 }, name: "client_unique", unique: true },
@@ -26,11 +27,16 @@ export const INDEXES = {
     { key: { shopId: 1, soldAt: -1 }, name: "shop_time" },
     { key: { shiftId: 1 }, name: "shift" },
     { key: { cashierId: 1, soldAt: -1 }, name: "cashier_time" },
+    { key: { "payments.reference": 1 }, name: "payment_reference", collation: caseInsensitive },
+    { key: { number: 1 }, name: "number" },
+    { key: { offlineNumber: 1 }, name: "offline_number", sparse: true },
   ],
   [C.refunds]: [
     { key: { clientId: 1 }, name: "client_unique", unique: true },
     { key: { saleId: 1 }, name: "sale" },
     { key: { shopId: 1, status: 1, createdAt: -1 }, name: "shop_status_time" },
+    { key: { payoutShiftId: 1 }, name: "payout_shift" },
+    { key: { approvedInShiftId: 1 }, name: "approved_shift" },
   ],
   [C.exchanges]: [
     { key: { clientId: 1 }, name: "client_unique", unique: true },

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { hasTestDatabase, useTestDatabase } from "@/test/db"
 import { COLLECTIONS as C } from "./collections"
-import { INDEXES } from "./indexes"
+import { INDEXES, caseInsensitive } from "./indexes"
 import { isDuplicateKey, withTransaction } from "./transaction"
 
 describe.skipIf(!hasTestDatabase)("database rules", () => {
@@ -12,6 +12,13 @@ describe.skipIf(!hasTestDatabase)("database rules", () => {
       const names = (await context.db.collection(collection).indexes()).map(({ name }) => name)
       expect(names).toEqual(expect.arrayContaining(indexes.map(({ name }) => name)))
     }
+  })
+
+  test("shift refunds and card slip lookups use an index, not a full scan", async () => {
+    const shiftRefunds = await context.db.collection(C.refunds).find({ $or: [{ payoutShiftId: "sh1" }, { approvedInShiftId: "sh1" }] }).explain()
+    const slip = await context.db.collection(C.sales).find({ shopId: { $in: ["shop-a"] }, "payments.reference": "ab77x" }, { collation: caseInsensitive }).explain()
+    expect(JSON.stringify(shiftRefunds.queryPlanner.winningPlan)).not.toContain("COLLSCAN")
+    expect(JSON.stringify(slip.queryPlanner.winningPlan)).toContain("payment_reference")
   })
 
   test("the same checkout cannot be stored twice", async () => {

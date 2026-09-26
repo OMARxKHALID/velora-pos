@@ -59,6 +59,20 @@ describe.skipIf(!hasTestDatabase)("sales and stock history on the server", () =>
     expect(await findSale(context.db, { shopIds: [SHOP], viewer: cashier, reference: "0482" })).toBeNull()
   })
 
+  test("a renumbered sale is found by the offline number printed on its receipt", async () => {
+    await context.db.collection(C.sales).updateOne({ _id: "someone-else" }, { $set: { offlineNumber: "SH1-R1-X00007" } })
+    expect(await findSale(context.db, { shopIds: [SHOP], viewer: owner, number: "sh1-r1-x00007" })).toEqual({ id: "someone-else", number: "SH1-R1-999999" })
+    const bySearch = await salesPage(context.db, { shopIds: [SHOP], viewer: owner, range: "all", q: "SH1-R1-X00007", now })
+    expect(bySearch.rows.map(({ id }) => id)).toEqual(["someone-else"])
+    const exact = await salesPage(context.db, { shopIds: [SHOP], viewer: owner, range: "all", q: "sh1-r1-999999", now })
+    expect(exact.rows.map(({ id }) => id)).toEqual(["someone-else"])
+  })
+
+  test("card slip references match in any letter case", async () => {
+    await context.db.collection(C.sales).updateOne({ _id: "someone-else" }, { $set: { payments: [{ method: "card", amount: 1, reference: "AB77X" }] } })
+    expect(await findSale(context.db, { shopIds: [SHOP], viewer: owner, reference: " ab77x " })).toEqual({ id: "someone-else", number: "SH1-R1-999999" })
+  })
+
   test("stock history searches products, people and receipts on the server", async () => {
     const byProduct = await movementsPage(context.db, { shopIds: [SHOP], q: "noir oxford" })
     expect(byProduct.total).toBeGreaterThan(0)

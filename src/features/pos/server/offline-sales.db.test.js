@@ -92,6 +92,16 @@ describe.skipIf(!hasTestDatabase)("sales made offline and uploaded later", () =>
     await context.db.collection(C.products).updateOne({ _id: variant.productId }, { $set: { discountPct: 0 } })
   })
 
+  test("a sale saved online after the till gave up keeps the offline number printed on its receipt", async () => {
+    const variant = await pick()
+    const clientId = newId()
+    const online = await recordSale(as("u-cashier"), { clientId, shiftId: shift.id, lines: [{ variantId: variant._id, quantity: 1 }], payments: [{ method: "card", amount: variant.price }] })
+    const printed = nextNumber()
+    const uploaded = await syncOfflineSale(as("u-cashier"), offlineSale(variant, { clientId, number: printed }))
+    expect(uploaded).toMatchObject({ id: online.id, number: online.number, offlineNumber: printed })
+    expect(await context.db.collection(C.sales).countDocuments({ clientId })).toBe(1)
+  })
+
   test("online sales keep their own numbering alongside offline ones", async () => {
     const variant = await pick()
     const sale = await recordSale(as("u-cashier"), { clientId: newId(), shiftId: shift.id, lines: [{ variantId: variant._id, quantity: 1 }], payments: [{ method: "card", amount: variant.price }] })
