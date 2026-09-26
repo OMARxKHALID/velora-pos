@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { CloudSlashIcon } from "@phosphor-icons/react/ssr"
 
-export const metadata = { title: "Offline · Velora POS" }
+export const metadata = { title: "Offline" }
 
 const OfflinePage = () => (
   <main className="flex min-h-dvh items-center justify-center p-6">

@@ -2,6 +2,8 @@ import { PageHeader } from "@/shared/components/layout/page-header"
 import { requireRole } from "@/features/auth/server/session"
 import { MovementsScreen } from "@/features/inventory/components/movements-screen"
 
+export const metadata = { title: "Stock history" }
+
 const MovementsPage = async () => {
   const user = await requireRole("admin", "manager")
 

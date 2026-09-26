@@ -2,6 +2,8 @@ import { PageHeader } from "@/shared/components/layout/page-header"
 import { requireRole } from "@/features/auth/server/session"
 import { SalesScreen } from "@/features/sales/components/sales-screen"
 
+export const metadata = { title: "Sales" }
+
 const SalesPage = async () => {
   const user = await requireRole()
 

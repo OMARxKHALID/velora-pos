@@ -7,7 +7,12 @@ const manifest = () => ({
   display: "standalone",
   background_color: "#0f0f0f",
   theme_color: "#0f0f0f",
-  icons: [{ src: "/favicon.ico", sizes: "48x48", type: "image/x-icon" }],
+  icons: [
+    { src: "/favicon.ico", sizes: "48x48", type: "image/x-icon" },
+    { src: "/icon/192", sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: "/icon/512", sizes: "512x512", type: "image/png", purpose: "any" },
+    { src: "/icon/512", sizes: "512x512", type: "image/png", purpose: "maskable" },
+  ],
 })
 
 export default manifest

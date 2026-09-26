@@ -12,7 +12,7 @@ const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-display" })
 const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
 
 export const metadata = {
-  title: "Velora POS",
+  title: { default: "Velora POS", template: "%s · Velora POS" },
   description: "Point of sale for Velora Group",
   applicationName: "Velora POS",
   appleWebApp: { capable: true, title: "Velora POS", statusBarStyle: "black-translucent" },
@@ -22,6 +22,10 @@ export const viewport = {
   width: "device-width",
   initialScale: 1,
   interactiveWidget: "resizes-content",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafaf7" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c0b09" },
+  ],
 }
 
 const RootLayout = ({ children }) => (

@@ -3,6 +3,8 @@ import { requireRole } from "@/features/auth/server/session"
 import { LedgerReady } from "@/features/ledger/components/ledger-ready"
 import { StockScreen } from "@/features/inventory/components/stock-screen"
 
+export const metadata = { title: "Stock" }
+
 const StockPage = async () => {
   const user = await requireRole("admin", "manager")
 

@@ -4,6 +4,8 @@ import { LedgerReady } from "@/features/ledger/components/ledger-ready"
 import { SettingsScreen } from "@/features/settings/components/settings-screen"
 import { appEnv } from "@/config/env"
 
+export const metadata = { title: "Settings" }
+
 const SettingsPage = async () => {
   const user = await requireRole("admin")
 

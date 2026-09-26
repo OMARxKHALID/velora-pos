@@ -3,6 +3,8 @@ import { requireRole } from "@/features/auth/server/session"
 import { LedgerReady } from "@/features/ledger/components/ledger-ready"
 import { RefundsScreen } from "@/features/refunds/components/refunds-screen"
 
+export const metadata = { title: "Returns" }
+
 const RefundsPage = async () => {
   const user = await requireRole("manager")
 

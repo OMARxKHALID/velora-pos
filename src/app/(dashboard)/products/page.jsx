@@ -3,6 +3,8 @@ import { requireRole } from "@/features/auth/server/session"
 import { ProductsScreen } from "@/features/catalog/components/products-screen"
 import { LedgerReady } from "@/features/ledger/components/ledger-ready"
 
+export const metadata = { title: "Products" }
+
 const ProductsPage = async () => {
   await requireRole("manager")
 
