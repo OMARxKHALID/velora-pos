@@ -140,24 +140,32 @@ CI runs lint, every test and the build on each push to `main` and each pull requ
 ### How the code is organised
 
 ```
-app/                   routes, API route handlers, service worker source (sw.js)
-features/<area>/       one folder per area:
-  components/          screens and dialogs
-  lib/                 pure rules, shared by the browser and the server
-  server/              database reads and writes
-  actions.js           server actions the screens call
-  ledger/lib/rules.js  the sale, return, shift and stock rules
-  offline/             the till's outbox, saved ledger and service worker setup
-  sample-data/         sample team, generated history and the reset
-components/            shared UI (shadcn on Base UI) and the app shell
-lib/                   money, dates, time zones, CSV, errors, HTTP helpers, env; lib/db/ holds the MongoDB client, indexes and transactions
-scripts/               db:indexes, db:seed, db:create-owner
-e2e/                   Playwright browser tests
+src/
+  app/                   routes, API route handlers, service worker source (sw.js)
+  proxy.js               redirects signed-out visitors to the sign-in page
+  features/<area>/       one folder per area:
+    components/          screens and dialogs
+    lib/                 pure rules, shared by the browser and the server
+    server/              database reads and writes
+    actions.js           server actions the screens call
+    ledger/lib/rules.js  the sale, return, shift and stock rules
+    offline/             the till's outbox, saved ledger and service worker setup
+    sample-data/         sample team, generated history and the reset
+  shared/                no business rules:
+    components/ui/       shadcn on Base UI
+    components/layout/   the app shell
+    providers/           query and theme providers
+    hooks/, lib/         money, dates, time zones, CSV, errors
+  server/                db/ (MongoDB client, indexes, transactions), http.js
+  config/                env.js
+scripts/                 db:indexes, db:seed, db:create-owner
+test/                    test setup and the throwaway test database
+e2e/                     Playwright browser tests
 ```
 
 - **How screens get data.** Screens read from `GET /api/ledger`: shops, counters, catalog, stock, recent shifts and returns, held carts and settings, trimmed to each role (cashiers never see cost prices). The Overview reads `GET /api/dashboard`. Sales and stock history are paged and searched on the server through `GET /api/sales` and `GET /api/movements`.
 - **How changes are saved.** Every change goes through a server action that checks the role and saves in a MongoDB transaction. The server prices every sale itself. Times of day follow the shop's time zone (`Asia/Karachi`).
-- **Adding other kinds of shop.** Each kind of shop is a module in `features/catalog/types/`; only `footwear` exists today. Selling, stock and returns only use the shared item fields, so a clothes or cosmetics shop is a new module, not a rewrite.
+- **Adding other kinds of shop.** Each kind of shop is a module in `src/features/catalog/types/`; only `footwear` exists today. Selling, stock and returns only use the shared item fields, so a clothes or cosmetics shop is a new module, not a rewrite.
 - **Code style.** The code has no comments, and names carry the meaning.
 
 ## Not built yet

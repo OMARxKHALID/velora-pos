@@ -1,10 +1,10 @@
 import { createAuth } from "@/features/auth/server/create-auth"
 import { dropCollections, loadDocuments, seedDocuments } from "@/features/sample-data/lib/seed-documents"
 import { seedSampleTeam } from "@/features/sample-data/server/sample-data"
-import { createMongoClient } from "@/lib/db/connect"
-import { COLLECTIONS } from "@/lib/db/collections"
-import { ensureIndexes } from "@/lib/db/indexes"
-import { appEnv, authEnv, databaseEnv, pinSecret } from "@/lib/env"
+import { createMongoClient } from "@/server/db/connect"
+import { COLLECTIONS } from "@/server/db/collections"
+import { ensureIndexes } from "@/server/db/indexes"
+import { appEnv, authEnv, databaseEnv, pinSecret } from "@/config/env"
 
 const reset = process.argv.includes("--reset")
 const { MONGODB_URI, MONGODB_DB } = databaseEnv()

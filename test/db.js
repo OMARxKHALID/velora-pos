@@ -1,7 +1,7 @@
 import { afterAll, beforeAll } from "bun:test"
-import { createMongoClient } from "@/lib/db/connect"
-import { ensureIndexes } from "@/lib/db/indexes"
-import { newId } from "@/lib/id"
+import { createMongoClient } from "@/server/db/connect"
+import { ensureIndexes } from "@/server/db/indexes"
+import { newId } from "@/shared/lib/id"
 
 const TEST_URI = process.env.MONGODB_TEST_URI
 

@@ -3,10 +3,10 @@ import { z } from "zod"
 import { createAuth, newUserId } from "@/features/auth/server/create-auth"
 import { createAccount } from "@/features/auth/server/accounts"
 import { ensureFirstShop } from "@/features/shops/server/first-shop"
-import { COLLECTIONS as C } from "@/lib/db/collections"
-import { createMongoClient } from "@/lib/db/connect"
-import { ensureIndexes } from "@/lib/db/indexes"
-import { authEnv, databaseEnv } from "@/lib/env"
+import { COLLECTIONS as C } from "@/server/db/collections"
+import { createMongoClient } from "@/server/db/connect"
+import { ensureIndexes } from "@/server/db/indexes"
+import { authEnv, databaseEnv } from "@/config/env"
 
 const { values } = parseArgs({ options: { username: { type: "string" }, name: { type: "string" }, email: { type: "string" } } })
 

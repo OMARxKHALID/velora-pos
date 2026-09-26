@@ -1,6 +1,6 @@
-import { createMongoClient } from "@/lib/db/connect"
-import { ensureIndexes } from "@/lib/db/indexes"
-import { databaseEnv } from "@/lib/env"
+import { createMongoClient } from "@/server/db/connect"
+import { ensureIndexes } from "@/server/db/indexes"
+import { databaseEnv } from "@/config/env"
 
 const { MONGODB_URI, MONGODB_DB } = databaseEnv()
 const client = createMongoClient(MONGODB_URI)
