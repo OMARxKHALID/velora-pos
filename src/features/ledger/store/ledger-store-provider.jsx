@@ -69,11 +69,11 @@ export const LedgerStoreProvider = ({ user, directory, children }) => {
   useEffect(() => watchOutbox(store, till, user), [store, till, user])
 
   useEffect(() => {
-    const refresh = async () => {
-      if (document.visibilityState !== "visible") return
+    const sync = async () => {
       await store.getState().load()
       await store.getState().syncOutbox()
     }
+    const refresh = () => (document.visibilityState === "visible" ? sync() : null)
     let signingOut = false
     const sessionEnded = store.subscribe(({ loadError }) => {
       if (signingOut || !loadError?.startsWith("Your session has ended")) return
@@ -84,16 +84,18 @@ export const LedgerStoreProvider = ({ user, directory, children }) => {
       store.getState().setOffline(!navigator.onLine)
       if (navigator.onLine) refresh()
     }
-    refresh()
+    sync()
     store.getState().setOffline(!navigator.onLine)
     const timer = setInterval(refresh, REFRESH_MS)
     window.addEventListener("focus", refresh)
+    document.addEventListener("visibilitychange", refresh)
     window.addEventListener("online", syncOnline)
     window.addEventListener("offline", syncOnline)
     return () => {
       clearInterval(timer)
       sessionEnded()
       window.removeEventListener("focus", refresh)
+      document.removeEventListener("visibilitychange", refresh)
       window.removeEventListener("online", syncOnline)
       window.removeEventListener("offline", syncOnline)
     }
