@@ -2,6 +2,7 @@ import { offlineNumbers } from "@/features/pos/lib/receipts"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 import { listRegisters, listShops } from "@/features/shops/server/shops"
 import { COLLECTIONS as C, fromDoc } from "@/server/db/collections"
+import { DAY } from "@/shared/lib/dates"
 
 const HISTORY_DAYS = 120
 
@@ -20,7 +21,7 @@ const withOfflineNext = async (db, shifts) => {
 }
 
 export const ledgerSnapshot = async (db, { user, now = new Date() }) => {
-  const since = new Date(now.getTime() - HISTORY_DAYS * 24 * 60 * 60 * 1000)
+  const since = new Date(Math.floor(now.getTime() / DAY) * DAY - HISTORY_DAYS * DAY)
   const shopIds = user.role === "admin" ? (await db.collection(C.shops).find({}, { projection: { _id: 1 }, sort: { createdAt: 1, _id: 1 } }).toArray()).map(({ _id }) => _id) : [user.shopId]
   const inShops = { shopId: { $in: shopIds } }
   const cashier = user.role === "cashier"

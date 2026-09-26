@@ -6,25 +6,48 @@ import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 
 const UNREACHABLE = "Could not reach the server. Check the connection and try again."
 
+const LEDGER_TIMEOUT_MS = 30_000
+
+const ACTION_TIMEOUTS = { recordSale: 15_000 }
+
 const DATE_FIELDS = new Set(["soldAt", "syncedAt", "createdAt", "updatedAt", "decidedAt", "openedAt", "closedAt", "receivedAt", "parkedAt", "reportedAt", "at"])
 
 export const parseLedger = (text) => JSON.parse(text, (key, value) => (DATE_FIELDS.has(key) && typeof value === "string" ? Date.parse(value) : value))
 
-const fetchLedger = async () => {
-  const response = await fetch("/api/ledger", { cache: "no-store" })
-  if (response.status === 401) throw new SessionEnded("Your session has ended. Sign in again.")
-  if (!response.ok) throw new Error(UNREACHABLE)
-  return parseLedger(await response.text())
+const unreachable = () => Object.assign(new Error(UNREACHABLE), { unreachable: true })
+
+const isConnectionError = (error) => error instanceof TypeError || error?.name === "TimeoutError" || Boolean(error?.unreachable)
+
+export const NOT_MODIFIED = Symbol("ledger-not-modified")
+
+export const fetchLedger = async ({ etag = null, timeoutMs = LEDGER_TIMEOUT_MS } = {}) => {
+  try {
+    const response = await fetch("/api/ledger", { cache: "no-store", headers: etag ? { "If-None-Match": etag } : {}, signal: AbortSignal.timeout(timeoutMs) })
+    if (response.status === 401) throw new SessionEnded("Your session has ended. Sign in again.")
+    if (response.status === 304) return NOT_MODIFIED
+    if (!response.ok) throw unreachable()
+    return { ...parseLedger(await response.text()), etag: response.headers.get("etag") }
+  } catch (error) {
+    if (error instanceof SessionEnded) throw error
+    throw unreachable()
+  }
 }
 
-const unreachable = () => Object.assign(new Error(UNREACHABLE), { unreachable: true })
+const withinTime = (pending, timeoutMs) => {
+  if (!timeoutMs) return pending
+  let timer
+  const expired = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(unreachable()), timeoutMs)
+  })
+  return Promise.race([pending, expired]).finally(() => clearTimeout(timer))
+}
 
 const withLock = (name, work) => (typeof navigator !== "undefined" && navigator.locks ? navigator.locks.request(name, work) : work())
 
-export const createLedgerStore = ({ directory = {}, user = null, till = null, actions = {}, loadLedger = fetchLedger, sendSale = sendOfflineSale, onChanged = () => {} } = {}) =>
+export const createLedgerStore = ({ directory = {}, user = null, till = null, actions = {}, loadLedger = fetchLedger, sendSale = sendOfflineSale, onChanged = () => {}, timeouts = ACTION_TIMEOUTS } = {}) =>
   createStore()((set, get) => {
     const call = async (name, ...args) => {
-      const result = await actions[name](...args).catch(() => {
+      const result = await withinTime(actions[name](...args), timeouts[name]).catch(() => {
         set({ offline: true })
         throw unreachable()
       })
@@ -35,19 +58,27 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
 
     const withStock = (patch) => ({ ...patch, stock: overlayStock(patch.serverStock ?? get().serverStock, patch.pending ?? get().pending) })
 
+    let lastEtag = null
+
     const fromSnapshot = async () => {
       if (!till || !user || get().hydrated) return
       const saved = await readSnapshot(till, user.id).catch(() => null)
-      if (!saved) return
+      if (!saved || get().hydrated) return
       const data = parseLedger(saved.text)
+      lastEtag = data.etag ?? null
       set(withStock({ ...data, serverStock: data.stock, hydrated: true, savedAt: saved.savedAt }))
     }
 
+    const onlineNow = () => ({ loadError: null, savedAt: null, offline: typeof navigator !== "undefined" && navigator.onLine === false })
+
     let loading = null
     const load = () => {
-      loading ??= loadLedger()
+      loading ??= fromSnapshot()
+        .then(() => loadLedger({ etag: lastEtag }))
         .then((data) => {
-          set(withStock({ ...data, serverStock: data.stock, hydrated: true, loadError: null, savedAt: null, offline: typeof navigator !== "undefined" && navigator.onLine === false }))
+          if (data === NOT_MODIFIED) return set(onlineNow())
+          lastEtag = data.etag ?? null
+          set(withStock({ ...data, serverStock: data.stock, hydrated: true, ...onlineNow() }))
           if (till && user) saveSnapshot(till, user.id, JSON.stringify(data)).catch(() => {})
         })
         .catch(async (error) => {
@@ -111,7 +142,7 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
           await topUpReceipts()
         } catch (error) {
           if (error instanceof SessionEnded) set({ loadError: error.message })
-          else if (error instanceof TypeError || error.unreachable) set({ offline: true })
+          else if (isConnectionError(error)) set({ offline: true })
         } finally {
           set({ syncing: false })
           syncing = null

@@ -51,8 +51,10 @@ export const flushOutbox = async (db, { cashierId, send }) => {
   return result
 }
 
-export const sendOfflineSale = async (payload) => {
-  const response = await fetch("/api/sync/sales", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+const UPLOAD_TIMEOUT_MS = 15_000
+
+export const sendOfflineSale = async (payload, { timeoutMs = UPLOAD_TIMEOUT_MS } = {}) => {
+  const response = await fetch("/api/sync/sales", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: AbortSignal.timeout(timeoutMs) })
   if (response.status === 401) throw new SessionEnded("Your session has ended. Sign in again.")
   if (response.ok) return { sale: (await response.json()).sale }
   if (response.status >= 400 && response.status < 500) return { error: (await response.json().catch(() => null))?.error ?? "The server refused this sale" }

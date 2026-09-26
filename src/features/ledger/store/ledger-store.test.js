@@ -1,5 +1,10 @@
 import { expect, test } from "bun:test"
-import { createLedgerStore, parseLedger } from "./ledger-store"
+import { NOT_MODIFIED, createLedgerStore, fetchLedger, parseLedger } from "./ledger-store"
+
+const hangingFetch = (counter) => (_url, { signal }) => {
+  counter.calls += 1
+  return new Promise((_, reject) => signal.addEventListener("abort", () => reject(signal.reason)))
+}
 
 const snapshot = (overrides = {}) => ({ products: [], variants: [], stock: {}, sales: [], refunds: [], shifts: [], movements: [], purchases: [], heldCarts: [], settings: { taxEnabled: false }, ...overrides })
 
@@ -41,6 +46,27 @@ test("loading twice at once asks the server once; a failed load is shown, not th
   const broken = createLedgerStore({ loadLedger: async () => Promise.reject(new Error("Your session has ended. Sign in again.")) })
   await broken.getState().load()
   expect(broken.getState()).toMatchObject({ hydrated: false, loadError: "Your session has ended. Sign in again." })
+})
+
+test("a ledger request that never answers gives up, so the next refresh can run", async () => {
+  const realFetch = globalThis.fetch
+  const counter = { calls: 0 }
+  globalThis.fetch = hangingFetch(counter)
+  try {
+    const store = createLedgerStore({ loadLedger: () => fetchLedger({ timeoutMs: 20 }) })
+    await store.getState().load()
+    expect(store.getState()).toMatchObject({ hydrated: false, offline: true, loadError: "Could not reach the server. Check the connection and try again." })
+    await store.getState().load()
+    expect(counter.calls).toBe(2)
+  } finally {
+    globalThis.fetch = realFetch
+  }
+})
+
+test("a sale the server never answers stops waiting and counts as no connection", async () => {
+  const store = createLedgerStore({ actions: { recordSale: () => new Promise(() => {}) }, loadLedger: async () => snapshot(), timeouts: { recordSale: 20 } })
+  await expect(store.getState().recordSale({})).rejects.toThrow("Could not reach the server")
+  expect(store.getState().offline).toBe(true)
 })
 
 test("dates from the server come back as the times the screens expect", () => {
@@ -98,6 +124,31 @@ test("with no connection the till keeps selling, then uploads each sale once whe
   expect(store.getState()).toMatchObject({ pending: [], stock: { v1: 1 }, offline: false })
 })
 
+test("an upload that times out marks the till offline and frees the next sync", async () => {
+  const { IDBFactory, IDBKeyRange } = await import("fake-indexeddb")
+  const { createTillDb } = await import("@/features/offline/lib/till-db")
+  const till = createTillDb("till-timeout-test", { indexedDB: new IDBFactory(), IDBKeyRange })
+  let attempts = 0
+  const store = createLedgerStore({
+    user: { id: "u-cashier", role: "cashier" },
+    till,
+    actions: { recordSale: async () => Promise.reject(new TypeError("Failed to fetch")) },
+    loadLedger: async () => offlineShop(),
+    sendSale: async () => {
+      attempts += 1
+      throw new DOMException("signal timed out", "TimeoutError")
+    },
+  })
+  store.setState({ ...offlineShop(), serverStock: { v1: 3 }, hydrated: true })
+  await store.getState().recordSale({ clientId: "c-1", shiftId: "s1", lines: [{ variantId: "v1", quantity: 1 }], payments: [{ method: "cash", amount: 1250000 }] })
+
+  store.getState().setOffline(false)
+  await store.getState().syncOutbox()
+  expect(store.getState()).toMatchObject({ offline: true, syncing: false, pending: [{ clientId: "c-1", status: "pending" }] })
+  await store.getState().syncOutbox()
+  expect(attempts).toBe(2)
+})
+
 test("offline, the till opens from what it last loaded", async () => {
   const { IDBFactory, IDBKeyRange } = await import("fake-indexeddb")
   const { createTillDb } = await import("@/features/offline/lib/till-db")
@@ -110,4 +161,41 @@ test("offline, the till opens from what it last loaded", async () => {
   await offline.getState().load()
   expect(offline.getState()).toMatchObject({ hydrated: true, offline: true, stock: { v1: 3 }, shifts: [{ id: "s1" }] })
   expect(offline.getState().savedAt).toBeNumber()
+})
+
+test("an unchanged ledger is not sent again; the store keeps what it has and asks with the last tag", async () => {
+  const tags = []
+  let first = true
+  const store = createLedgerStore({
+    loadLedger: async ({ etag }) => {
+      tags.push(etag)
+      if (!first) return NOT_MODIFIED
+      first = false
+      return { ...snapshot({ shifts: [{ id: "s1", status: "open" }] }), etag: '"v1"' }
+    },
+  })
+  await store.getState().load()
+  const shifts = store.getState().shifts
+  await store.getState().load()
+  expect(tags).toEqual([null, '"v1"'])
+  expect(store.getState().shifts).toBe(shifts)
+  expect(store.getState()).toMatchObject({ hydrated: true, loadError: null })
+})
+
+test("the till shows what it saved before the server answers", async () => {
+  const { IDBFactory, IDBKeyRange } = await import("fake-indexeddb")
+  const { createTillDb } = await import("@/features/offline/lib/till-db")
+  const till = createTillDb("till-first-paint-test", { indexedDB: new IDBFactory(), IDBKeyRange })
+  const user = { id: "u-cashier", role: "cashier" }
+  await createLedgerStore({ user, till, loadLedger: async () => ({ ...offlineShop(), etag: '"v1"' }) }).getState().load()
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  let release
+  const slow = createLedgerStore({ user, till, loadLedger: () => new Promise((resolve) => (release = resolve)) })
+  const pending = slow.getState().load()
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  expect(slow.getState()).toMatchObject({ hydrated: true, stock: { v1: 3 } })
+  expect(slow.getState().savedAt).toBeNumber()
+  release(NOT_MODIFIED)
+  await pending
+  expect(slow.getState().savedAt).toBeNull()
 })

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { IDBFactory, IDBKeyRange } from "fake-indexeddb"
 import { newId } from "@/shared/lib/id"
-import { NO_NUMBERS, countersFor, flushOutbox, outboxFor, queueOfflineSale, readSnapshot, retryEntry, saveSnapshot } from "./outbox"
+import { NO_NUMBERS, countersFor, flushOutbox, outboxFor, queueOfflineSale, readSnapshot, retryEntry, saveSnapshot, sendOfflineSale } from "./outbox"
 import { createTillDb } from "./till-db"
 
 const freshTill = () => createTillDb(`till-${newId()}`, { indexedDB: new IDBFactory(), IDBKeyRange })
@@ -48,6 +48,16 @@ test("uploading clears what the server took, keeps what it refused, and stops wh
   await retryEntry(till, refused.clientId)
   await expect(flushOutbox(till, { cashierId: "u-cashier", send: async () => Promise.reject(new TypeError("Failed to fetch")) })).rejects.toThrow("Failed to fetch")
   expect(await outboxFor(till, "u-cashier")).toMatchObject([{ clientId: refused.clientId, status: "pending" }])
+})
+
+test("an upload the server never answers gives up instead of holding the till", async () => {
+  const realFetch = globalThis.fetch
+  globalThis.fetch = (_url, { signal }) => new Promise((_, reject) => signal.addEventListener("abort", () => reject(signal.reason)))
+  try {
+    await expect(sendOfflineSale({ clientId: "c-1" }, { timeoutMs: 20 })).rejects.toMatchObject({ name: "TimeoutError" })
+  } finally {
+    globalThis.fetch = realFetch
+  }
 })
 
 test("the last ledger each person loaded is kept for opening the till offline", async () => {
