@@ -2,10 +2,10 @@
 
 import { ArrowsClockwiseIcon } from "@phosphor-icons/react"
 import { Button } from "@/components/ui/button"
-import { TablePageSkeleton } from "@/components/ui/table-skeleton"
+import { PanelsSkeleton, TablePageSkeleton } from "@/components/ui/table-skeleton"
 import { useLedgerStore } from "../store/ledger-store-provider"
 
-export const LedgerReady = ({ children, fallback = <TablePageSkeleton /> }) => {
+export const LedgerReady = ({ children, skeleton = "table" }) => {
   const hydrated = useLedgerStore(({ hydrated }) => hydrated)
   const loadError = useLedgerStore(({ loadError }) => loadError)
   const load = useLedgerStore(({ load }) => load)
@@ -21,7 +21,7 @@ export const LedgerReady = ({ children, fallback = <TablePageSkeleton /> }) => {
       </div>
     )
 
-  if (!hydrated) return fallback
+  if (!hydrated) return skeleton === "panels" ? <PanelsSkeleton /> : <TablePageSkeleton />
 
   return children
 }

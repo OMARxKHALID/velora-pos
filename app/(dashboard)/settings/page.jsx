@@ -1,6 +1,5 @@
 import { PageHeader } from "@/components/layout/page-header"
 import { requireRole } from "@/features/auth/server/session"
-import { PanelsSkeleton } from "@/components/ui/table-skeleton"
 import { LedgerReady } from "@/features/ledger/components/ledger-ready"
 import { SettingsScreen } from "@/features/settings/components/settings-screen"
 import { appEnv } from "@/lib/env"
@@ -11,7 +10,7 @@ const SettingsPage = async () => {
   return (
     <>
       <PageHeader title="Settings" description="Shops, counters, tax, payments, discounts and receipts." />
-      <LedgerReady fallback={<PanelsSkeleton />}>
+      <LedgerReady skeleton="panels">
         <SettingsScreen user={user} sampleData={appEnv().SAMPLE_DATA} />
       </LedgerReady>
     </>
