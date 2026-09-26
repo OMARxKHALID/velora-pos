@@ -4,6 +4,7 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { blockedReason } from "@/features/staff/server/access"
 import { getDb, getMongoClient } from "@/server/db/client"
+import { bumpLedger } from "@/server/db/ledger-version"
 import { authEnv } from "@/config/env"
 import { AccessDenied } from "@/shared/lib/errors"
 import { toSessionUser } from "../lib/roles"
@@ -45,6 +46,8 @@ export const actionResult = async (work) => {
 export const recordAction = (roles, work) =>
   actionResult(async () => {
     const user = await authorize(...roles)
-    const record = await work({ db: getDb(), client: getMongoClient(), user, shopId: user.shopId, approvalSecret: authEnv().BETTER_AUTH_SECRET })
+    const db = getDb()
+    const record = await work({ db, client: getMongoClient(), user, shopId: user.shopId, approvalSecret: authEnv().BETTER_AUTH_SECRET })
+    await bumpLedger(db, user.shopId).catch((error) => console.error(error))
     return { record }
   })

@@ -2,6 +2,7 @@ import { getSession } from "@/features/auth/server/session"
 import { syncOfflineSale } from "@/features/pos/server/sales"
 import { withoutCosts } from "@/features/sales/lib/for-viewer"
 import { getDb, getMongoClient } from "@/server/db/client"
+import { bumpLedger } from "@/server/db/ledger-version"
 import { authEnv } from "@/config/env"
 import { denied, noStore } from "@/server/http"
 
@@ -24,7 +25,9 @@ export const POST = async (request) => {
   const body = await request.json().catch(() => null)
   if (!body) return denied(400, "Send JSON")
   try {
-    const sale = await syncOfflineSale({ db: getDb(), client: getMongoClient(), user, shopId: user.shopId, approvalSecret: authEnv().BETTER_AUTH_SECRET }, body)
+    const db = getDb()
+    const sale = await syncOfflineSale({ db, client: getMongoClient(), user, shopId: user.shopId, approvalSecret: authEnv().BETTER_AUTH_SECRET }, body)
+    await bumpLedger(db, user.shopId).catch((error) => console.error(error))
     return Response.json({ sale: withoutCosts(sale) }, { headers: noStore })
   } catch (error) {
     if (error?.expose) return denied(422, error.message)

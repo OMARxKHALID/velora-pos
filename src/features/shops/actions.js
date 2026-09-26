@@ -2,12 +2,16 @@
 
 import { actionResult, authorize } from "@/features/auth/server/session"
 import { getDb, getMongoClient } from "@/server/db/client"
+import { bumpAllLedgers } from "@/server/db/ledger-version"
 import { deleteShop, saveRegister, saveShop } from "./server/service"
 
 const asOwner = (work) =>
   actionResult(async () => {
     const user = await authorize("admin")
-    return { record: await work({ db: getDb(), client: getMongoClient(), user }) }
+    const db = getDb()
+    const record = await work({ db, client: getMongoClient(), user })
+    await bumpAllLedgers(db).catch((error) => console.error(error))
+    return { record }
   })
 
 export const saveShopAction = async (input) => asOwner((deps) => saveShop(deps, input))
