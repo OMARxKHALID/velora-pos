@@ -18,7 +18,8 @@ export const EditStaffDialog = ({ person, onClose, onSave }) => {
 
   const handleSubmit = (event) => {
     event.preventDefault()
-    onSave(person.id, profile)
+    const { photo, ...rest } = profile
+    onSave(person.id, photo === (person.photo ?? "") ? rest : profile)
   }
 
   return (

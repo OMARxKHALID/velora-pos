@@ -18,7 +18,8 @@
     "db:indexes": "bun scripts/db-indexes.js",
     "db:seed": "bun scripts/db-seed.js",
     "db:create-owner": "bun scripts/create-owner.js",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:photos-to-cloudinary": "bun scripts/photos-to-cloudinary.js"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

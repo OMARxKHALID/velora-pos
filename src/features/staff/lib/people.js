@@ -11,6 +11,7 @@ const CNIC_PATTERN = /^(\d{5})-?(\d{7})-?(\d)$/
 const PHONE_PATTERN = /^(?:\+92|0)(3\d{2})[\s-]?(\d{7})$/
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MAX_PHOTO_LENGTH = 200000
+const PHOTO_PATTERN = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/
 
 const trimmed = (value, max) => (typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, max) : "")
 
@@ -57,7 +58,7 @@ export const cleanProfile = ({ name, email, phone, cnic, address, city, emergenc
   if (formattedCnic === null) throw new Error("CNIC must be 13 digits, like 35202-1234567-1.")
   profile.cnic = formattedCnic
 
-  if (photo && (typeof photo !== "string" || !photo.startsWith("data:image/") || photo.length > MAX_PHOTO_LENGTH)) throw new Error("That photo cannot be used. Try a smaller image.")
+  if (photo && (typeof photo !== "string" || !PHOTO_PATTERN.test(photo) || photo.length > MAX_PHOTO_LENGTH)) throw new Error("That photo cannot be used. Try a smaller image.")
   profile.photo = photo || null
 
   return profile

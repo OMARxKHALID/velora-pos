@@ -5,13 +5,14 @@ import { headers } from "next/headers"
 import { getAuth } from "@/features/auth/server/auth"
 import { actionResult, authorize } from "@/features/auth/server/session"
 import { getDb } from "@/server/db/client"
+import { cloudinary } from "@/server/cloudinary"
 import { pinSecret } from "@/config/env"
 import { changeRole, createStaff, removeStaff, setAccess, setLeave, setPassword, setSupervisorPin, updateProfile } from "./server/staff"
 
 const asOwner = (work) =>
   actionResult(async () => {
     await authorize("admin")
-    const result = await work({ auth: getAuth(), db: getDb(), headers: await headers(), pinSecret: pinSecret() })
+    const result = await work({ auth: getAuth(), db: getDb(), headers: await headers(), pinSecret: pinSecret(), photos: cloudinary() })
     refresh()
     return result
   })

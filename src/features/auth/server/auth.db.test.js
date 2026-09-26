@@ -15,6 +15,7 @@ const PASSWORD = "velora-sample"
 describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
   const context = useTestDatabase()
   const deps = {}
+  const photoStore = new Set()
 
   const signIn = async (username, password = PASSWORD) => {
     const response = await deps.auth.api.signInUsername({ body: { username, password }, asResponse: true })
@@ -28,6 +29,10 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     deps.auth = createAuth({ db: context.db, client: context.client, secret: SECRET, baseURL: "http://localhost:3000", rateLimit: false })
     deps.db = context.db
     deps.pinSecret = SECRET
+    deps.photos = {
+      upload: async (publicId) => (photoStore.add(publicId), { photoId: publicId, photoVersion: 1 }),
+      remove: async (publicId) => photoStore.delete(publicId),
+    }
     await ensureFirstShop(context.db)
     await seedSampleTeam({ auth: deps.auth, db: context.db, password: PASSWORD, pinSecret: SECRET })
   })
@@ -153,7 +158,17 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     await expect(updateProfile(owner, id, { name: "Profile Person", email: "nope" })).rejects.toThrow("email")
     await expect(updateProfile(owner, id, { name: "P", shopId: "shop-none" })).rejects.toThrow()
     await updateProfile(owner, id, { name: "Profile Renamed", email: "profile@velora.pk", phone: "03001234567", address: "Gulberg", emergencyContact: "0321 7654321", photo: "data:image/jpeg;base64,AAAA" })
-    expect(await person(id)).toMatchObject({ name: "Profile Renamed", email: "profile@velora.pk", phone: "0300 1234567", address: "Gulberg", emergencyContact: "0321 7654321", photo: "data:image/jpeg;base64,AAAA" })
+    const first = (await person(id)).photoId
+    expect(await person(id)).toMatchObject({ name: "Profile Renamed", email: "profile@velora.pk", phone: "0300 1234567", address: "Gulberg", emergencyContact: "0321 7654321", photoId: expect.stringMatching(/^velora\/staff\//) })
+    expect((await context.db.collection("users").findOne({ _id: id })).photo).toBeUndefined()
+    await updateProfile(owner, id, { name: "Profile Renamed" })
+    expect((await person(id)).photoId).toBe(first)
+    await expect(updateProfile(owner, id, { name: "Profile Renamed", photo: "data:image/svg+xml;base64,AAAA" })).rejects.toThrow("photo")
+    await updateProfile(owner, id, { name: "Profile Renamed", photo: "data:image/png;base64,BBBB" })
+    expect(photoStore.has(first)).toBe(false)
+    await updateProfile(owner, id, { name: "Profile Renamed", photo: null })
+    expect(await person(id)).toMatchObject({ photoId: null, photo: null })
+    expect(photoStore.size).toBe(0)
     await expect(updateProfile(owner, "u-admin", { name: "Hacker" })).rejects.toThrow("owner account")
   })
 

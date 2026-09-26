@@ -6,16 +6,21 @@ import { requireRole } from "@/features/auth/server/session"
 import { QueryProvider } from "@/shared/providers/query-provider"
 import { LedgerStoreProvider } from "@/features/ledger/store/ledger-store-provider"
 import { listShops } from "@/features/shops/server/shops"
-import { directoryFor, listPeople, staffActivity } from "@/features/staff/server/staff"
+import { directoryFor, listPeople, recentStaffActivity } from "@/features/staff/server/staff"
 import { getDb } from "@/server/db/client"
 import { appEnv } from "@/config/env"
 
-const DashboardLayout = async ({ children }) => {
-  const user = await requireRole()
-  const cookieStore = await cookies()
-  const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false"
+const loadDirectory = async (user) => {
   const db = getDb()
-  const directory = user.role === "admin" ? directoryFor(user, await listPeople(db), await staffActivity(db), await listShops(db)) : directoryFor(user, await listPeople(db))
+  if (user.role !== "admin") return directoryFor(user, await listPeople(db))
+  const [people, activity, shops] = await Promise.all([listPeople(db), recentStaffActivity(), listShops(db)])
+  return directoryFor(user, people, activity, shops)
+}
+
+const DashboardLayout = async ({ children }) => {
+  const [user, cookieStore] = await Promise.all([requireRole(), cookies()])
+  const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false"
+  const directory = await loadDirectory(user)
 
   return (
     <QueryProvider>
