@@ -32,6 +32,7 @@ export const createAuth = ({ db, client, secret, baseURL, rateLimit = process.en
       modelName: AUTH_COLLECTIONS.session,
       expiresIn: 60 * 60 * 12,
       updateAge: 60 * 60,
+      cookieCache: { enabled: true, maxAge: 60 },
     },
     account: { modelName: AUTH_COLLECTIONS.account },
     verification: { modelName: AUTH_COLLECTIONS.verification },
