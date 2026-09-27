@@ -108,7 +108,7 @@ const AdjustForm = ({ row, size, onHand, onDone }) => {
         <Button type="button" variant="outline" onClick={onDone}>
           Cancel
         </Button>
-        <Button type="submit">Save adjustment</Button>
+        <Button type="submit" pending={form.formState.isSubmitting}>Save adjustment</Button>
       </DialogFooter>
     </form>
   )

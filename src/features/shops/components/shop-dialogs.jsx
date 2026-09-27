@@ -12,31 +12,42 @@ import { Textarea } from "@/shared/components/ui/textarea"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { SettingToggle } from "@/features/settings/components/setting-toggle"
 
-const EditorDialog = ({ title, description, onClose, onSubmit, submitLabel, children }) => (
-  <Dialog open onOpenChange={(open) => !open && onClose()}>
-    <DialogContent className="sm:max-w-lg">
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          onSubmit()
-        }}
-        className="space-y-5"
-      >
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        {children}
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit">{submitLabel}</Button>
-        </DialogFooter>
-      </form>
-    </DialogContent>
-  </Dialog>
-)
+const EditorDialog = ({ title, description, onClose, onSubmit, submitLabel, children }) => {
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (saving) return
+    setSaving(true)
+    try {
+      await onSubmit()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && !saving && onClose()}>
+      <DialogContent className="sm:max-w-lg">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
+          {children}
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={saving} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" pending={saving}>
+              {submitLabel}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 const TextField = ({ id, label, value, onChange, placeholder, hint, ...props }) => (
   <Field>
@@ -50,9 +61,11 @@ export const ShopDialog = ({ shop, onClose }) => {
   const saveShop = useLedgerStore(({ saveShop }) => saveShop)
   const deleteShop = useLedgerStore(({ deleteShop }) => deleteShop)
   const [confirming, setConfirming] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const handleDelete = async () => {
     if (!confirming) return setConfirming(true)
+    setDeleting(true)
     try {
       await deleteShop({ shopId: shop.id })
       toast.success("Shop deleted", { description: shop.name })
@@ -60,6 +73,8 @@ export const ShopDialog = ({ shop, onClose }) => {
     } catch (error) {
       toast.error(error.message)
       setConfirming(false)
+    } finally {
+      setDeleting(false)
     }
   }
   const [draft, setDraft] = useState({
@@ -104,7 +119,7 @@ export const ShopDialog = ({ shop, onClose }) => {
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border border-destructive/30 bg-destructive/5 px-3 py-2.5">
         <p className="text-xs text-muted-foreground">{confirming ? "Delete this shop and its counters for good?" : "Only a shop with no products, sales or staff can be deleted."}</p>
-        <Button type="button" size="sm" variant="destructive" onClick={handleDelete}>
+        <Button type="button" size="sm" variant="destructive" pending={deleting} onClick={handleDelete}>
           <TrashIcon />
           {confirming ? "Yes, delete" : "Delete shop"}
         </Button>

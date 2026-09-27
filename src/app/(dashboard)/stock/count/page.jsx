@@ -1,6 +1,7 @@
 import { PageHeader } from "@/shared/components/layout/page-header"
 import { requireRole } from "@/features/auth/server/session"
 import { LedgerReady } from "@/features/ledger/components/ledger-ready"
+import { StockCountSkeleton } from "@/shared/components/ui/table-skeleton"
 import { StockCountScreen } from "@/features/inventory/components/stock-count-screen"
 
 export const metadata = { title: "Stock count" }
@@ -11,7 +12,7 @@ const StockCountPage = async () => {
   return (
     <>
       <PageHeader title="Stock count" description="Scan every item on the shelf, then review what differs from the system." />
-      <LedgerReady>
+      <LedgerReady fallback={<StockCountSkeleton />}>
         <StockCountScreen user={user} />
       </LedgerReady>
     </>

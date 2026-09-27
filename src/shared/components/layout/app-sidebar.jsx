@@ -34,7 +34,7 @@ import { ALL_SHOPS, shopName } from "@/features/shops/lib/shops"
 import { GROUP_NAME } from "@/features/shops/lib/constants"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { StaffAvatar } from "@/features/staff/components/staff-avatar"
-import { navItems } from "./nav-items"
+import { isActivePath, navItems } from "./nav-items"
 import { ThemeToggle } from "./theme-toggle"
 import { VeloraLogo } from "./velora-logo"
 
@@ -113,7 +113,7 @@ export const AppSidebar = ({ user }) => {
               {items.map(({ href, label, icon: Icon }) => (
                 <SidebarMenuItem key={href}>
                   <SidebarMenuButton
-                    isActive={pathname.startsWith(href)}
+                    isActive={isActivePath(pathname, href)}
                     tooltip={label}
                     render={<Link href={href} />}
                   >

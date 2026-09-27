@@ -124,16 +124,10 @@ Keep secrets out of the repository: every `.env*` file except `.env.example` is 
 | `bun run lint` | ESLint. It fails on unused or undefined names |
 | `bun test` | Unit tests and a render of every screen |
 | `MONGODB_TEST_URI="mongodb://127.0.0.1:27017/?replicaSet=rs0" bun test` | Also runs the database tests, each in its own throwaway database |
-| `bun run test:e2e` | Playwright browser tests against the built app. Run `bun run build` first; install the browser once with `bunx playwright install chromium` |
 | `bun run db:up` / `db:down` | Start or stop the local MongoDB replica set |
 | `bun run db:indexes` | Create or update the database indexes |
 | `bun run db:seed` | Load sample data (needs `SAMPLE_DATA=true`) |
 | `bun run db:create-owner` | Create the first owner, shop, counter and settings |
-
-The browser tests start the app on port 3100 against a separate `velora_e2e` database and load sample data into it. They cover:
-- sign-in, the password lockout and each role's access
-- a sale at the till reaching the supervisor
-- selling offline through a reload and back online
 
 CI runs lint, every test and the build on each push to `main` and each pull request.
 
@@ -160,7 +154,6 @@ src/
   config/                env.js
 scripts/                 db:indexes, db:seed, db:create-owner
 test/                    test setup and the throwaway test database
-e2e/                     Playwright browser tests
 ```
 
 - **How screens get data.** Screens read from `GET /api/ledger`: shops, counters, catalog, stock, recent shifts and returns, held carts and settings, trimmed to each role (cashiers never see cost prices). The Overview reads `GET /api/dashboard`. Sales and stock history are paged and searched on the server through `GET /api/sales` and `GET /api/movements`.

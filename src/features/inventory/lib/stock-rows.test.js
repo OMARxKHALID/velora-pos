@@ -24,3 +24,15 @@ test("archived products are left out", () => {
   const rows = stockRows({}, { products, variantsByProduct: indexCatalog(catalog).variantsByProduct })
   expect(rows.some(({ product }) => product.id === products[0].id)).toBe(false)
 })
+
+test("a category limit only applies to products in the same shop", () => {
+  const catalog = seedCatalog()
+  const index = { products: catalog.products, variantsByProduct: indexCatalog(catalog).variantsByProduct }
+  const [product] = catalog.products
+  const [first] = index.variantsByProduct[product.id].filter(({ attributes }) => attributes.color === product.colors[0])
+  const rowOf = (categories) => stockRows({ [first.id]: 5 }, index, 2, categories).find(({ key }) => key === `${product.id}-${product.colors[0]}`)
+  const limit = (shopId) => [{ shopId, name: product.category, lowStockAt: 9 }]
+
+  expect(rowOf(limit(product.shopId)).low).toBe(1)
+  expect(rowOf(limit("another-shop")).low).toBe(0)
+})

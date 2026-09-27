@@ -167,7 +167,7 @@ export const OpenShiftCard = ({ user, counter }) => {
               />
             </CardContent>
             <CardFooter>
-              <Button type="submit" size="lg" className="w-full">
+              <Button type="submit" size="lg" className="w-full" pending={form.formState.isSubmitting}>
                 Open shift
               </Button>
             </CardFooter>

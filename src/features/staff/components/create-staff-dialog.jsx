@@ -88,9 +88,9 @@ export const CreateStaffDialog = ({ user, pending, onClose, onCreate }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" pending={pending}>
               <PlusIcon />
-              {pending ? "Adding…" : "Add staff member"}
+              Add staff member
             </Button>
           </DialogFooter>
         </form>

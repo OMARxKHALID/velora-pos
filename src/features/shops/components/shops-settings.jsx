@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { CashRegisterIcon, PencilSimpleIcon, PlusIcon, StorefrontIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
-import { Panel } from "@/features/analytics/components/panel"
+import { Panel } from "@/shared/components/ui/panel"
 import { StatusBadge } from "@/features/sales/components/sale-status-badges"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { ALL_SHOPS, shopRegisters } from "../lib/shops"
@@ -60,14 +60,16 @@ export const ShopsSettings = ({ scope = ALL_SHOPS }) => {
                   <li key={register.id} className="flex items-center gap-3 px-4 py-2.5">
                     <CashRegisterIcon className="size-5 shrink-0 text-gold" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">
-                        {register.code} · {register.name}
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="min-w-0 max-w-full truncate text-sm font-medium">
+                          {register.code} · {register.name}
+                        </span>
+                        {open && <StatusBadge tone="info">Shift open</StatusBadge>}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
                         POSID {register.fbrPosId || "not set"} · {register.autoPrint ? `auto-print ${register.copies}×` : "print on request"} · drawer {register.drawerOnCash ? "opens on cash" : "manual"}
                       </span>
                     </span>
-                    {open && <StatusBadge tone="info">Shift open</StatusBadge>}
                     <Button size="icon-sm" variant="ghost" aria-label={`Edit counter ${register.code}`} onClick={() => setEditingCounter({ shop, register })}>
                       <PencilSimpleIcon />
                     </Button>

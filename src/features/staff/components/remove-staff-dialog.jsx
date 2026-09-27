@@ -23,7 +23,7 @@ export const RemoveStaffDialog = ({ person, pending, onCancel, onConfirm }) => (
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button variant="destructive" disabled={pending} onClick={onConfirm}>
+        <Button variant="destructive" pending={pending} onClick={onConfirm}>
           <TrashIcon />
           Remove staff member
         </Button>

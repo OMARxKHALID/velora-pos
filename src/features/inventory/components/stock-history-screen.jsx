@@ -7,13 +7,16 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/component
 import { Segmented } from "@/shared/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { TableSkeleton } from "@/shared/components/ui/table-skeleton"
-import { TablePagination } from "@/shared/components/ui/table-pagination"
+import { TablePageSkeleton } from "@/shared/components/ui/table-skeleton"
+import { TablePagination, resetsPage } from "@/shared/components/ui/table-pagination"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { formatDateTime } from "@/shared/lib/dates"
 import { getJson, queryString } from "@/shared/lib/get-json"
 import { addReasons, removeReasons } from "../schemas"
+import { LoadError } from "@/shared/components/ui/alert"
+import { Surface } from "@/shared/components/ui/surface"
+import { EmptyState } from "@/shared/components/ui/empty-state"
 
 const types = [
   { key: "all", label: "All" },
@@ -38,7 +41,7 @@ const referenceFor = (movement) => {
   return movement.ref?.number ?? "—"
 }
 
-export const MovementsScreen = ({ user }) => {
+export const StockHistoryScreen = ({ user }) => {
   const scope = useShopScope(user)
   const nameOf = useStaffName()
   const [type, setType] = useState("all")
@@ -47,7 +50,7 @@ export const MovementsScreen = ({ user }) => {
   const [page, setPage] = useState(1)
   const search = useDeferredValue(query.trim())
   const filters = { type: type === "all" ? undefined : type, range, q: search, shop: scope, page }
-  const { data, error, isPending } = useQuery({
+  const { data, error, isPending, isPlaceholderData, refetch } = useQuery({
     queryKey: ["movements", filters],
     queryFn: ({ signal }) => getJson(`/api/movements?${queryString(filters)}`, { signal }),
     placeholderData: keepPreviousData,
@@ -55,10 +58,9 @@ export const MovementsScreen = ({ user }) => {
   const rows = data?.rows ?? []
   const pageCount = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
 
-  const withReset = (setter) => (value) => {
-    setter(value)
-    setPage(1)
-  }
+  const withReset = resetsPage(setPage)
+
+  if (isPending) return <TablePageSkeleton />
 
   return (
     <>
@@ -73,7 +75,7 @@ export const MovementsScreen = ({ user }) => {
         <Segmented label="Date range" options={ranges} value={range} onChange={withReset(setRange)} />
       </div>
 
-      <div className="border bg-card">
+      <Surface aria-busy={isPlaceholderData} className={cn("transition-opacity", isPlaceholderData && "opacity-60")}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -110,11 +112,10 @@ export const MovementsScreen = ({ user }) => {
             })}
           </TableBody>
         </Table>
-        {isPending && <TableSkeleton label="Loading stock history" />}
-        {error && !data && <p className="py-12 text-center text-sm text-destructive-foreground">{error.message}</p>}
-        {data && !rows.length && <p className="py-12 text-center text-sm text-muted-foreground">No movements match.</p>}
+        {error && !data && <LoadError message={error.message} onRetry={refetch} className="m-3" />}
+        {data && !rows.length && <EmptyState>Nothing in the stock history matches.</EmptyState>}
         {data && <TablePagination page={data.page} pageCount={pageCount} total={data.total} size={data.pageSize} onPageChange={setPage} />}
-      </div>
+      </Surface>
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <LockSimpleIcon className="size-3.5 text-gold" />
         History cannot be edited or deleted by anyone.

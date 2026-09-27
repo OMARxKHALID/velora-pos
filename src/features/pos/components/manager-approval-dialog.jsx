@@ -89,8 +89,9 @@ export const ManagerApprovalDialog = ({ shopId, reason, discountPct, onApprove, 
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!approver || offline || isSubmitting}>
-              {isSubmitting ? "Checking…" : "Approve"}
+            <Button type="submit" disabled={!approver || offline} pending={isSubmitting}>
+              <ShieldCheckIcon />
+              Approve
             </Button>
           </DialogFooter>
         </form>

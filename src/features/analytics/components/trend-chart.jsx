@@ -2,6 +2,7 @@
 
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/shared/components/ui/chart"
+import { hourIn } from "@/shared/lib/zoned"
 import { splitLiveTail } from "../lib/analytics"
 
 const config = {
@@ -14,24 +15,31 @@ const rupees = new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 })
 const compact = new Intl.NumberFormat("en-PK", { notation: "compact", maximumFractionDigits: 1 })
 const hourLabel = (hour) => `${hour % 12 || 12}${hour < 12 ? "am" : "pm"}`
 
-export const TrendChart = ({ data, byHour, timeZone }) => {
+export const TrendChart = ({ data, byHour, timeZone, now, live = true }) => {
   const dayLabel = new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", timeZone })
   const labelFor = (value) => (byHour ? hourLabel(value) : dayLabel.format(value))
-  const points = splitLiveTail(data, byHour)
+  const points = splitLiveTail(data, byHour, hourIn(timeZone, now), live)
+
+  if (points.every(({ revenue, profit }) => !revenue && !profit))
+    return (
+      <div className="flex h-56 items-center justify-center border border-dashed text-sm text-muted-foreground @2xl:h-72">
+        {byHour && live ? "No sales yet today. The chart fills in as the day goes." : byHour ? "No sales on this day." : "No sales in this period."}
+      </div>
+    )
 
   return (
     <div className="space-y-2">
-      <ChartContainer config={config} className="aspect-auto h-64 w-full">
+      <ChartContainer config={config} className="aspect-auto h-56 w-full @2xl:h-72">
         <ComposedChart data={points} margin={{ top: 12, right: 12, left: 4, bottom: 0 }}>
           <defs>
             <linearGradient id="trend-revenue-fill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--color-revenue)" stopOpacity={0.3} />
+              <stop offset="0%" stopColor="var(--color-revenue)" stopOpacity={0.2} />
               <stop offset="100%" stopColor="var(--color-revenue)" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} strokeDasharray="0" />
+          <CartesianGrid vertical={false} />
           <XAxis dataKey={byHour ? "hour" : "day"} tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} tickFormatter={labelFor} />
-          <YAxis tickLine={false} axisLine={false} width={48} tickFormatter={(value) => compact.format(value)} />
+          <YAxis tickLine={false} axisLine={false} width={44} tickCount={5} allowDecimals={false} tickFormatter={(value) => compact.format(value)} className="tabular-nums" />
           <ChartTooltip
             cursor={{ strokeWidth: 1 }}
             content={
@@ -64,10 +72,12 @@ export const TrendChart = ({ data, byHour, timeZone }) => {
             {config[key].label}
           </span>
         ))}
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 border-t-2 border-dashed border-muted-foreground" />
-          {byHour ? "This hour, still counting" : "Today, still counting"}
-        </span>
+        {live && (
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 border-t-2 border-dashed border-muted-foreground" />
+            {byHour ? "This hour, still counting" : "Today, still counting"}
+          </span>
+        )}
       </div>
     </div>
   )

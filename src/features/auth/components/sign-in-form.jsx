@@ -29,7 +29,7 @@ const SampleAccounts = ({ accounts, password, onPick }) => (
               <Icon className="size-4" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-semibold tracking-wider uppercase">
+              <span className="block truncate text-xs font-semibold tracking-label uppercase">
                 {roleLabels[role]} · <span className="font-mono normal-case">{username}</span>
               </span>
               <span className="block truncate text-xs text-muted-foreground">
@@ -66,9 +66,9 @@ export const SignInForm = ({ sampleAccounts }) => {
           <Input ref={passwordRef} id="password" name="password" type="password" autoComplete="current-password" required />
           {state?.error && <FieldError errors={[{ message: state.error }]} />}
         </Field>
-        <Button type="submit" size="lg" className="w-full" disabled={pending}>
+        <Button type="submit" size="lg" className="w-full" pending={pending}>
           <SignInIcon />
-          {pending ? "Signing in…" : "Sign in"}
+          Sign in
         </Button>
       </form>
       {sampleAccounts && <SampleAccounts accounts={sampleAccounts.accounts} password={sampleAccounts.password} onPick={handlePick} />}

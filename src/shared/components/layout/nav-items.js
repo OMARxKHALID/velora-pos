@@ -17,9 +17,11 @@ export const navItems = [
   { href: "/refunds", label: "Returns", icon: ArrowUUpLeftIcon, roles: ["manager"] },
   { href: "/products", label: "Products", icon: TagIcon, roles: ["manager"] },
   { href: "/stock", label: "Stock", icon: PackageIcon, roles: ["admin", "manager"] },
-  { href: "/movements", label: "Stock history", icon: ClockCounterClockwiseIcon, roles: ["admin", "manager"] },
+  { href: "/stock-history", label: "Stock history", icon: ClockCounterClockwiseIcon, roles: ["admin", "manager"] },
   { href: "/staff", label: "Staff", icon: UsersThreeIcon, roles: ["admin"] },
   { href: "/settings", label: "Settings", icon: GearSixIcon, roles: ["admin"] },
 ]
 
-export const titleFor = (pathname) => navItems.find(({ href }) => pathname.startsWith(href))?.label ?? ""
+export const isActivePath = (pathname, href) => pathname === href || pathname.startsWith(`${href}/`)
+
+export const titleFor = (pathname) => navItems.find(({ href }) => isActivePath(pathname, href))?.label ?? ""

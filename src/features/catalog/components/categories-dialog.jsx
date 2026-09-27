@@ -53,7 +53,14 @@ export const CategoriesDialog = ({ onClose }) => {
                   <Button size="icon-sm" variant="ghost" aria-label={`Edit ${category.name}`} onClick={() => setEditing({ category, inUse: count > 0 })}>
                     <PencilSimpleIcon />
                   </Button>
-                  <Button size="icon-sm" variant="ghost" aria-label={`Delete ${category.name}`} disabled={count > 0} title={count ? "Move its products first" : undefined} onClick={() => handleDelete(category)}>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label={`Delete ${category.name}`}
+                    aria-disabled={count > 0}
+                    className="aria-disabled:opacity-50"
+                    onClick={() => (count ? toast.info(`${category.name} is in use`, { description: "Move its products to another category first." }) : handleDelete(category))}
+                  >
                     <TrashIcon />
                   </Button>
                 </li>

@@ -21,7 +21,7 @@ export const CardReferenceField = ({ id, value, onChange, onHide }) => {
     <Field data-invalid={Boolean(error)}>
       <div className="flex items-center justify-between gap-2">
         <FieldLabel htmlFor={id}>Bank slip approval / auth code</FieldLabel>
-        <button type="button" onClick={onHide} className="py-0.5 text-2xs tracking-widest text-muted-foreground uppercase hover:text-foreground pointer-coarse:py-2">
+        <button type="button" onClick={onHide} className="py-0.5 text-2xs tracking-label text-muted-foreground uppercase hover:text-foreground pointer-coarse:py-2">
           Hide
         </button>
       </div>
@@ -47,7 +47,7 @@ export const CardReferenceField = ({ id, value, onChange, onHide }) => {
 
 export const AddReferenceLink = ({ onClick, children = "+ Add bank slip approval code" }) => (
   <div className="flex justify-end">
-    <button type="button" onClick={onClick} className="text-2xs tracking-wider text-muted-foreground uppercase transition-colors hover:text-foreground touch-manipulation py-1 pointer-coarse:py-2">
+    <button type="button" onClick={onClick} className="text-2xs tracking-label text-muted-foreground uppercase transition-colors hover:text-foreground touch-manipulation py-1 pointer-coarse:py-2">
       {children}
     </button>
   </div>

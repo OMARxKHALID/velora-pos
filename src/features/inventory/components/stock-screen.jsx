@@ -19,6 +19,8 @@ import { AdjustStockDialog } from "./adjust-stock-dialog"
 import { ReceiveStockDialog } from "./receive-stock-dialog"
 import { SizeRunTable } from "./size-run-table"
 import { sizeLabel } from "@/features/catalog/lib/catalog"
+import { Surface } from "@/shared/components/ui/surface"
+import { EmptyState } from "@/shared/components/ui/empty-state"
 
 const filters = [
   { key: "all", label: "All" },
@@ -99,7 +101,7 @@ export const StockScreen = ({ user }) => {
         )}
       </div>
 
-      <div className="border bg-card">
+      <Surface>
         {view !== "list" ? (
           <SizeRunTable rows={pagination.rows} scaleFrom={visible} metric="on-hand" />
         ) : (
@@ -139,9 +141,9 @@ export const StockScreen = ({ user }) => {
           </TableBody>
           </Table>
         )}
-        {!visible.length && <p className="py-12 text-center text-sm text-muted-foreground">Nothing matches.</p>}
+        {!visible.length && <EmptyState>Nothing matches.</EmptyState>}
         <TablePagination {...pagination} onPageChange={setPage} />
-      </div>
+      </Surface>
       {canEdit && <p className="text-xs text-muted-foreground">Tap a product to fix its stock. Every change is saved with your name and a reason.</p>}
 
       {receiving && <ReceiveStockDialog user={user} onClose={() => setReceiving(false)} />}

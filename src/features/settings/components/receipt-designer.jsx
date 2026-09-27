@@ -6,7 +6,7 @@ import { Field, FieldDescription, FieldLabel } from "@/shared/components/ui/fiel
 import { Input } from "@/shared/components/ui/input"
 import { Segmented } from "@/shared/components/ui/segmented"
 import { Textarea } from "@/shared/components/ui/textarea"
-import { Panel } from "@/features/analytics/components/panel"
+import { Panel } from "@/shared/components/ui/panel"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { Receipt } from "@/features/pos/components/receipt"
 import { receiptDefaults, receiptDesign, sampleSale } from "@/features/pos/lib/receipt-design"

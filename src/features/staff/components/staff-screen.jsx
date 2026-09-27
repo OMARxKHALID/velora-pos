@@ -32,6 +32,8 @@ import { RemoveStaffDialog } from "./remove-staff-dialog"
 import { RoleBadge } from "./role-badge"
 import { StaffAvatar } from "./staff-avatar"
 import { StaffDetailsDialog } from "./staff-details-dialog"
+import { Surface } from "@/shared/components/ui/surface"
+import { EmptyState } from "@/shared/components/ui/empty-state"
 
 const roleFilters = [
   { key: "all", label: "All staff" },
@@ -161,7 +163,7 @@ export const StaffScreen = ({ user }) => {
         </Button>
       </div>
 
-      <div className="border bg-card">
+      <Surface>
         <Table>
           <TableHeader>
             <TableRow>
@@ -186,8 +188,8 @@ export const StaffScreen = ({ user }) => {
                     <div className="flex items-center gap-3">
                       <StaffAvatar person={person} className="size-9 shrink-0" fallbackClassName="text-xs font-semibold" />
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className={cn("truncate text-sm font-medium", off && "text-muted-foreground line-through")}>{person.name}</p>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <p className={cn("min-w-0 max-w-full truncate text-sm font-medium", off && "text-muted-foreground line-through")}>{person.name}</p>
                           <RoleBadge role={person.role} className="@lg:hidden" />
                         </div>
                         <p className="truncate text-xs text-muted-foreground">
@@ -207,13 +209,13 @@ export const StaffScreen = ({ user }) => {
                   <TableCell className="hidden text-xs text-muted-foreground @5xl:table-cell">{lastActive ? timeAgo(lastActive) : "Never"}</TableCell>
                   <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                     <div className="flex items-center justify-end gap-2">
-                      <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold tracking-wider uppercase", statusTones[status])}>
+                      <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold tracking-label uppercase", statusTones[status])}>
                         <span className="size-1.5 rounded-full bg-current" />
                         <span className="hidden @lg:inline">{status}</span>
                       </span>
 
                       {isOwner ? (
-                        <span className="text-2xs font-semibold tracking-widest text-muted-foreground uppercase">Owner</span>
+                        <span className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">Owner</span>
                       ) : (
                         <>
                           <Button size="xs" variant={off ? "default" : "outline"} disabled={pending} onClick={() => handleToggleAccess(person)} className="hidden @lg:inline-flex">
@@ -267,9 +269,9 @@ export const StaffScreen = ({ user }) => {
             })}
           </TableBody>
         </Table>
-        {!visible.length && <p className="py-12 text-center text-sm text-muted-foreground">No staff members match.</p>}
+        {!visible.length && <EmptyState>No staff members match.</EmptyState>}
         <TablePagination {...pagination} onPageChange={setPage} />
-      </div>
+      </Surface>
 
       <p className="text-xs text-muted-foreground">Tap a staff member to see their profile and activity, or to set a new password. Everyone on this list signs in with their own username.</p>
 

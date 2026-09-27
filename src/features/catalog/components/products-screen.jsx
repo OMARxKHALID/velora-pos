@@ -27,7 +27,7 @@ import {
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
 import { Segmented } from "@/shared/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
-import { TablePagination, paginate } from "@/shared/components/ui/table-pagination"
+import { TablePagination, paginate, resetsPage } from "@/shared/components/ui/table-pagination"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { StatusBadge } from "@/features/sales/components/sale-status-badges"
 import { downloadFile } from "@/shared/lib/download"
@@ -40,6 +40,8 @@ import { CategoriesDialog } from "./categories-dialog"
 import { ImportCatalogDialog } from "./import-catalog-dialog"
 import { LabelsDialog } from "./labels-dialog"
 import { ProductFormDialog } from "./product-form-dialog"
+import { Surface } from "@/shared/components/ui/surface"
+import { EmptyState } from "@/shared/components/ui/empty-state"
 
 const statuses = [
   { key: "active", label: "Active" },
@@ -95,10 +97,7 @@ export const ProductsScreen = ({ user }) => {
 
   const pairsOf = (product) => sumBy((variantsByProduct[product.id] ?? []).filter(({ active: on }) => on), ({ id }) => Math.max(stock[id] ?? 0, 0))
 
-  const withReset = (setter) => (value) => {
-    setter(value)
-    setPage(1)
-  }
+  const withReset = resetsPage(setPage)
 
   const handleExport = () => {
     downloadFile(`velora-products-${new Date().toISOString().slice(0, 10)}.csv`, exportCatalogCsv({ products, variants, stock }))
@@ -156,7 +155,7 @@ export const ProductsScreen = ({ user }) => {
         </div>
       </div>
 
-      <div className="border bg-card">
+      <Surface>
         <Table>
           <TableHeader>
             <TableRow>
@@ -219,9 +218,9 @@ export const ProductsScreen = ({ user }) => {
             ))}
           </TableBody>
         </Table>
-        {!visible.length && <p className="py-12 text-center text-sm text-muted-foreground">No products here.</p>}
+        {!visible.length && <EmptyState>No products here.</EmptyState>}
         <TablePagination {...pagination} onPageChange={setPage} />
-      </div>
+      </Surface>
       <p className="text-xs text-muted-foreground">Products that were ever sold can be archived but not deleted, so old receipts stay correct.</p>
 
       {editing && <ProductFormDialog product={editing === "new" ? null : editing} user={user} onClose={() => setEditing(null)} />}

@@ -1,9 +1,9 @@
 import { sumBy } from "@/shared/lib/money"
-import { lowLimitFor } from "@/features/catalog/lib/catalog"
+import { categoriesIn, lowLimitFor } from "@/features/catalog/lib/catalog"
 
 export const stockRows = (stock, { products, variantsByProduct }, threshold = null, categories = []) => {
   const shopLimit = (product) => (typeof threshold === "function" ? threshold(product.shopId) : threshold)
-  const limitFor = (product, variant) => lowLimitFor(categories, product.category, Number.isFinite(shopLimit(product)) ? shopLimit(product) : variant.lowStockAt)
+  const limitFor = (product, variant) => lowLimitFor(categoriesIn(categories, product.shopId), product.category, Number.isFinite(shopLimit(product)) ? shopLimit(product) : variant.lowStockAt)
 
   return products
     .filter(({ status }) => status === "active")
@@ -15,7 +15,7 @@ export const stockRows = (stock, { products, variantsByProduct }, threshold = nu
         const total = sumBy(sizes, ({ quantity }) => quantity)
         return {
           key: `${product.id}-${color}`,
-          limit: lowLimitFor(categories, product.category, Number.isFinite(shopLimit(product)) ? shopLimit(product) : 2),
+          limit: lowLimitFor(categoriesIn(categories, product.shopId), product.category, Number.isFinite(shopLimit(product)) ? shopLimit(product) : 2),
           product,
           color,
           sizes,

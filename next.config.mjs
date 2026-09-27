@@ -32,6 +32,7 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ["@phosphor-icons/react"],
   },
+  redirects: async () => [{ source: "/movements", destination: "/stock-history", permanent: true }],
   headers: async () => [
     { source: "/:path*", headers: securityHeaders },
     { source: "/serwist/:path*", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }] },

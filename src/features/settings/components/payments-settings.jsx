@@ -2,7 +2,7 @@
 
 import { Field, FieldDescription, FieldLabel } from "@/shared/components/ui/field"
 import { Segmented } from "@/shared/components/ui/segmented"
-import { Panel } from "@/features/analytics/components/panel"
+import { Panel } from "@/shared/components/ui/panel"
 import { METHOD_LABELS } from "@/features/pos/lib/payment-methods"
 import { SettingToggle } from "./setting-toggle"
 

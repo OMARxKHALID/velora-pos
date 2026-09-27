@@ -3,7 +3,8 @@ import { seedCatalog } from "@/features/catalog/lib/catalog"
 import { applyOpenShift, applyPurchase, applyRefundDecision, applyRefundRequest, applySale, emptyLedger } from "@/features/ledger/lib/rules"
 import { createSeed } from "@/features/sample-data/lib/seed"
 import { SAMPLE_TEAM } from "@/features/sample-data/lib/team"
-import { brandPerformance, cashierIdsFor, cashierStats, dailySeries, hourlySeries, lowStock, notSelling, paymentSplit, periodFor, splitLiveTail, stockValue, summarize } from "./analytics"
+import { DAY } from "@/shared/lib/dates"
+import { brandPerformance, cashierIdsFor, cashierStats, customRangeError, dailySeries, hourlySeries, lowStock, notSelling, paymentSplit, periodBetween, periodFor, runningShort, splitLiveTail, stockValue, summarize } from "./analytics"
 
 test("net revenue and profit subtract approved refunds, keeping cost when restocked", () => {
   const catalog = seedCatalog()
@@ -96,4 +97,63 @@ test("the chart draws only the unfinished last point dashed and leaves future ho
   const hours = splitLiveTail([{ hour: 10, revenue: 5, profit: 2 }, { hour: 11, revenue: 4, profit: 1 }, { hour: 12, revenue: 0, profit: 0 }], true, 11)
   expect(hours.map(({ revenue }) => revenue)).toEqual([5, 4, null])
   expect(hours.map(({ profitLive }) => profitLive)).toEqual([2, 1, null])
+})
+
+test("low stock uses each shop's own category limits and shop setting", () => {
+  const state = createSeed(new Date(2026, 8, 16, 15).getTime())
+  const [product] = state.products.filter(({ status }) => status === "active")
+  const mine = (rows) => rows.filter(({ product: { id } }) => id === product.id)
+  const withLimit = (shopId) => ({ ...state, categories: [{ shopId, name: product.category, lowStockAt: 99 }] })
+
+  expect(mine(lowStock(withLimit(product.shopId), 0)).length).toBe(state.variants.filter(({ productId, active }) => productId === product.id && active).length)
+  expect(mine(lowStock(withLimit("another-shop"), 0))).toEqual(mine(lowStock(state, 0)))
+  expect(lowStock(state, (shopId) => (shopId === product.shopId ? 5 : 0))).toEqual(lowStock(state, 5))
+})
+
+test("a product added within the window is not counted as not selling", () => {
+  const catalog = seedCatalog()
+  const idle = catalog.variants.find(({ productId }) => productId === "p-02")
+  const at = Date.now()
+  const stocked = applyPurchase({ ...emptyLedger(), ...catalog }, { lines: [{ variantId: idle.id, quantity: 3, unitCost: idle.cost }], supplier: "T", receivedBy: "u-manager", at }).state
+  const fresh = { ...stocked, products: stocked.products.map((product) => (product.id === "p-02" ? { ...product, createdAt: at - DAY } : product)) }
+  const old = { ...stocked, products: stocked.products.map((product) => (product.id === "p-02" ? { ...product, createdAt: at - 30 * DAY } : product)) }
+
+  expect(notSelling(fresh, 14, at).map(({ product }) => product.id)).not.toContain("p-02")
+  expect(notSelling(old, 14, at).map(({ product }) => product.id)).toContain("p-02")
+})
+
+test("a custom range compares with the same number of days just before it", () => {
+  const from = new Date(2026, 8, 1).getTime()
+  const period = periodBetween(from, from + 9 * DAY, from + 30 * DAY)
+  expect(period.days).toBe(10)
+  expect(period.to).toBe(from + 10 * DAY)
+  expect(period.prevTo - period.prevFrom).toBe(period.to - period.from)
+  expect(period.prevTo).toBe(from)
+
+  const today = periodBetween(from, from, from + 5 * 3600e3)
+  expect(today.days).toBe(1)
+  expect(today.to).toBe(from + 5 * 3600e3)
+})
+
+test("custom dates must be real, in order, and a year or less", () => {
+  expect(customRangeError("2026-09-01", "2026-09-10")).toBeNull()
+  expect(customRangeError("2026-09-10", "2026-09-01")).toMatch(/before/)
+  expect(customRangeError("2025-01-01", "2026-09-01")).toMatch(/year/)
+  expect(customRangeError("", "2026-09-01")).toMatch(/Pick/)
+})
+
+test("running short adds sizes that will sell out within a week at the recent pace", () => {
+  const catalog = seedCatalog()
+  const [fast, slow] = catalog.variants
+  const at = Date.now()
+  let state = applyPurchase({ ...emptyLedger(), ...catalog }, { lines: [fast, slow].map(({ id, cost }) => ({ variantId: id, quantity: 20, unitCost: cost })), supplier: "T", receivedBy: "u-manager", at: at - 30 * DAY }).state
+  const opened = applyOpenShift(state, { cashierId: "u-cashier", openingCash: 0, at: at - 20 * DAY })
+  state = applySale(opened.state, { lines: [{ variantId: fast.id, quantity: 16 }], payments: [{ method: "card", amount: fast.price * 16 }], cashierId: "u-cashier", shiftId: opened.record.id, at: at - 7 * DAY }).state
+
+  const rows = runningShort(state, { threshold: 2, now: at })
+  const row = rows.find(({ variant }) => variant.id === fast.id)
+  expect(row.quantity).toBe(4)
+  expect(row.daysLeft).toBeCloseTo(7, 5)
+  expect(runningShort(state, { threshold: 2, now: at, horizon: 6 }).some(({ variant }) => variant.id === fast.id)).toBe(false)
+  expect(rows.some(({ variant }) => variant.id === slow.id)).toBe(false)
 })

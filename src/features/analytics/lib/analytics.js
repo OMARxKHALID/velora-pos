@@ -1,4 +1,4 @@
-import { indexCatalog, lowLimitFor } from "@/features/catalog/lib/catalog"
+import { categoriesIn, indexCatalog, lowLimitFor } from "@/features/catalog/lib/catalog"
 import { itemNet, netRefund, netRevenue } from "@/features/pricing/lib/pricing"
 import { sumBy } from "@/shared/lib/money"
 import { DAY } from "@/shared/lib/dates"
@@ -13,6 +13,23 @@ export const periodFor = (range, now = Date.now(), startOfDay = localMidnight) =
   const days = { today: 1, "7d": 7, "30d": 30 }[range]
   const from = today - (days - 1) * DAY
   return { from, to: now, prevFrom: from - days * DAY, prevTo: from - days * DAY + (now - from), days }
+}
+
+export const MAX_CUSTOM_DAYS = 366
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+export const customRangeError = (from, to) => {
+  if (!ISO_DATE.test(from ?? "") || !ISO_DATE.test(to ?? "")) return "Pick a start and an end date"
+  if (from > to) return "The start date must be on or before the end date"
+  if ((Date.parse(to) - Date.parse(from)) / DAY + 1 > MAX_CUSTOM_DAYS) return "Pick a year or less"
+  return null
+}
+
+export const periodBetween = (fromStart, toStart, now = Date.now()) => {
+  const days = Math.round((toStart - fromStart) / DAY) + 1
+  const to = Math.max(fromStart, Math.min(toStart + DAY, now))
+  return { from: fromStart, to, prevFrom: fromStart - days * DAY, prevTo: fromStart - days * DAY + (to - fromStart), days }
 }
 
 export const within = (list, key, from, to) => list.filter((item) => time(item[key]) >= from && time(item[key]) < to)
@@ -86,7 +103,7 @@ export const hourlySeries = (summary, { fromHour = 10, toHour = 22, hourOf = loc
 }
 
 export const productPerformance = (state, sales) => {
-  const { productById, variantById, variantsByProduct } = indexCatalog(state)
+  const { variantById, variantsByProduct } = indexCatalog(state)
   const sold = {}
   for (const sale of sales) {
     for (const item of sale.items) {
@@ -105,18 +122,47 @@ export const productPerformance = (state, sales) => {
       revenue: sold[product.id]?.revenue ?? 0,
       stock: sumBy((variantsByProduct[product.id] ?? []).filter(({ active }) => active), ({ id }) => Math.max(state.stock[id] ?? 0, 0)),
     }))
-    .filter(({ product }) => productById[product.id])
 }
 
 export const lowStock = (state, threshold = null) => {
   const { productById } = indexCatalog(state)
+  const limitOf = (variant, product) => {
+    const shopLimit = typeof threshold === "function" ? threshold(product.shopId) : threshold
+    return lowLimitFor(categoriesIn(state.categories, product.shopId), product.category, shopLimit ?? variant.lowStockAt)
+  }
   return state.variants
-    .filter(
-      (variant) =>
-        variant.active && productById[variant.productId]?.status === "active" && (state.stock[variant.id] ?? 0) <= lowLimitFor(state.categories, productById[variant.productId]?.category, (typeof threshold === "function" ? threshold(productById[variant.productId]?.shopId) : threshold) ?? variant.lowStockAt)
-    )
+    .filter((variant) => {
+      const product = productById[variant.productId]
+      return variant.active && product?.status === "active" && (state.stock[variant.id] ?? 0) <= limitOf(variant, product)
+    })
     .map((variant) => ({ variant, product: productById[variant.productId], quantity: state.stock[variant.id] ?? 0 }))
     .toSorted((a, b) => a.quantity - b.quantity)
+}
+
+export const salesPace = (sales, from, to) => {
+  const sold = {}
+  for (const sale of within(sales, "soldAt", from, to)) for (const { variantId, quantity } of sale.items) sold[variantId] = (sold[variantId] ?? 0) + quantity
+  const days = (to - from) / DAY
+  return Object.fromEntries(Object.entries(sold).map(([variantId, quantity]) => [variantId, quantity / days]))
+}
+
+export const runningShort = (state, { threshold = null, now = Date.now(), window = 28, horizon = 7 } = {}) => {
+  const { productById } = indexCatalog(state)
+  const pace = salesPace(state.sales, now - window * DAY, now)
+  const low = new Set(lowStock(state, threshold).map(({ variant }) => variant.id))
+  return state.variants
+    .filter((variant) => variant.active && productById[variant.productId]?.status === "active")
+    .map((variant) => {
+      const quantity = state.stock[variant.id] ?? 0
+      const perDay = pace[variant.id] ?? 0
+      return { variant, product: productById[variant.productId], quantity, perDay, daysLeft: quantity <= 0 ? 0 : perDay ? quantity / perDay : null }
+    })
+    .filter(({ variant, daysLeft }) => low.has(variant.id) || (daysLeft !== null && daysLeft <= horizon))
+    .toSorted((a, b) => {
+      if ((a.quantity <= 0) !== (b.quantity <= 0)) return a.quantity <= 0 ? -1 : 1
+      if (a.quantity <= 0) return b.perDay - a.perDay
+      return (a.daysLeft ?? Infinity) - (b.daysLeft ?? Infinity) || a.quantity - b.quantity
+    })
 }
 
 export const cashierStats = (state, sales, refunds, from, to, cashierIds) => {
@@ -172,7 +218,7 @@ export const brandPerformance = (state, sales) => {
 export const notSelling = (state, days = 14, now = Date.now()) => {
   const since = within(state.sales, "soldAt", now - days * DAY, now)
   return productPerformance(state, since)
-    .filter(({ pairs, stock }) => pairs === 0 && stock > 0)
+    .filter(({ pairs, stock, product }) => pairs === 0 && stock > 0 && !(product.createdAt && time(product.createdAt) > now - days * DAY))
     .map((row) => ({ ...row, value: row.stock * row.product.cost }))
     .toSorted((a, b) => b.value - a.value)
 }
@@ -189,7 +235,8 @@ export const stockValue = (state) => {
   return { value: sumBy(rows, ([id, quantity]) => quantity * variantById[id].cost), pairs: sumBy(rows, ([, quantity]) => quantity) }
 }
 
-export const splitLiveTail = (data, byHour, hourNow = new Date().getHours()) => {
+export const splitLiveTail = (data, byHour, hourNow = localHour(Date.now()), live = true) => {
+  if (!live) return data.map((point) => ({ ...point, revenueDone: point.revenue, profitDone: point.profit, revenueLive: null, profitLive: null }))
   const points = byHour ? data.map((point) => (point.hour > hourNow ? { ...point, revenue: null, profit: null } : point)) : data
   const last = points.findLastIndex((point) => point.revenue !== null)
   return points.map((point, index) => ({

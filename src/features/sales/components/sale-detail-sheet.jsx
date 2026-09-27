@@ -8,6 +8,9 @@ import {
   PrinterIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
+import { LoadError } from "@/shared/components/ui/alert"
+import { Skeleton } from "@/shared/components/ui/skeleton"
+import { skeletonAppear } from "@/shared/components/ui/table-skeleton"
 import {
   Sheet,
   SheetContent,
@@ -44,6 +47,32 @@ const Meta = ({ label, children }) => (
   </div>
 )
 
+const sheetClass = "flex h-full flex-col gap-0 overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-lg"
+
+const SaleSkeleton = () => (
+  <div role="status" aria-label="Loading" className={`space-y-6 ${skeletonAppear}`}>
+    <div className="grid grid-cols-2 gap-4">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div key={index} className="space-y-1.5">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+      ))}
+    </div>
+    <div className="divide-y border">
+      {Array.from({ length: 3 }, (_, index) => (
+        <div key={index} className="flex items-center justify-between gap-4 p-3">
+          <div className="space-y-2">
+            <Skeleton className="h-3.5 w-36" />
+            <Skeleton className="h-3 w-24" />
+          </div>
+          <Skeleton className="h-4 w-16" />
+        </div>
+      ))}
+    </div>
+  </div>
+)
+
 const refundTone = {
   pending: "warning",
   approved: "destructive",
@@ -57,9 +86,25 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
   const [exchanging, setExchanging] = useState(false)
   const receipt = useRef(null)
   const nameOf = useStaffName()
-  const { data } = useQuery({ queryKey: ["sale", saleId], queryFn: ({ signal }) => getJson(`/api/sales/${encodeURIComponent(saleId)}`, { signal }) })
+  const { data, error, refetch } = useQuery({ queryKey: ["sale", saleId], queryFn: ({ signal }) => getJson(`/api/sales/${encodeURIComponent(saleId)}`, { signal }) })
   const settings = useSettingsFor(data?.sale.shopId)
-  if (!data) return null
+
+  if (!data)
+    return (
+      <>
+        <Sheet open onOpenChange={(open) => !open && onClose()}>
+          <SheetContent side="right" className={sheetClass}>
+            <SheetHeader className="shrink-0 border-b p-4 pr-12 sm:p-6 sm:pr-14">
+              <SheetTitle className="text-base">Sale</SheetTitle>
+              <SheetDescription>{error ? "This sale could not be loaded." : "Loading the sale…"}</SheetDescription>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+              {error ? <LoadError message={error.message} onRetry={refetch} /> : <SaleSkeleton />}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </>
+    )
 
   const design = receiptDesign({ receipt: settings.receipt })
   const { sale, refunds: saleRefunds } = data
@@ -73,10 +118,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
   return (
     <>
       <Sheet open onOpenChange={(open) => !open && !refunding && !exchanging && onClose()}>
-        <SheetContent
-          side="right"
-          className="flex h-full flex-col gap-0 overflow-hidden p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-lg"
-        >
+        <SheetContent side="right" className={sheetClass}>
           <SheetHeader className="shrink-0 border-b p-4 pr-12 sm:p-6 sm:pr-14">
             <SheetTitle className="font-mono text-base tracking-normal normal-case">
               {sale.number}
@@ -165,7 +207,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
                 )}
                 <div className="flex justify-between border-t pt-1.5">
                   <dt className="font-semibold tracking-label uppercase">Total</dt>
-                  <dd className="font-sans text-lg font-bold text-gold">{formatMoney(sale.total)}</dd>
+                  <dd className="font-sans text-lg font-bold text-gold tabular-nums">{formatMoney(sale.total)}</dd>
                 </div>
                 {sale.payments.map((payment, index) => (
                   <div key={`${payment.method}-${index}`} className="flex justify-between text-xs text-muted-foreground pt-1">

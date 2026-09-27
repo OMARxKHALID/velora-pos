@@ -28,7 +28,7 @@ export const CloseShiftDialog = ({ shift, onClosed, onCancel }) => {
   })
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onCancel()}>
+    <Dialog open onOpenChange={(open) => !open && !form.formState.isSubmitting && onCancel()}>
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
@@ -71,10 +71,10 @@ export const CloseShiftDialog = ({ shift, onClosed, onCancel }) => {
             />
           </FieldGroup>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button type="button" variant="outline" disabled={form.formState.isSubmitting} onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="submit">Close shift</Button>
+            <Button type="submit" pending={form.formState.isSubmitting}>Close shift</Button>
           </DialogFooter>
         </form>
       </DialogContent>

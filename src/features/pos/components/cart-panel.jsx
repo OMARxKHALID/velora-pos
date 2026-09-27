@@ -239,7 +239,7 @@ export const CartPanel = ({ shopId, lastAdded, availableFor, onScan, onCharge, o
           )}
           <div className="flex items-end justify-between border-t pt-2">
             <dt className="text-xs font-semibold tracking-label uppercase">Total</dt>
-            <dd className="font-sans text-2xl font-bold text-gold">{formatMoney(total)}</dd>
+            <dd className="font-sans text-2xl font-bold text-gold tabular-nums">{formatMoney(total)}</dd>
           </div>
         </dl>
 

@@ -12,7 +12,7 @@ import { StaffAvatar } from "./staff-avatar"
 
 const Fact = ({ label, children }) => (
   <div>
-    <p className="text-2xs font-semibold tracking-wider text-muted-foreground uppercase">{label}</p>
+    <p className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">{label}</p>
     <div className="mt-0.5 text-xs font-medium">{children}</div>
   </div>
 )
@@ -26,7 +26,7 @@ const PasswordForm = ({ person, pending, onSetPassword }) => {
   }
   return (
     <form onSubmit={handleSubmit} className="space-y-2 border-t pt-3">
-      <label htmlFor="new-password" className="block text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+      <label htmlFor="new-password" className="block text-xs font-semibold tracking-label text-muted-foreground uppercase">
         New password
       </label>
       <div className="flex gap-2">
@@ -93,16 +93,16 @@ export const StaffDetailsDialog = ({ person, activity, pending, onEdit, onTransf
 
         <div className="grid grid-cols-2 gap-3 border p-3">
           <Fact label="Sales handled">
-            <span className="font-sans text-lg font-bold">{activity.sales}</span>
+            <span className="font-sans text-lg font-bold tabular-nums">{activity.sales}</span>
           </Fact>
           <Fact label="Shifts logged">
-            <span className="font-sans text-lg font-bold">{activity.shifts}</span>
+            <span className="font-sans text-lg font-bold tabular-nums">{activity.shifts}</span>
           </Fact>
         </div>
 
         {person.role !== "admin" && (
           <div className="space-y-2 border-t pt-3">
-            <p className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Job role</p>
+            <p className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Job role</p>
             <div className="flex gap-2">
               {[
                 ["manager", "Supervisor"],

@@ -162,7 +162,7 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">Receive {pairs || ""} items</Button>
+            <Button type="submit" pending={form.formState.isSubmitting}>Receive {pairs || ""} items</Button>
           </DialogFooter>
         </form>
       </DialogContent>

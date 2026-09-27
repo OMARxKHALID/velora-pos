@@ -5,7 +5,7 @@ import { periodFor } from "@/features/analytics/lib/analytics"
 import { dashboardView } from "@/features/analytics/lib/dashboard-view"
 import { DashboardScreen } from "@/features/analytics/components/dashboard-screen"
 import { ProductsScreen } from "@/features/catalog/components/products-screen"
-import { MovementsScreen } from "@/features/inventory/components/movements-screen"
+import { StockHistoryScreen } from "@/features/inventory/components/stock-history-screen"
 import { StockScreen } from "@/features/inventory/components/stock-screen"
 import { PosScreen } from "@/features/pos/components/pos-screen"
 import { RefundsScreen } from "@/features/refunds/components/refunds-screen"
@@ -77,6 +77,10 @@ const salesFor = (store, user) => {
   const filters = { range: "7d", cashier: user.role === "cashier" ? undefined : "all", q: "", shop: user.role === "admin" ? "all" : "shop-shoes" }
   return [["sales", filters, 1], { page: 1, pageSize: 25, total: sales.length, rows: sales.toReversed().slice(0, 25), refunds: [] }]
 }
+const movementsFor = (store) => {
+  const rows = store.getState().movements ?? []
+  return [["movements", { range: "7d", q: "", shop: "all", page: 1 }], { page: 1, pageSize: 25, total: rows.length, rows: rows.slice(0, 25) }]
+}
 
 describe("screens render against seeded data", () => {
   test("owner: dashboard, sales, stock, history, staff, settings", () => {
@@ -84,14 +88,14 @@ describe("screens render against seeded data", () => {
     expect(render(store, <DashboardScreen user={users.admin} />, [dashboardFor(store)])).toContain("Best sellers")
     expect(render(store, <SalesScreen user={users.admin} />, [salesFor(store, users.admin)])).toContain("Z-reports")
     expect(render(store, <StockScreen user={users.admin} />)).toContain("Stock by size")
-    expect(render(store, <MovementsScreen user={users.admin} />)).toContain("History cannot be edited")
+    expect(render(store, <StockHistoryScreen user={users.admin} />, [movementsFor(store)])).toContain("History cannot be edited")
     expect(render(store, <StaffScreen user={users.admin} />)).toContain("Hamza Ali")
     expect(render(store, <SettingsScreen user={users.admin} />)).toContain("Discounts &amp; PIN")
   })
 
   test("supervisor: sales, returns, products, stock", () => {
     const store = seededStore()
-    expect(render(store, <SalesScreen user={users.manager} />)).toContain("Export CSV")
+    expect(render(store, <SalesScreen user={users.manager} />, [salesFor(store, users.manager)])).toContain("Export CSV")
     expect(render(store, <RefundsScreen user={users.manager} />)).toContain("To approve")
     expect(render(store, <ProductsScreen />)).toContain("Velora")
     expect(render(store, <StockScreen user={users.manager} />)).toContain("Receive delivery")

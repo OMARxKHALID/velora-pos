@@ -3,13 +3,14 @@
 import Link from "next/link"
 import { ArrowsClockwiseIcon, WarningIcon } from "@phosphor-icons/react"
 import { Button, buttonVariants } from "@/shared/components/ui/button"
+import { Surface } from "@/shared/components/ui/surface"
 
 const AppError = ({ error, retry }) => {
   const handleRetry = () => retry()
 
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
-      <div role="alert" className="max-w-sm space-y-4 border bg-card p-6 text-center">
+      <Surface role="alert" className="max-w-sm space-y-4 p-6 text-center">
         <WarningIcon className="mx-auto size-10 text-destructive" />
         <h1 className="font-heading text-lg font-bold tracking-wider uppercase">Something went wrong</h1>
         <p className="text-sm text-muted-foreground">
@@ -29,7 +30,7 @@ const AppError = ({ error, retry }) => {
             Go to sign in
           </Link>
         </div>
-      </div>
+      </Surface>
     </main>
   )
 }

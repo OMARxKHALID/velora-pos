@@ -18,6 +18,8 @@ import { formatDateTime, timeAgo } from "@/shared/lib/dates"
 import { formatMoney } from "@/shared/lib/money"
 import { sizeLabel } from "@/features/catalog/lib/catalog"
 import { methodLabel } from "@/features/pos/lib/payment-methods"
+import { Surface } from "@/shared/components/ui/surface"
+import { EmptyState } from "@/shared/components/ui/empty-state"
 
 const tabs = [
   { key: "pending", label: "To approve" },
@@ -142,7 +144,7 @@ export const RefundsScreen = ({ user }) => {
         }}
       />
 
-      <div className="border bg-card">
+      <Surface>
         {visible.length ? (
           <ul className="divide-y">
             {pagination.rows.map((refund) => (
@@ -150,12 +152,10 @@ export const RefundsScreen = ({ user }) => {
             ))}
           </ul>
         ) : (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            {tab === "pending" ? "Nothing waiting. Refund requests from cashiers appear here." : `No ${tab} refunds yet.`}
-          </p>
+          <EmptyState>{tab === "pending" ? "Nothing waiting. Refund requests from cashiers appear here." : `No ${tab} refunds yet.`}</EmptyState>
         )}
         <TablePagination {...pagination} onPageChange={setPage} />
-      </div>
+      </Surface>
 
       {openSaleId && (
         <SaleDetailSheet

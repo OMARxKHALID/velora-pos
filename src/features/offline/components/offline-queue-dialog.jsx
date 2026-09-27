@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import dynamic from "next/dynamic"
 import { ArrowsClockwiseIcon, CloudArrowUpIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Button } from "@/shared/components/ui/button"
@@ -9,8 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { timeAgo } from "@/shared/lib/dates"
 import { formatMoney } from "@/shared/lib/money"
-
-const ReceiptDialog = dynamic(() => import("@/features/pos/components/receipt-dialog").then((mod) => mod.ReceiptDialog))
+import { ReceiptDialog } from "@/features/pos/components/lazy-receipt-dialog"
 
 const Entry = ({ entry, onRetry, onRemove, onView }) => {
   const [confirming, setConfirming] = useState(false)
@@ -107,9 +105,9 @@ export const OfflineQueueDialog = ({ onClose }) => {
           </ul>
         )}
         <DialogFooter>
-          <Button variant="outline" disabled={offline || syncing || !pending.length} onClick={handle(syncOutbox)}>
+          <Button variant="outline" disabled={offline || !pending.length} pending={syncing} onClick={handle(syncOutbox)}>
             <CloudArrowUpIcon />
-            {syncing ? "Uploading…" : "Upload now"}
+            Upload now
           </Button>
           <Button onClick={onClose}>Done</Button>
         </DialogFooter>

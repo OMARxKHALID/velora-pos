@@ -35,3 +35,8 @@ export const dayIn = (timeZone, at) => {
   const { year, month, day } = partsIn(timeZone, at)
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
 }
+
+export const startOfDateIn = (timeZone, date) => {
+  const [year, month, day] = date.split("-").map(Number)
+  return startOfDayIn(timeZone, Date.UTC(year, month - 1, day, 12))
+}

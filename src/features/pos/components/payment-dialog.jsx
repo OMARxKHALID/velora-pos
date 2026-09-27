@@ -31,7 +31,7 @@ const quickTenders = (total) => {
   return [...new Set([rupees, Math.ceil(rupees / 500) * 500, Math.ceil(rupees / 1000) * 1000, Math.ceil(rupees / 5000) * 5000])]
 }
 
-const CashForm = ({ total, rounding, onPay }) => {
+const CashForm = ({ total, rounding, busy, onPay }) => {
   const due = total + rounding
   const form = useForm({ resolver: zodResolver(cashTenderSchema(due)), defaultValues: { tendered: String(due / 100) } })
   const tendered = toPaisa(useWatch({ control: form.control, name: "tendered" }) || 0)
@@ -88,7 +88,7 @@ const CashForm = ({ total, rounding, onPay }) => {
         <span className="shrink-0 font-sans text-xl font-bold text-gold tabular-nums sm:text-2xl">{change >= 0 ? formatMoney(change) : "—"}</span>
       </div>
       <DialogFooter sticky>
-        <Button type="submit" size="lg" className={ctaClass}>
+        <Button type="submit" size="lg" className={ctaClass} pending={busy}>
           Complete cash sale
         </Button>
       </DialogFooter>
@@ -96,7 +96,7 @@ const CashForm = ({ total, rounding, onPay }) => {
   )
 }
 
-const CardForm = ({ total, onPay }) => {
+const CardForm = ({ total, busy, onPay }) => {
   const [showRef, setShowRef] = useState(false)
   const [reference, setReference] = useState("")
 
@@ -134,7 +134,7 @@ const CardForm = ({ total, onPay }) => {
       )}
 
       <DialogFooter sticky>
-        <Button type="submit" size="lg" className={ctaClass} disabled={Boolean(referenceError(reference))}>
+        <Button type="submit" size="lg" className={ctaClass} disabled={Boolean(referenceError(reference))} pending={busy}>
           Card approved, complete sale
         </Button>
       </DialogFooter>
@@ -151,7 +151,7 @@ const ReferenceInput = ({ id, method, value, onChange }) => (
   </Field>
 )
 
-const OtherForm = ({ total, methods, onPay }) => {
+const OtherForm = ({ total, methods, busy, onPay }) => {
   const [method, setMethod] = useState(methods[0])
   const [reference, setReference] = useState("")
   const problem = referenceProblem(method, reference)
@@ -171,7 +171,7 @@ const OtherForm = ({ total, methods, onPay }) => {
       </div>
       <ReferenceInput id="other-reference" method={method} value={reference} onChange={setReference} />
       <DialogFooter sticky>
-        <Button type="submit" size="lg" className={ctaClass} disabled={Boolean(problem)}>
+        <Button type="submit" size="lg" className={ctaClass} disabled={Boolean(problem)} pending={busy}>
           {methodLabel(method)} received, complete sale
         </Button>
       </DialogFooter>
@@ -190,7 +190,7 @@ const getSplitPresets = (totalRupees) => {
   return presets
 }
 
-const SplitForm = ({ total, methods, onPay }) => {
+const SplitForm = ({ total, methods, busy, onPay }) => {
   const [second, setSecond] = useState(methods[0])
   const totalRupees = total / 100
   const defaultCash = Math.floor(totalRupees / 2)
@@ -343,7 +343,7 @@ const SplitForm = ({ total, methods, onPay }) => {
       </div>
 
       <DialogFooter sticky>
-        <Button type="submit" size="lg" className={ctaClass} disabled={!isValid}>
+        <Button type="submit" size="lg" className={ctaClass} disabled={!isValid} pending={busy}>
           Complete split sale
         </Button>
       </DialogFooter>
@@ -353,6 +353,7 @@ const SplitForm = ({ total, methods, onPay }) => {
 
 export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
   const [method, setMethod] = useState("cash")
+  const [busy, setBusy] = useState(false)
   const settings = useSettingsFor(shopId)
   const customerName = useCartStore(({ customerName }) => customerName)
   const customerPhone = useCartStore(({ customerPhone }) => customerPhone)
@@ -366,8 +367,18 @@ export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
     ...(splitMethods.length ? [["split", "Split", ArrowsSplitIcon]] : []),
   ]
 
+  const handlePay = async (payments) => {
+    if (busy) return
+    setBusy(true)
+    try {
+      await onPay(payments)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
       <DialogContent className="top-4 max-h-[calc(100dvh-2rem)] -translate-y-0 sm:top-[6dvh] sm:max-h-[calc(94dvh-1rem)] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Take payment</DialogTitle>
@@ -417,17 +428,17 @@ export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
             ))}
           </TabsList>
           <TabsContent value="cash" className="pt-3">
-            <CashForm total={total} rounding={cashRoundingFor(total, settings?.cashRounding)} onPay={onPay} />
+            <CashForm total={total} rounding={cashRoundingFor(total, settings?.cashRounding)} busy={busy} onPay={handlePay} />
           </TabsContent>
           <TabsContent value="card" className="pt-3">
-            <CardForm total={total} onPay={onPay} />
+            <CardForm total={total} busy={busy} onPay={handlePay} />
           </TabsContent>
           <TabsContent value="split" className="pt-3">
-            <SplitForm total={total} methods={splitMethods} onPay={onPay} />
+            <SplitForm total={total} methods={splitMethods} busy={busy} onPay={handlePay} />
           </TabsContent>
           {others.length > 0 && (
             <TabsContent value="other" className="pt-3">
-              <OtherForm total={total} methods={others} onPay={onPay} />
+              <OtherForm total={total} methods={others} busy={busy} onPay={handlePay} />
             </TabsContent>
           )}
         </Tabs>

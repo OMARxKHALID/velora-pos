@@ -12,7 +12,7 @@ import { MAX_CASHIER_DISCOUNT } from "@/features/ledger/lib/rules"
 import { supervisorsOf } from "@/features/staff/lib/people"
 import { setSupervisorPinAction } from "@/features/staff/actions"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
-import { Panel } from "@/features/analytics/components/panel"
+import { Panel } from "@/shared/components/ui/panel"
 import { NTN_PATTERN, POSID_PATTERN } from "@/features/fbr/lib/fbr"
 import { ShopsSettings } from "@/features/shops/components/shops-settings"
 import { PaymentsSettings } from "./payments-settings"
@@ -309,7 +309,7 @@ export const SettingsScreen = ({ user }) => {
             <Field>
               <div className="flex items-center justify-between">
                 <FieldLabel htmlFor="lowStockThreshold">Low-stock warning threshold</FieldLabel>
-                <span className="text-2xs tracking-wider text-muted-foreground uppercase">Per size</span>
+                <span className="text-2xs tracking-label text-muted-foreground uppercase">Per size</span>
               </div>
               <InputGroup className="max-w-xs">
                 <InputGroupInput

@@ -108,6 +108,8 @@ const categoriesFromProducts = (products, existing = []) => {
 
 export const categoryFor = (categories, name) => categories?.find((category) => category.name.toLowerCase() === String(name ?? "").toLowerCase()) ?? null
 
+export const categoriesIn = (categories, shopId) => (categories ?? []).filter((category) => !category.shopId || category.shopId === shopId)
+
 export const pctCodeFor = (categories, name) => categoryFor(categories, name)?.pctCode || defaultPctCode(name)
 
 export const compareSizes = (a, b) => {

@@ -6,10 +6,10 @@ import {
   cashierStats,
   dailySeries,
   hourlySeries,
-  lowStock,
   notSelling,
   paymentSplit,
   productPerformance,
+  runningShort,
   signalsFor,
   stockValue,
   summarize,
@@ -26,15 +26,18 @@ export const dashboardView = (full, { scope = ALL_SHOPS, period, range, staff = 
   const current = summarize(state, period.from, period.to)
   const previous = summarize(state, period.prevFrom, period.prevTo)
   const closedShifts = within(state.shifts.filter(({ status }) => status === "closed"), "closedAt", period.from, period.to)
-  const short = lowStock(state, lowThreshold)
+  const short = runningShort(state, { threshold: lowThreshold, now })
   const idle = notSelling(state, 14, now)
-  const byHour = range === "today"
+  const byHour = period.days === 1
 
   return {
     range,
     byHour,
     timeZone,
-    lowThreshold,
+    generatedAt: now,
+    days: period.days,
+    from: period.from,
+    live: period.to >= now,
     comparable: firstSaleAt !== null && new Date(firstSaleAt).getTime() <= period.prevFrom + DAY,
     current: headline(current),
     previous: headline(previous),
@@ -48,21 +51,19 @@ export const dashboardView = (full, { scope = ALL_SHOPS, period, range, staff = 
       .filter(({ pairs }) => pairs > 0)
       .toSorted((a, b) => b.pairs - a.pairs || b.revenue - a.revenue)
       .slice(0, 5)
-      .map(({ product, pairs }) => ({ id: product.id, name: product.name, brand: product.brand, pairs })),
+      .map(({ product, pairs, revenue }) => ({ id: product.id, name: product.name, brand: product.brand, pairs, revenue })),
     short: {
       count: short.length,
-      rows: short.slice(0, 5).map(({ variant, product, quantity }) => ({ id: variant.id, name: product.name, color: variant.attributes.color, size: variant.attributes.size, quantity })),
+      rows: short.slice(0, 5).map(({ variant, product, quantity, daysLeft }) => ({ id: variant.id, name: product.name, color: variant.attributes.color, size: variant.attributes.size, quantity, daysLeft })),
     },
     idle: {
       value: sumBy(idle, ({ value }) => value),
       rows: idle.slice(0, 5).map(({ product, stock, value }) => ({ id: product.id, name: product.name, pairs: stock, value })),
     },
     brands: brandPerformance(state, current.sales).slice(0, 6),
-    cashiers: cashierStats(state, current.sales, current.refunds, period.from, period.to, cashierIdsFor(state, staff)).map((stats) => ({
-      cashierId: stats.cashierId,
-      count: stats.count,
-      signals: signalsFor(stats).map(({ label }) => label),
-    })),
+    cashiers: cashierStats(state, current.sales, current.refunds, period.from, period.to, cashierIdsFor(state, staff))
+      .map((stats) => ({ cashierId: stats.cashierId, count: stats.count, signals: signalsFor(stats) }))
+      .toSorted((a, b) => b.signals.length - a.signals.length || b.count - a.count),
     shopRows: shops.map((shop) => {
       const shopState = scopeState(full, shop.id)
       const summary = summarize(shopState, period.from, period.to)

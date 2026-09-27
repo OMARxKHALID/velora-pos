@@ -34,6 +34,7 @@ export const ExchangeDialog = ({ sale, onClose }) => {
   const product = from ? productById[from.productId] : null
   const [color, setColor] = useState(from?.attributes.color ?? null)
   const [toId, setToId] = useState(null)
+  const [saving, setSaving] = useState(false)
   const max = swappable.find(({ item }) => item.variantId === fromId)?.left ?? 0
 
   const handlePickItem = (variantId) => {
@@ -45,19 +46,23 @@ export const ExchangeDialog = ({ sale, onClose }) => {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (saving) return
+    setSaving(true)
     try {
       await exchangeItem({ saleId: sale.id, fromVariantId: fromId, toVariantId: toId, quantity, clientId })
       toast.success("Swapped", { description: `${product.name}: ${describe(from)} → ${describe(variantById[toId])}` })
       onClose()
     } catch (error) {
       toast.error(error.message)
+    } finally {
+      setSaving(false)
     }
   }
 
   const sizes = product ? (variantsByProduct[product.id] ?? []).filter(({ active, attributes, id }) => active && attributes.color === color && id !== fromId) : []
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && !saving && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
@@ -160,7 +165,7 @@ export const ExchangeDialog = ({ sale, onClose }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!fromId || !toId || (stock[toId] ?? 0) < quantity}>
+            <Button type="submit" disabled={!fromId || !toId || (stock[toId] ?? 0) < quantity} pending={saving}>
               <ArrowsLeftRightIcon />
               Swap {quantity > 1 ? `${quantity} items` : ""}
             </Button>

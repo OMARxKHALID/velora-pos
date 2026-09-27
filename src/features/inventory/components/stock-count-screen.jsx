@@ -16,6 +16,7 @@ import { useBarcodeScanner } from "@/features/pos/hooks/use-barcode-scanner"
 import { beep } from "@/features/pos/lib/beep"
 import { sumBy } from "@/shared/lib/money"
 import { compareSizes, countOf, sizeLabel, unitOf } from "@/features/catalog/lib/catalog"
+import { Surface, surface } from "@/shared/components/ui/surface"
 
 const bySize = (a, b) => compareSizes(a.attributes.size, b.attributes.size)
 
@@ -101,7 +102,7 @@ export const StockCountScreen = ({ user }) => {
 
   if (saved)
     return (
-      <div className="flex flex-col items-center gap-3 border bg-card px-6 py-16 text-center shadow-xs dark:shadow-md dark:shadow-black/30">
+      <Surface className="flex flex-col items-center gap-3 px-6 py-16 text-center">
         <CheckCircleIcon className="size-10 text-success" />
         <p className="text-base font-semibold">Stock count saved</p>
         <p className="max-w-sm text-sm text-muted-foreground">
@@ -116,7 +117,7 @@ export const StockCountScreen = ({ user }) => {
             Back to stock
           </Link>
         </div>
-      </div>
+      </Surface>
     )
 
   return (
@@ -189,7 +190,7 @@ export const StockCountScreen = ({ user }) => {
       ) : (
         <div className="grid gap-4 @4xl:grid-cols-2">
           {groups.map(({ product, sizes }) => (
-            <section key={product.id} className="border bg-card shadow-xs dark:shadow-md dark:shadow-black/30">
+            <section key={product.id} className={surface}>
               <header className="flex items-baseline justify-between gap-3 border-b px-4 py-3">
                 <h2 className="truncate text-base font-semibold">{product.name}</h2>
                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{countOf(sumBy(sizes, ({ counted }) => counted), unitOf(categories, product.category))}</span>

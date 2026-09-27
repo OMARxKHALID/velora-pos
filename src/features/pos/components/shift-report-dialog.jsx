@@ -13,6 +13,7 @@ import { formatTime } from "@/shared/lib/dates"
 import { formatMoney } from "@/shared/lib/money"
 import { printNode } from "../lib/print-node"
 import { ZReportPrint } from "./z-report-print"
+import { toneClasses } from "@/shared/components/ui/alert"
 
 const Line = ({ label, value, strong, className }) => (
   <div className={cn("flex justify-between py-1.5", strong && "font-semibold text-foreground", className)}>
@@ -53,14 +54,7 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
           </DialogDescription>
         </DialogHeader>
 
-        <div
-          className={cn(
-            "flex items-center gap-3 border px-4 py-3",
-            tone === "success" && "border-success/40 bg-success/10 text-success",
-            tone === "destructive" && "border-destructive/40 bg-destructive/10 text-destructive",
-            tone === "warning" && "border-warning/40 bg-warning/10 text-warning"
-          )}
-        >
+        <div className={cn("flex items-center gap-3 border px-4 py-3", toneClasses[tone])}>
           {tone === "success" ? <CheckCircleIcon className="size-6 shrink-0" weight="fill" /> : <WarningIcon className="size-6 shrink-0" weight="fill" />}
           <div>
             <p className="text-lg font-semibold">{verdict}</p>

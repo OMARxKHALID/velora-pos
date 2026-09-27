@@ -210,7 +210,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={overCap}>
+            <Button type="submit" disabled={overCap} pending={form.formState.isSubmitting}>
               {approveNow ? "Approve return" : "Send for approval"}
             </Button>
           </DialogFooter>

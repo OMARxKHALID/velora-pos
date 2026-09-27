@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu"
+import { toneClasses } from "@/shared/components/ui/alert"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { timeAgo } from "@/shared/lib/dates"
 
@@ -30,7 +31,7 @@ export const ConnectionStatus = () => {
       <DropdownMenuTrigger
         className={cn(
           "flex h-7 items-center gap-1.5 border px-2 pointer-coarse:h-10 pointer-coarse:px-3 text-xs font-medium whitespace-nowrap transition-colors",
-          trouble ? "border-warning/40 bg-warning/10 text-warning" : "border-success/30 bg-success/10 text-success"
+          toneClasses[trouble ? "warning" : "success"]
         )}
       >
         <Icon className="size-3.5" />

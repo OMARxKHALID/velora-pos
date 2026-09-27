@@ -12,5 +12,5 @@ export default defineConfig([
     },
   },
   { files: ["**/*.test.js", "**/*.test.jsx", "test/**"], languageOptions: { globals: { Bun: "readonly" } } },
-  globalIgnores([".next/**", "out/**", "build/**", "playwright-report/**", "test-results/**"]),
+  globalIgnores([".next/**", "out/**", "build/**"]),
 ])

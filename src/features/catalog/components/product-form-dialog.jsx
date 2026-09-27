@@ -384,7 +384,7 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">{product ? "Save changes" : "Add product"}</Button>
+            <Button type="submit" pending={form.formState.isSubmitting}>{product ? "Save changes" : "Add product"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

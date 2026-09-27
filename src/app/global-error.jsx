@@ -2,6 +2,7 @@
 
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { Surface } from "@/shared/components/ui/surface"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
@@ -13,7 +14,7 @@ const GlobalError = ({ error, retry }) => {
       <body className="font-sans antialiased">
         <title>Something went wrong · Velora POS</title>
         <main className="flex min-h-dvh items-center justify-center p-6">
-          <div role="alert" className="max-w-sm space-y-4 border bg-card p-6 text-center">
+          <Surface role="alert" className="max-w-sm space-y-4 p-6 text-center">
             <h1 className="text-lg font-bold tracking-wider uppercase">Something went wrong</h1>
             <p className="text-sm text-muted-foreground">
               Velora could not start. Try again in a moment.
@@ -26,7 +27,7 @@ const GlobalError = ({ error, retry }) => {
             <button type="button" onClick={handleRetry} className="h-9 bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80">
               Try again
             </button>
-          </div>
+          </Surface>
         </main>
       </body>
     </html>

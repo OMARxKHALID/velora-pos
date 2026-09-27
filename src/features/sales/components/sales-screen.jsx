@@ -2,13 +2,14 @@
 
 import { useDeferredValue, useState } from "react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
+import { cn } from "cn"
 import { CaretDownIcon, FileCsvIcon, MagnifyingGlassIcon, ReceiptIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
 import { Segmented } from "@/shared/components/ui/segmented"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
-import { TableSkeleton } from "@/shared/components/ui/table-skeleton"
+import { TablePageSkeleton } from "@/shared/components/ui/table-skeleton"
 import { TablePagination, resetsPage } from "@/shared/components/ui/table-pagination"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
@@ -23,6 +24,9 @@ import { formatMoney } from "@/shared/lib/money"
 import { refundsBySale, saleRefundState } from "../lib/sale-status"
 import { SaleDetailSheet } from "./sale-detail-sheet"
 import { SaleStatusBadges } from "./sale-status-badges"
+import { LoadError } from "@/shared/components/ui/alert"
+import { Surface } from "@/shared/components/ui/surface"
+import { EmptyState } from "@/shared/components/ui/empty-state"
 
 const ranges = [
   { key: "today", label: "Today" },
@@ -51,7 +55,7 @@ export const SalesScreen = ({ user }) => {
   const [selectedShift, setSelectedShift] = useState(null)
   const search = useDeferredValue(query.trim())
   const filters = { range, cashier: user.role === "cashier" ? undefined : cashier, q: search, shop: scope }
-  const { data, error, isPending } = useQuery({
+  const { data, error, isPending, isPlaceholderData, refetch } = useQuery({
     queryKey: ["sales", filters, page],
     queryFn: ({ signal }) => getJson(`/api/sales?${queryString({ ...filters, page })}`, { signal }),
     placeholderData: keepPreviousData,
@@ -72,6 +76,8 @@ export const SalesScreen = ({ user }) => {
   }
 
   useBarcodeScanner(handleScan)
+
+  if (isPending) return <TablePageSkeleton />
 
   return (
     <>
@@ -119,7 +125,7 @@ export const SalesScreen = ({ user }) => {
         </div>
       </div>
 
-      <div className="border bg-card">
+      <Surface aria-busy={isPlaceholderData} className={cn("transition-opacity", isPlaceholderData && "opacity-60")}>
         <Table>
           <TableHeader>
             <TableRow>
@@ -150,11 +156,10 @@ export const SalesScreen = ({ user }) => {
             ))}
           </TableBody>
         </Table>
-        {isPending && <TableSkeleton label="Loading sales" />}
-        {error && !data && <p className="py-12 text-center text-sm text-destructive-foreground">{error.message}</p>}
-        {data && !rows.length && <p className="py-12 text-center text-sm text-muted-foreground">No sales match these filters.</p>}
+        {error && !data && <LoadError message={error.message} onRetry={refetch} className="m-3" />}
+        {data && !rows.length && <EmptyState>No sales match these filters.</EmptyState>}
         {data && <TablePagination page={data.page} pageCount={pageCount} total={data.total} size={data.pageSize} onPageChange={setPage} />}
-      </div>
+      </Surface>
 
       {openId && <SaleDetailSheet saleId={openId} user={user} onClose={() => setOpenId(null)} />}
       {selectedShift && <ShiftReportDialog shift={selectedShift} onClose={() => setSelectedShift(null)} />}

@@ -36,7 +36,7 @@ const SizeGrid = ({ product, color, availableFor, onChoose }) => {
               </span>
               <span
                 className={cn(
-                  "text-2xs tracking-widest uppercase",
+                  "text-2xs tracking-label uppercase",
                   left <= 2 ? "text-warning" : "text-muted-foreground"
                 )}
               >

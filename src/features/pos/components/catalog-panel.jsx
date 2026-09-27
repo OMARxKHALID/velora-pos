@@ -11,6 +11,7 @@ import { compareSizes, lowLimitFor, sizeLabel, sizeRangeLabel } from "@/features
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { formatMoney, sumBy } from "@/shared/lib/money"
 import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
+import { EmptyState } from "@/shared/components/ui/empty-state"
 
 const audiences = ["All", "men", "women", "kids", "unisex"]
 
@@ -59,10 +60,10 @@ const ProductCardView = ({ product, sizes, lowLimit, onPick }) => {
       <div className="relative flex h-12 items-center justify-center bg-muted">
         <CategoryIcon category={product.category} className="size-8 text-gold" />
         {!available && (
-          <span className="absolute top-1.5 right-1.5 bg-destructive px-1 text-2xs font-semibold tracking-widest text-destructive-foreground uppercase">Out</span>
+          <span className="absolute top-1.5 right-1.5 bg-destructive px-1 text-2xs font-semibold tracking-label text-destructive-foreground uppercase">Out</span>
         )}
         {low && (
-          <span className="absolute top-1.5 right-1.5 bg-warning px-1 text-2xs font-semibold tracking-widest text-warning-foreground uppercase">Low</span>
+          <span className="absolute top-1.5 right-1.5 bg-warning px-1 text-2xs font-semibold tracking-label text-warning-foreground uppercase">Low</span>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1 p-2.5">
@@ -157,7 +158,7 @@ export const CatalogPanel = ({ shopId, availableFor, onPick, onScan }) => {
             onPick={handlePickProduct}
           />
         ))}
-        {!visible.length && <p className="col-span-full py-12 text-center text-sm text-muted-foreground">No products match these filters.</p>}
+        {!visible.length && <EmptyState className="col-span-full">No products match these filters.</EmptyState>}
       </div>
     </section>
   )

@@ -7,5 +7,5 @@ export const proxy = (request) => {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/pos/:path*", "/sales/:path*", "/refunds/:path*", "/products/:path*", "/stock/:path*", "/movements/:path*", "/staff/:path*", "/settings/:path*"],
+  matcher: ["/dashboard/:path*", "/pos/:path*", "/sales/:path*", "/refunds/:path*", "/products/:path*", "/stock/:path*", "/stock-history/:path*", "/staff/:path*", "/settings/:path*"],
 }
