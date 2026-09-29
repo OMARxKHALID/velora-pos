@@ -4,10 +4,9 @@ import { useEffect, useEffectEvent, useState } from "react"
 import { BarcodeIcon, CloudArrowUpIcon, CloudSlashIcon, LockKeyIcon, ShoppingBagIcon, SidebarSimpleIcon, VaultIcon, WarningIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { cn } from "cn"
-import { Alert } from "@/shared/components/ui/alert"
+import { Alert, AlertAction, AlertDescription } from "@/shared/components/ui/alert"
 import { Button } from "@/shared/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/shared/components/ui/sheet"
-import { Skeleton } from "@/shared/components/ui/skeleton"
 import { useMediaQuery } from "@/shared/hooks/use-media-query"
 import { sizeLabel } from "@/features/catalog/lib/catalog"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
@@ -39,73 +38,9 @@ import { PaymentDialog } from "./payment-dialog"
 import { ShiftReportDialog } from "./shift-report-dialog"
 import { VariantPickerDialog } from "./variant-picker-dialog"
 import { ReceiptDialog, preloadReceiptDialog } from "./lazy-receipt-dialog"
+import { PosSkeleton, screenHeight } from "./pos-skeleton"
 import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
-import { EmptyState } from "@/shared/components/ui/empty-state"
-
-const screenHeight = "h-[calc(100dvh-var(--app-header-h)-2*var(--app-page-pad))] min-h-[34rem]"
-
-const chipWidths = ["w-12", "w-20", "w-16", "w-24", "w-14", "w-20"]
-
-export const PosSkeleton = () => (
-  <div role="status" aria-label="Loading" className={`flex flex-col gap-3 ${screenHeight}`}>
-    <div className="flex h-11 items-center gap-5 border bg-card px-3">
-      <Skeleton className="h-3 w-28" />
-      <Skeleton className="ml-auto h-7 w-24" />
-      <Skeleton className="hidden h-7 w-28 lg:block" />
-    </div>
-    <div className="flex min-h-0 flex-1 gap-3">
-      <div className="@container flex min-h-0 min-w-0 flex-1 flex-col gap-2.5">
-        <Skeleton className="h-10 w-full" />
-        <div className="flex gap-1.5 overflow-hidden">
-          {chipWidths.map((width, index) => (
-            <Skeleton key={index} className={`h-7 shrink-0 pointer-coarse:h-10 ${width}`} />
-          ))}
-        </div>
-        <div className="flex gap-1.5 overflow-hidden">
-          {chipWidths.slice(0, 5).map((width, index) => (
-            <Skeleton key={index} className={`h-7 shrink-0 pointer-coarse:h-10 ${width}`} />
-          ))}
-        </div>
-        <div className="grid min-h-0 flex-1 auto-rows-max grid-cols-2 gap-2 overflow-hidden @sm:grid-cols-3 @xl:grid-cols-4 @3xl:grid-cols-5 @5xl:grid-cols-6">
-          {Array.from({ length: 18 }, (_, index) => (
-            <div key={index} className="flex flex-col border bg-card">
-              <Skeleton className="h-12 bg-muted/70" />
-              <div className="space-y-2 p-2.5">
-                <Skeleton className="h-2.5 w-14" />
-                <Skeleton className="h-3.5 w-full" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="hidden w-[340px] shrink-0 flex-col border bg-card lg:flex">
-        <div className="space-y-2.5 border-b p-4">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-9 w-20" />
-          </div>
-          <Skeleton className="h-11 w-full" />
-        </div>
-        <div className="flex-1" />
-        <div className="space-y-3 border-t p-4">
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-12 w-full" />
-        </div>
-      </div>
-    </div>
-    <div className="flex items-center gap-2 border bg-card p-2 lg:hidden">
-      <Skeleton className="size-11 shrink-0" />
-      <div className="flex-1 space-y-1.5 px-2">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="h-5 w-24" />
-      </div>
-      <Skeleton className="h-12 w-24 shrink-0" />
-    </div>
-  </div>
-)
+import { Empty, EmptyDescription } from "@/shared/components/ui/empty"
 
 const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
   const stock = useLedgerStore(({ stock }) => stock)
@@ -155,17 +90,18 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
 
   useEffect(preloadReceiptDialog, [])
 
-  const availableFor = (variantId) => (stock[variantId] ?? 0) - (lines.find((line) => line.variantId === variantId)?.quantity ?? 0)
+  const inCart = new Map(lines.map(({ variantId, quantity }) => [variantId, quantity]))
+  const availableFor = (variantId) => (stock[variantId] ?? 0) - (inCart.get(variantId) ?? 0)
 
   const handleAdd = (variant, entry) => {
     if (availableFor(variant.id) < 1) {
-      beep(false)
+      beep(false, settings)
       toast.error("No more in stock", { description: `${productById[variant.productId].name} · ${sizeLabel(variant.attributes.size)}` })
       return
     }
     add(variant.id, entry)
     setLastAdded(variant.id)
-    beep(true)
+    beep(true, settings)
   }
 
   const handlePick = (product) => {
@@ -177,7 +113,7 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
   const handleScan = (code) => {
     const variant = variantByBarcode[code]
     if (!variant || !variant.active || productById[variant.productId].status !== "active" || productById[variant.productId].shopId !== shopId) {
-      beep(false)
+      beep(false, settings)
       toast.error("Barcode not found", { description: code })
       return
     }
@@ -243,8 +179,8 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
   const handleResume = async (heldId) => {
     setParkedOpen(false)
     try {
-      const held = await takeHeldCart(heldId)
       if (lines.length) await holdCart({ cart, registerId: shift.registerId })
+      const held = await takeHeldCart(heldId)
       const { lines: fitted, adjusted } = fitToStock(held.lines, stock)
       load({ ...held, lines: fitted })
       if (adjusted.length) {
@@ -308,28 +244,31 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
   return (
     <div className={`flex flex-col gap-3 ${screenHeight}`}>
       {offline && (
-        <Alert tone="warning" icon={<CloudSlashIcon className="size-4 shrink-0" />}>
-          <span className="font-semibold">Offline.</span>{" "}
-          {canSellOffline && offlineLeft > 0
-            ? `Keep selling: sales are saved on this till and upload when the internet is back. ${offlineLeft} offline receipt ${offlineLeft === 1 ? "number" : "numbers"} left.`
-            : canSellOffline
-              ? "This till has no offline receipt numbers left. Sales can be saved again once the internet is back."
-              : "Sales cannot be saved until the internet is back. Keep the cart; it is kept on this screen."}
+        <Alert variant="warning">
+          <CloudSlashIcon />
+          <AlertDescription>
+            <span className="font-semibold">Offline.</span>{" "}
+            {canSellOffline && offlineLeft > 0
+              ? `Keep selling: sales are saved on this till and upload when the internet is back. ${offlineLeft} offline receipt ${offlineLeft === 1 ? "number" : "numbers"} left.`
+              : canSellOffline
+                ? "This till has no offline receipt numbers left. Sales can be saved again once the internet is back."
+                : "Sales cannot be saved until the internet is back. Keep the cart; it is kept on this screen."}
+          </AlertDescription>
         </Alert>
       )}
       {pending.length > 0 && (
-        <Alert
-          tone={failed ? "destructive" : "info"}
-          icon={failed ? <WarningIcon className="size-4 shrink-0" weight="fill" /> : <CloudArrowUpIcon className="size-4 shrink-0" />}
-          action={
+        <Alert variant={failed ? "destructive" : "info"}>
+          {failed ? <WarningIcon weight="fill" /> : <CloudArrowUpIcon />}
+          <AlertDescription>
+            {failed
+              ? `${failed} ${failed === 1 ? "sale" : "sales"} saved on this till could not be uploaded.`
+              : `${pending.length} ${pending.length === 1 ? "sale is" : "sales are"} saved on this till, waiting to upload.`}
+          </AlertDescription>
+          <AlertAction>
             <Button size="xs" variant="outline" onClick={() => setQueueOpen(true)}>
               {failed ? "Review" : "View"}
             </Button>
-          }
-        >
-          {failed
-            ? `${failed} ${failed === 1 ? "sale" : "sales"} saved on this till could not be uploaded.`
-            : `${pending.length} ${pending.length === 1 ? "sale is" : "sales are"} saved on this till, waiting to upload.`}
+          </AlertAction>
         </Alert>
       )}
       <div className="flex items-center gap-x-5 gap-y-1 border bg-card px-3 py-2 text-xs text-muted-foreground">
@@ -346,12 +285,12 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
         {register.manualDrawer && (
           <Button size="sm" variant="ghost" className="ml-auto shrink-0 2xl:ml-0" onClick={() => setDrawerOpen(true)}>
             <VaultIcon />
-            <span className="hidden sm:inline">Open drawer</span>
+            <span className="max-sm:sr-only">Open drawer</span>
           </Button>
         )}
         <Button size="sm" variant="ghost" className={cn("aria-disabled:opacity-50", register.manualDrawer ? "shrink-0" : "ml-auto shrink-0 2xl:ml-0")} aria-disabled={Boolean(closeBlockedReason)} onClick={handleCloseShift}>
           <LockKeyIcon />
-          <span className="hidden sm:inline">Close shift</span>
+          <span className="max-sm:sr-only">Close shift</span>
         </Button>
         {wide && !cartOpen && heldCarts.length > 0 && <HeldCartsButton variant="bar" count={heldCarts.length} onClick={() => setParkedOpen(true)} />}
         {wide && (
@@ -433,7 +372,7 @@ export const PosScreen = ({ user }) => {
   const shift = counter.register ? openShiftFor({ shifts }, counter.register.id) : null
 
   if (!hydrated) return <PosSkeleton />
-  if (!counter.register) return <EmptyState className="py-16">This shop has no counter yet. Ask the owner to add one in Settings, Shops.</EmptyState>
+  if (!counter.register) return <Empty className="py-16"><EmptyDescription>This shop has no counter yet. Ask the owner to add one in Settings, Shops.</EmptyDescription></Empty>
 
   return (
     <>

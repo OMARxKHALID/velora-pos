@@ -11,13 +11,15 @@ import { Segmented } from "@/shared/components/ui/segmented"
 import { Textarea } from "@/shared/components/ui/textarea"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { SettingToggle } from "@/features/settings/components/setting-toggle"
+import { hasFinePointer } from "@/shared/lib/pointer"
 
-const EditorDialog = ({ title, description, onClose, onSubmit, submitLabel, children }) => {
+const EditorDialog = ({ title, description, onClose, onSubmit, submitLabel, busy = false, children }) => {
   const [saving, setSaving] = useState(false)
+  const locked = saving || busy
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    if (saving) return
+    if (locked) return
     setSaving(true)
     try {
       await onSubmit()
@@ -27,7 +29,7 @@ const EditorDialog = ({ title, description, onClose, onSubmit, submitLabel, chil
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && !saving && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && !locked && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
@@ -36,10 +38,10 @@ const EditorDialog = ({ title, description, onClose, onSubmit, submitLabel, chil
           </DialogHeader>
           {children}
           <DialogFooter>
-            <Button type="button" variant="outline" disabled={saving} onClick={onClose}>
+            <Button type="button" variant="outline" disabled={locked} onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" pending={saving}>
+            <Button type="submit" disabled={busy} pending={saving}>
               {submitLabel}
             </Button>
           </DialogFooter>
@@ -103,10 +105,11 @@ export const ShopDialog = ({ shop, onClose }) => {
       title={`Edit ${shop.name}`}
       description="Its name, address and tax numbers print on every receipt from this shop."
       submitLabel="Save shop"
+      busy={deleting}
       onClose={onClose}
       onSubmit={handleSubmit}
     >
-      <TextField id="shop-name" label="Name" value={draft.name} onChange={(name) => change({ name })} placeholder="e.g. Emporium branch" maxLength={40} autoFocus />
+      <TextField id="shop-name" label="Name" value={draft.name} onChange={(name) => change({ name })} placeholder="e.g. Emporium branch" maxLength={40} autoFocus={hasFinePointer()} />
       <Field>
         <FieldLabel htmlFor="shop-address">Address</FieldLabel>
         <Textarea id="shop-address" rows={2} value={draft.address} onChange={(event) => change({ address: event.target.value })} placeholder="Shop 12, Emporium Mall" />
@@ -170,7 +173,7 @@ export const CounterDialog = ({ shop, register = null, onClose }) => {
       onSubmit={handleSubmit}
     >
       <div className="grid gap-3 sm:grid-cols-2">
-        <TextField id="counter-name" label="Name" value={draft.name} onChange={(name) => change({ name })} placeholder="Counter 2" maxLength={30} autoFocus />
+        <TextField id="counter-name" label="Name" value={draft.name} onChange={(name) => change({ name })} placeholder="Counter 2" maxLength={30} autoFocus={hasFinePointer()} />
         <TextField
           id="counter-posid"
           label="FBR POSID"

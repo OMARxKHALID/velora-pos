@@ -3,10 +3,10 @@
 import * as React from "react"
 import { cn } from "cn"
 
-function Table({
+const Table = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="table-container"
@@ -21,10 +21,10 @@ function Table({
   )
 }
 
-function TableHeader({
+const TableHeader = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <thead
       data-slot="table-header"
@@ -34,10 +34,10 @@ function TableHeader({
   )
 }
 
-function TableBody({
+const TableBody = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <tbody
       data-slot="table-body"
@@ -47,10 +47,10 @@ function TableBody({
   )
 }
 
-function TableFooter({
+const TableFooter = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <tfoot
       data-slot="table-footer"
@@ -63,12 +63,12 @@ function TableFooter({
   )
 }
 
-function TableRow({
+const TableRow = ({
   className,
   onClick,
   onKeyDown,
   ...props
-}) {
+}) => {
   const interactive = typeof onClick === "function"
 
   const handleKeyDown = (event) => {
@@ -96,10 +96,10 @@ function TableRow({
   )
 }
 
-function TableHead({
+const TableHead = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <th
       data-slot="table-head"
@@ -112,10 +112,10 @@ function TableHead({
   )
 }
 
-function TableCell({
+const TableCell = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <td
       data-slot="table-cell"

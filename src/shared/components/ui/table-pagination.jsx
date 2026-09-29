@@ -1,6 +1,5 @@
-import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
-import { Button } from "@/shared/components/ui/button"
+import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/shared/components/ui/pagination"
 
 export const PAGE_SIZE = 10
 
@@ -30,31 +29,29 @@ export const TablePagination = ({ page, pageCount, total, size = PAGE_SIZE, onPa
       <p className="text-xs text-muted-foreground tabular-nums">
         {first}–{last} of {total}
       </p>
-      <div className="flex items-center gap-1">
-        <Button size="icon-sm" variant="ghost" aria-label="Previous page" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
-          <CaretLeftIcon />
-        </Button>
-        {pageNumbers(page, pageCount).map((value, index) =>
-          value === "gap" ? (
-            <span key={`gap-${index}`} className="hidden w-6 text-center text-xs text-muted-foreground sm:inline">
-              …
-            </span>
-          ) : (
-            <Button
-              key={value}
-              size="icon-sm"
-              variant={value === page ? "default" : "ghost"}
-              className={cn("tabular-nums", value !== page && "hidden sm:inline-flex")}
-              onClick={() => onPageChange(value)}
-            >
-              {value}
-            </Button>
-          )
-        )}
-        <Button size="icon-sm" variant="ghost" aria-label="Next page" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)}>
-          <CaretRightIcon />
-        </Button>
-      </div>
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious disabled={page <= 1} onClick={() => onPageChange(page - 1)} />
+          </PaginationItem>
+          {pageNumbers(page, pageCount).map((value, index) =>
+            value === "gap" ? (
+              <PaginationItem key={`gap-${index}`} className="hidden sm:block">
+                <PaginationEllipsis />
+              </PaginationItem>
+            ) : (
+              <PaginationItem key={value} className={cn(value !== page && "hidden sm:block")}>
+                <PaginationLink isActive={value === page} onClick={() => onPageChange(value)}>
+                  {value}
+                </PaginationLink>
+              </PaginationItem>
+            )
+          )}
+          <PaginationItem>
+            <PaginationNext disabled={page >= pageCount} onClick={() => onPageChange(page + 1)} />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
     </div>
   )
 }

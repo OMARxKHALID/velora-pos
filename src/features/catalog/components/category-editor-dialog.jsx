@@ -4,6 +4,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { Button } from "@/shared/components/ui/button"
+import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-group"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldDescription, FieldLabel } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
@@ -11,6 +12,7 @@ import { Segmented } from "@/shared/components/ui/segmented"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { CATEGORY_ICONS, SIZE_TYPES } from "../lib/catalog"
 import { IconForKey } from "./category-icon"
+import { hasFinePointer } from "@/shared/lib/pointer"
 
 const sizeOptions = Object.entries(SIZE_TYPES).map(([key, { label }]) => ({ key, label }))
 
@@ -48,7 +50,7 @@ export const CategoryEditorDialog = ({ category = null, inUse = false, onClose, 
 
           <Field>
             <FieldLabel htmlFor="category-name">Name</FieldLabel>
-            <Input id="category-name" value={draft.name} onChange={(event) => change({ name: event.target.value })} placeholder="e.g. Socks, Shoe care" maxLength={30} autoFocus autoComplete="off" />
+            <Input id="category-name" value={draft.name} onChange={(event) => change({ name: event.target.value })} placeholder="e.g. Socks, Shoe care" maxLength={30} autoFocus={hasFinePointer()} autoComplete="off" />
             {category && inUse && <FieldDescription>Renaming moves every product in this category along with it.</FieldDescription>}
           </Field>
 
@@ -60,24 +62,13 @@ export const CategoryEditorDialog = ({ category = null, inUse = false, onClose, 
 
           <Field>
             <FieldLabel>Icon</FieldLabel>
-            <div role="radiogroup" aria-label="Icon" className="grid grid-cols-5 gap-1.5">
+            <ToggleGroup aria-label="Icon" variant="chip" spacing={1.5} value={[draft.icon]} onValueChange={([next]) => next && change({ icon: next })} className="grid w-full grid-cols-5">
               {CATEGORY_ICONS.map((icon) => (
-                <button
-                  key={icon}
-                  type="button"
-                  role="radio"
-                  aria-checked={draft.icon === icon}
-                  aria-label={icon}
-                  onClick={() => change({ icon })}
-                  className={cn(
-                    "flex h-11 items-center justify-center border transition-colors pointer-coarse:h-12",
-                    draft.icon === icon ? "border-primary bg-accent/60 text-gold" : "text-muted-foreground hover:border-primary/60 hover:text-foreground"
-                  )}
-                >
+                <ToggleGroupItem key={icon} value={icon} aria-label={icon} className="h-11 px-0 text-muted-foreground hover:text-foreground aria-pressed:text-gold aria-pressed:hover:text-gold pointer-coarse:h-12">
                   <IconForKey icon={icon} className="size-6" weight={draft.icon === icon ? "regular" : "thin"} />
-                </button>
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
           </Field>
 
           <Field>

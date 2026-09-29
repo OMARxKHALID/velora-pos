@@ -6,6 +6,7 @@ import { QRCodeSVG } from "qrcode.react"
 import { cn } from "cn"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useSettingsFor, useShop } from "@/features/shops/hooks/use-shop-scope"
+import { returnDeadline } from "@/features/ledger/lib/rules"
 import { receiptDesign } from "../lib/receipt-design"
 import { formatMoney } from "@/shared/lib/money"
 import { sizeLabel } from "@/features/catalog/lib/catalog"
@@ -13,6 +14,11 @@ import { methodLabel } from "../lib/payment-methods"
 import { PrintRow, PrintRule } from "./print-parts"
 
 const when = new Intl.DateTimeFormat("en-PK", { dateStyle: "medium", timeStyle: "short" })
+
+const textSizes = {
+  "58": { small: "text-[9px]", normal: "text-[10px]", large: "text-[11px]" },
+  "80": { small: "text-[10px]", normal: "text-[11px]", large: "text-[12px]" },
+}
 
 const taxName = (sale) => (sale.taxRate ? `${sale.taxLabel || "Tax"} (${sale.taxRate}%)` : sale.taxLabel || "Tax")
 
@@ -34,8 +40,10 @@ const FbrBlock = ({ fbr }) =>
 export const Receipt = ({ sale, ref, design: previewDesign = null }) => {
   const barcode = useRef(null)
   const nameOf = useStaffName()
-  const shopDesign = receiptDesign({ receipt: useSettingsFor(sale.shopId).receipt })
+  const settings = useSettingsFor(sale.shopId)
+  const shopDesign = receiptDesign({ receipt: settings.receipt })
   const design = previewDesign ?? shopDesign
+  const deadline = design.showReturnDeadline ? returnDeadline(sale, settings.returnWindowDays) : null
   const shop = useShop(sale.shopId)
 
   useEffect(() => {
@@ -43,12 +51,19 @@ export const Receipt = ({ sale, ref, design: previewDesign = null }) => {
   }, [sale.number, design.showBarcode, design.paper])
 
   return (
-    <div ref={ref} className={cn("mx-auto bg-white py-5 font-mono leading-relaxed text-black", design.paper === "58" ? "w-[219px] px-2 text-[10px]" : "w-[302px] px-4 text-[11px]")}>
+    <div
+      ref={ref}
+      className={cn("mx-auto bg-white py-5 font-mono leading-relaxed text-black", design.paper === "58" ? "w-[219px] px-2" : "w-[302px] px-4", textSizes[design.paper]?.[design.textSize] ?? textSizes["80"].normal)}
+    >
       <div className="text-center">
-        {design.title && <p className="font-heading text-xl font-bold tracking-[0.3em] break-words">{design.title}</p>}
-        {shop?.name && <p className="text-[9px] tracking-[0.4em] uppercase">{shop.name}</p>}
-        {shop?.address && <p className="mt-1 whitespace-pre-line">{[shop.address, shop.city].filter(Boolean).join(", ")}</p>}
-        {shop?.phone && <p>{`Tel ${shop.phone}`}</p>}
+        {design.title && (
+          <p className={cn("text-xl font-bold break-words", design.titleStyle === "plain" ? "font-sans tracking-normal" : "font-heading tracking-[0.3em]")}>{design.title}</p>
+        )}
+        {design.tagline && <p className="break-words">{design.tagline}</p>}
+        {design.showShopName && shop?.name && <p className="text-[9px] tracking-[0.4em] uppercase">{shop.name}</p>}
+        {design.showAddress && shop?.address && <p className="mt-1 whitespace-pre-line">{[shop.address, shop.city].filter(Boolean).join(", ")}</p>}
+        {design.showPhone && shop?.phone && <p>{`Tel ${shop.phone}`}</p>}
+        {design.headerNote && <p className="mt-1 whitespace-pre-line">{design.headerNote}</p>}
         <p className="mt-2">Counter {sale.number.split("-").slice(0, 2).join("-")}</p>
         {sale.fbr?.ntn && <p>{`NTN ${sale.fbr.ntn}`}</p>}
         {sale.fbr?.strn && <p>{`STRN ${sale.fbr.strn}`}</p>}
@@ -64,10 +79,10 @@ export const Receipt = ({ sale, ref, design: previewDesign = null }) => {
         {sale.items.map((item) => (
           <div key={item.variantId}>
             <p className="font-bold">{item.productName}</p>
-            <p>{`${item.attributes.color} / ${sizeLabel(item.attributes.size)}`}</p>
+            {design.showColorSize && <p>{`${item.attributes.color} / ${sizeLabel(item.attributes.size)}`}</p>}
             <PrintRow label={`${item.quantity} × ${formatMoney(item.unitPrice)}`} value={formatMoney(item.unitPrice * item.quantity)} />
-            {item.productDiscount > 0 && <PrintRow label="  Offer" value={`-${formatMoney(item.productDiscount)}`} />}
-            {item.discount > 0 && <PrintRow label="  Discount" value={`-${formatMoney(item.discount)}`} />}
+            {design.showLineDiscounts && item.productDiscount > 0 && <PrintRow label="  Offer" value={`-${formatMoney(item.productDiscount)}`} />}
+            {design.showLineDiscounts && item.discount > 0 && <PrintRow label="  Discount" value={`-${formatMoney(item.discount)}`} />}
           </div>
         ))}
       </div>
@@ -104,6 +119,7 @@ export const Receipt = ({ sale, ref, design: previewDesign = null }) => {
           <svg ref={barcode} />
         </div>
       )}
+      {deadline !== null && <p className="mt-3 text-center text-[10px]">Returns and exchanges until {when.format(new Date(deadline))} with this receipt</p>}
       {design.policy && <p className="mt-3 text-center text-[10px] whitespace-pre-line">{design.policy}</p>}
       {design.footer && <p className="mt-3 text-center whitespace-pre-line">{design.footer}</p>}
     </div>

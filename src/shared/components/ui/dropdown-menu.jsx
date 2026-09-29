@@ -4,26 +4,26 @@ import * as React from "react"
 import { Menu as MenuPrimitive } from "@base-ui/react/menu"
 import { cn } from "cn"
 
-function DropdownMenu({
+const DropdownMenu = ({
   ...props
-}) {
+}) => {
   return <MenuPrimitive.Root data-slot="dropdown-menu" {...props} />
 }
 
-function DropdownMenuTrigger({
+const DropdownMenuTrigger = ({
   ...props
-}) {
+}) => {
   return <MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />
 }
 
-function DropdownMenuContent({
+const DropdownMenuContent = ({
   align = "start",
   alignOffset = 0,
   side = "bottom",
   sideOffset = 4,
   className,
   ...props
-}) {
+}) => {
   return (
     <MenuPrimitive.Portal>
       <MenuPrimitive.Positioner
@@ -43,17 +43,17 @@ function DropdownMenuContent({
   )
 }
 
-function DropdownMenuGroup({
+const DropdownMenuGroup = ({
   ...props
-}) {
+}) => {
   return <MenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
 }
 
-function DropdownMenuLabel({
+const DropdownMenuLabel = ({
   className,
   inset,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="dropdown-menu-label"
@@ -67,12 +67,12 @@ function DropdownMenuLabel({
   )
 }
 
-function DropdownMenuItem({
+const DropdownMenuItem = ({
   className,
   inset,
   variant = "default",
   ...props
-}) {
+}) => {
   return (
     <MenuPrimitive.Item
       data-slot="dropdown-menu-item"
@@ -87,10 +87,10 @@ function DropdownMenuItem({
   )
 }
 
-function DropdownMenuSeparator({
+const DropdownMenuSeparator = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <MenuPrimitive.Separator
       data-slot="dropdown-menu-separator"

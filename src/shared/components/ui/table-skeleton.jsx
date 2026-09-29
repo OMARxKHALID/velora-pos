@@ -1,5 +1,3 @@
-"use client"
-
 import { cn } from "cn"
 import { Skeleton } from "@/shared/components/ui/skeleton"
 import { surface } from "@/shared/components/ui/surface"
@@ -31,9 +29,9 @@ const TableRowsSkeleton = () => (
 )
 
 const StatStripSkeleton = () => (
-  <div className={cn("grid grid-cols-2 @2xl:grid-cols-4", surface)}>
+  <div className={cn("grid grid-cols-2 @4xl:grid-cols-4", surface)}>
     {Array.from({ length: 4 }, (_, index) => (
-      <div key={index} className="space-y-2 border-b px-4 py-3 odd:border-r @2xl:border-r @2xl:border-b-0 @2xl:last:border-r-0">
+      <div key={index} className="space-y-2 border-b px-4 py-3 odd:border-r @4xl:border-r @4xl:border-b-0 @4xl:last:border-r-0">
         <Skeleton className="h-3 w-16" />
         <Skeleton className="h-6 w-24" />
       </div>
@@ -66,7 +64,7 @@ export const TablePageSkeleton = () => (
 export const PanelsSkeleton = () => (
   <div role="status" aria-label="Loading" className="flex flex-col gap-6">
     <Skeleton className="h-9.5 w-full pointer-coarse:h-11.5 md:w-80" />
-    <Skeleton className="h-51 @2xl:h-24" />
+    <Skeleton className="h-51 @4xl:h-24" />
     <Skeleton className="h-89 @2xl:h-101" />
     <div className="grid gap-4 @4xl:grid-cols-3">
       {Array.from({ length: 3 }, (_, index) => (

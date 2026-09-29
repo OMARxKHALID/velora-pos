@@ -8,14 +8,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui
 import { LockKeyIcon } from "@phosphor-icons/react"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/shared/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/shared/components/ui/input-group"
-import { MAX_CASHIER_DISCOUNT } from "@/features/ledger/lib/rules"
+import { CASHIER_DISCOUNT_LIMITS } from "@/features/ledger/lib/rules"
+import { CASH_NOTE_CHOICES, DISCOUNT_STEP_CHOICES, PHONE_REQUIRED_CHOICES, discountStepsOf } from "@/features/pricing/lib/pricing"
+import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-group"
+import { formatMoney } from "@/shared/lib/money"
 import { supervisorsOf } from "@/features/staff/lib/people"
 import { setSupervisorPinAction } from "@/features/staff/actions"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { Panel } from "@/shared/components/ui/panel"
+import { Separator } from "@/shared/components/ui/separator"
 import { NTN_PATTERN, POSID_PATTERN } from "@/features/fbr/lib/fbr"
 import { ShopsSettings } from "@/features/shops/components/shops-settings"
 import { PaymentsSettings } from "./payments-settings"
+import { ReturnsSettings } from "./returns-settings"
 import { ReceiptDesigner } from "./receipt-designer"
 import { SettingToggle as Toggle } from "./setting-toggle"
 import { useSettingsFor, useShopScope } from "@/features/shops/hooks/use-shop-scope"
@@ -64,7 +69,7 @@ const FbrPanel = ({ settings, update, shopId }) => {
           Each shop&apos;s NTN and STRN and each counter&apos;s POSID are set in the Shops tab.
           {missing.length > 0 && <span className="text-warning"> Missing: {missing.join(", ")}.</span>}
         </p>
-        <div className="border-t" />
+        <Separator />
         <Toggle
           on={settings.fbrServiceFee !== false}
           onChange={(fbrServiceFee) => update({ fbrServiceFee }, fbrServiceFee ? "FBR POS fee added to each sale" : "FBR POS fee removed")}
@@ -132,7 +137,7 @@ const PinRow = ({ person, hasPin }) => {
   )
 }
 
-const SupervisorPins = () => {
+const SupervisorPins = ({ limitPct }) => {
   const staff = useLedgerStore(({ staff }) => staff)
   const supervisors = supervisorsOf(staff)
 
@@ -148,12 +153,22 @@ const SupervisorPins = () => {
         <p className="text-xs text-muted-foreground">There is no supervisor yet. Add one in Staff.</p>
       )}
       <p className="text-xs text-muted-foreground">
-        Each supervisor has their own four-digit PIN, needed whenever a cashier gives a discount above {MAX_CASHIER_DISCOUNT * 100}%. The approval is
+        Each supervisor has their own four-digit PIN, needed whenever a cashier gives a discount above {limitPct}%. The approval is
         recorded against the supervisor whose PIN was used. PINs are checked on the server and never stored in this browser.
       </p>
     </div>
   )
 }
+
+const limitOptions = CASHIER_DISCOUNT_LIMITS.map((pct) => ({ key: String(pct), label: pct ? `${pct}%` : "Always ask" }))
+
+const keyOf = (value) => (value === null ? "off" : String(value))
+
+const fromKey = (key) => (key === "off" ? null : Number(key))
+
+const cashNoteOptions = CASH_NOTE_CHOICES.map((paisa) => ({ key: keyOf(paisa), label: paisa === null ? "Never" : paisa ? formatMoney(paisa) : "Any" }))
+
+const phoneOptions = PHONE_REQUIRED_CHOICES.map((paisa) => ({ key: keyOf(paisa), label: paisa === null ? "Never" : formatMoney(paisa).replace(",000", "k") }))
 
 const columnOptions = [3, 4, 5, 6, 7, 8].map((count) => ({ key: String(count), label: String(count) }))
 
@@ -196,6 +211,7 @@ export const SettingsScreen = ({ user }) => {
         <TabsTrigger value="tax" className="flex-none">Tax & FBR</TabsTrigger>
         <TabsTrigger value="payments" className="flex-none">Payments</TabsTrigger>
         <TabsTrigger value="discounts" className="flex-none">Discounts & PIN</TabsTrigger>
+        <TabsTrigger value="returns" className="flex-none">Returns</TabsTrigger>
         <TabsTrigger value="receipt" className="flex-none">Receipt</TabsTrigger>
         <TabsTrigger value="counter" className="flex-none">Counter & data</TabsTrigger>
       </TabsList>
@@ -271,7 +287,7 @@ export const SettingsScreen = ({ user }) => {
             label="Product offers"
             description="Per-product discounts you set on each product. They apply automatically at the counter."
           />
-          <div className="border-t" />
+          <Separator />
           <Toggle
             on={settings.cartDiscountEnabled}
             onChange={(cartDiscountEnabled) =>
@@ -280,13 +296,51 @@ export const SettingsScreen = ({ user }) => {
             label="Discount on the whole cart"
             description="The % off chips on the cart screen. Discounts above the cashier limit still need a supervisor."
           />
-          <div className="border-t" />
-          <SupervisorPins />
+          {settings.cartDiscountEnabled && (
+            <Field>
+              <FieldLabel>Discount buttons on the cart</FieldLabel>
+              <ToggleGroup
+                aria-label="Discount buttons"
+                multiple
+                variant="solid"
+                spacing={1}
+                value={discountStepsOf(settings).map(String)}
+                onValueChange={(next) => next.length && next.length <= 6 && update({ discountSteps: next.map(Number).toSorted((a, b) => a - b) })}
+                className="grid w-full grid-cols-4 @md:grid-cols-8"
+              >
+                {DISCOUNT_STEP_CHOICES.map((pct) => (
+                  <ToggleGroupItem key={pct} value={String(pct)} className="font-semibold tabular-nums">
+                    {pct}%
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              <FieldDescription>Pick one to six. &quot;None&quot; is always there to take the discount off.</FieldDescription>
+            </Field>
+          )}
+          <Separator />
+          <Field>
+            <FieldLabel>Cashier can give without a supervisor</FieldLabel>
+            <Segmented
+              label="Cashier discount limit"
+              options={limitOptions}
+              value={String(settings.cashierDiscountPct ?? 5)}
+              onChange={(value) =>
+                update({ cashierDiscountPct: Number(value) }, Number(value) ? `Cashiers can give up to ${value}% on their own` : "Every cart discount now needs a supervisor")
+              }
+            />
+            <FieldDescription>Anything above this needs a supervisor&apos;s PIN at the counter.</FieldDescription>
+          </Field>
+          <Separator />
+          <SupervisorPins limitPct={settings.cashierDiscountPct ?? 5} />
           <FieldDescription>
             Every discount is saved with the sale and appears on the receipt, in sales history and in the owner&apos;s reports.
           </FieldDescription>
         </div>
       </Panel>
+      </TabsContent>
+
+      <TabsContent value="returns" className="max-w-3xl space-y-4">
+        <ReturnsSettings settings={settings} update={update} />
       </TabsContent>
 
       <TabsContent value="receipt">
@@ -304,7 +358,40 @@ export const SettingsScreen = ({ user }) => {
             label="Customer details at checkout"
             description="Collect optional customer name and phone number during checkout for receipt printing and returns."
           />
-          <div className="border-t" />
+          {settings.customerInfoEnabled !== false && (
+            <Field>
+              <FieldLabel>Customer phone required on sales above</FieldLabel>
+              <Segmented
+                label="Customer phone required"
+                options={phoneOptions}
+                value={keyOf(settings.phoneRequiredAbove ?? null)}
+                onChange={(key) => update({ phoneRequiredAbove: fromKey(key) }, key === "off" ? "Customer phone is optional" : `Customer phone needed above ${formatMoney(fromKey(key))}`)}
+              />
+              <FieldDescription>For warranty claims and returns on big sales. Sales saved offline are not blocked.</FieldDescription>
+            </Field>
+          )}
+          <Separator />
+          <Toggle
+            on={settings.scanBeep !== false}
+            onChange={(scanBeep) => update({ scanBeep }, scanBeep ? "Scan beep on" : "Scan beep off")}
+            label="Beep on scan"
+            description="A short beep for each scan and a low tone when a barcode is not found, at the till, stock count and deliveries."
+          />
+          <Separator />
+          <Field>
+            <FieldLabel>Closing note needed when cash is off by more than</FieldLabel>
+            <Segmented
+              label="Note needed when closing a shift"
+              options={cashNoteOptions}
+              value={keyOf(settings.cashNoteAbove ?? null)}
+              onChange={(key) => update({ cashNoteAbove: fromKey(key) }, key === "off" ? "Closing notes are optional" : "Closing note rule saved")}
+            />
+            <FieldDescription>
+              If the counted cash is off by more than this, the cashier must count again or explain it in a note. The expected amount stays hidden until the shift is
+              closed.
+            </FieldDescription>
+          </Field>
+          <Separator />
           <div className="space-y-2">
             <Field>
               <div className="flex items-center justify-between">
@@ -331,7 +418,7 @@ export const SettingsScreen = ({ user }) => {
               </FieldDescription>
             </Field>
           </div>
-          <div className="border-t" />
+          <Separator />
           <Field>
             <FieldLabel>Products per row at the till</FieldLabel>
             <Segmented

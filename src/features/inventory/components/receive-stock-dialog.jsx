@@ -4,8 +4,9 @@ import { useState } from "react"
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { BarcodeIcon, MinusIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react"
+import { BarcodeIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
+import { QuantityStepper } from "@/shared/components/ui/quantity-stepper"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
@@ -25,7 +26,8 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
   const shopId = useShopScope(user)
   const variants = allVariants.filter(({ active, productId }) => active && productById[productId]?.shopId === shopId)
   const receivePurchase = useLedgerStore(({ receivePurchase }) => receivePurchase)
-  const lowLimit = useSettingsFor(shopId).lowStockThreshold
+  const settings = useSettingsFor(shopId)
+  const lowLimit = settings.lowStockThreshold
   const categories = useLedgerStore(({ categories }) => categories)
   const [code, setCode] = useState("")
   const form = useForm({ resolver: zodResolver(purchaseSchema), defaultValues: { supplier: "Velora Warehouse", lines: [] } })
@@ -42,11 +44,11 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
   const handleScan = (value) => {
     const variant = variantByBarcode[value.trim()]
     if (!variant || !variant.active || productById[variant.productId]?.shopId !== shopId) {
-      beep(false)
+      beep(false, settings)
       toast.error("Barcode not found", { description: value })
       return
     }
-    beep(true)
+    beep(true, settings)
     addVariant(variant.id)
   }
 
@@ -84,7 +86,7 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-col gap-5">
           <DialogHeader>
             <DialogTitle>Receive delivery</DialogTitle>
-            <DialogDescription>Scan each box as it comes in. Every item is recorded as a purchase movement.</DialogDescription>
+            <DialogDescription>Scan each box as it comes in. Each item is added to stock and shows in Stock history.</DialogDescription>
           </DialogHeader>
 
           <FieldGroup className="min-h-0">
@@ -101,12 +103,13 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
             />
 
             <Field data-invalid={!!form.formState.errors.lines}>
-              <FieldLabel>Items</FieldLabel>
+              <FieldLabel htmlFor="receive-scan">Items</FieldLabel>
               <InputGroup className="h-10">
                 <InputGroupAddon>
                   <BarcodeIcon className="text-gold" />
                 </InputGroupAddon>
                 <InputGroupInput
+                  id="receive-scan"
                   value={code}
                   autoFocus
                   inputMode="numeric"
@@ -133,15 +136,7 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
                             {variant.attributes.color} · {sizeLabel(variant.attributes.size)} · {stock[variant.id] ?? 0} on hand
                           </p>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Button type="button" size="icon-xs" variant="outline" aria-label="Less" onClick={() => (quantity <= 1 ? remove(index) : update(index, { ...line, quantity: quantity - 1 }))}>
-                            {quantity <= 1 ? <TrashIcon /> : <MinusIcon />}
-                          </Button>
-                          <span className="w-8 text-center text-sm font-semibold tabular-nums">{quantity}</span>
-                          <Button type="button" size="icon-xs" variant="outline" aria-label="More" onClick={() => update(index, { ...line, quantity: quantity + 1 })}>
-                            <PlusIcon />
-                          </Button>
-                        </div>
+                        <QuantityStepper size="xs" value={quantity} onChange={(next) => update(index, { ...line, quantity: next })} onRemove={() => remove(index)} />
                       </li>
                     )
                   })}
@@ -162,7 +157,7 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" pending={form.formState.isSubmitting}>Receive {pairs || ""} items</Button>
+            <Button type="submit" disabled={!pairs} pending={form.formState.isSubmitting}>{pairs ? `Receive ${pairs} ${pairs === 1 ? "item" : "items"}` : "Receive items"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

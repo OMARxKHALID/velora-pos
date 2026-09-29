@@ -13,7 +13,7 @@ import { formatTime } from "@/shared/lib/dates"
 import { formatMoney } from "@/shared/lib/money"
 import { printNode } from "../lib/print-node"
 import { ZReportPrint } from "./z-report-print"
-import { toneClasses } from "@/shared/components/ui/alert"
+import { Alert, AlertDescription, AlertTitle } from "@/shared/components/ui/alert"
 
 const Line = ({ label, value, strong, className }) => (
   <div className={cn("flex justify-between py-1.5", strong && "font-semibold text-foreground", className)}>
@@ -54,13 +54,13 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
           </DialogDescription>
         </DialogHeader>
 
-        <div className={cn("flex items-center gap-3 border px-4 py-3", toneClasses[tone])}>
-          {tone === "success" ? <CheckCircleIcon className="size-6 shrink-0" weight="fill" /> : <WarningIcon className="size-6 shrink-0" weight="fill" />}
-          <div>
-            <p className="text-lg font-semibold">{verdict}</p>
-            {tone !== "success" && <p className="text-xs">Flagged for the owner on the dashboard.</p>}
-          </div>
-        </div>
+        <Alert variant={tone} className="flex-nowrap gap-3 px-4 py-3 [&>svg]:size-6">
+          {tone === "success" ? <CheckCircleIcon weight="fill" /> : <WarningIcon weight="fill" />}
+          <AlertDescription>
+            <AlertTitle className="text-lg">{verdict}</AlertTitle>
+            {tone !== "success" && <p>Flagged for the owner on the dashboard.</p>}
+          </AlertDescription>
+        </Alert>
 
         <dl className="divide-y text-sm text-muted-foreground">
           <Line label="Opening cash" value={formatMoney(summary.openingCash)} />

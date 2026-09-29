@@ -7,11 +7,11 @@ import { cn } from "cn"
 
 const Select = SelectPrimitive.Root
 
-function SelectValue({ className, ...props }) {
+const SelectValue = ({ className, ...props }) => {
   return <SelectPrimitive.Value data-slot="select-value" className={cn("flex flex-1 text-left", className)} {...props} />
 }
 
-function SelectTrigger({ className, size = "default", children, ...props }) {
+const SelectTrigger = ({ className, size = "default", children, ...props }) => {
   return (
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
@@ -28,7 +28,7 @@ function SelectTrigger({ className, size = "default", children, ...props }) {
   )
 }
 
-function SelectContent({ className, children, side = "bottom", sideOffset = 4, align = "center", alignOffset = 0, alignItemWithTrigger = true, ...props }) {
+const SelectContent = ({ className, children, side = "bottom", sideOffset = 4, align = "center", alignOffset = 0, alignItemWithTrigger = true, ...props }) => {
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner side={side} sideOffset={sideOffset} align={align} alignOffset={alignOffset} alignItemWithTrigger={alignItemWithTrigger} className="isolate z-50">
@@ -50,7 +50,7 @@ function SelectContent({ className, children, side = "bottom", sideOffset = 4, a
   )
 }
 
-function SelectItem({ className, children, ...props }) {
+const SelectItem = ({ className, children, ...props }) => {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -68,7 +68,7 @@ function SelectItem({ className, children, ...props }) {
   )
 }
 
-function SelectScrollUpButton({ className, ...props }) {
+const SelectScrollUpButton = ({ className, ...props }) => {
   return (
     <SelectPrimitive.ScrollUpArrow data-slot="select-scroll-up-button" className={cn("top-0 z-10 flex w-full cursor-default items-center justify-center bg-popover py-1", className)} {...props}>
       <CaretUpIcon className="size-3.5" />
@@ -76,7 +76,7 @@ function SelectScrollUpButton({ className, ...props }) {
   )
 }
 
-function SelectScrollDownButton({ className, ...props }) {
+const SelectScrollDownButton = ({ className, ...props }) => {
   return (
     <SelectPrimitive.ScrollDownArrow data-slot="select-scroll-down-button" className={cn("bottom-0 z-10 flex w-full cursor-default items-center justify-center bg-popover py-1", className)} {...props}>
       <CaretDownIcon className="size-3.5" />

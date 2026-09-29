@@ -1,15 +1,15 @@
 import { cn } from "cn"
-import { surface } from "@/shared/components/ui/surface"
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card"
 
 export const Panel = ({ title, description, action, children, className }) => (
-  <section className={cn("flex min-w-0 flex-col", surface, className)}>
-    <header className="flex items-start justify-between gap-3 border-b px-4 py-3">
-      <div className="min-w-0">
-        <h2 className="text-base font-semibold">{title}</h2>
-        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
-      </div>
-      {action}
-    </header>
-    <div className="min-w-0 flex-1">{children}</div>
-  </section>
+  <Card className={cn("min-w-0 gap-0 overflow-visible py-0", className)}>
+    <CardHeader className="gap-x-3 gap-y-0.5 border-b px-4 py-3 [.border-b]:pb-3">
+      <CardTitle role="heading" aria-level={2} className="min-w-0">
+        {title}
+      </CardTitle>
+      {description && <CardDescription className="text-xs leading-normal">{description}</CardDescription>}
+      {action && <CardAction>{action}</CardAction>}
+    </CardHeader>
+    <CardContent className="min-w-0 flex-1 px-0">{children}</CardContent>
+  </Card>
 )

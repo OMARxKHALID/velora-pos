@@ -1,12 +1,26 @@
 export const receiptDefaults = {
   title: "VELORA",
+  tagline: "",
+  headerNote: "",
   footer: "Thank you for shopping at Velora",
   policy: "",
   paper: "80",
+  textSize: "normal",
+  titleStyle: "brand",
+  showShopName: true,
+  showAddress: true,
+  showPhone: true,
   showCashier: true,
   showCustomer: true,
+  showColorSize: true,
+  showLineDiscounts: true,
+  showReturnDeadline: true,
   showBarcode: true,
 }
+
+export const RECEIPT_TEXT_SIZES = ["small", "normal", "large"]
+
+export const RECEIPT_TITLE_STYLES = ["brand", "plain"]
 
 export const receiptDesign = (settings) => ({ ...receiptDefaults, ...settings?.receipt })
 

@@ -1,7 +1,6 @@
 import { useSearchParams } from "next/navigation"
-import { customRangeError } from "../lib/analytics"
+import { RANGES, customRangeError } from "../lib/analytics"
 
-const RANGES = ["today", "7d", "30d", "custom"]
 const DEFAULT_RANGE = "7d"
 const NO_PARAMS = new URLSearchParams()
 

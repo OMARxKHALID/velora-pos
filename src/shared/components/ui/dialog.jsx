@@ -7,28 +7,28 @@ import { cn } from "cn"
 import { Button } from "@/shared/components/ui/button"
 import { XIcon } from "@phosphor-icons/react"
 
-function Dialog({
+const Dialog = ({
   ...props
-}) {
+}) => {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
-function DialogPortal({
+const DialogPortal = ({
   ...props
-}) {
+}) => {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
 }
 
-function DialogClose({
+const DialogClose = ({
   ...props
-}) {
+}) => {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
-function DialogOverlay({
+const DialogOverlay = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
@@ -41,14 +41,14 @@ function DialogOverlay({
   )
 }
 
-function DialogContent({
+const DialogContent = ({
   className,
   bodyClassName,
   children,
   showCloseButton = true,
   flush = false,
   ...props
-}) {
+}) => {
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -93,10 +93,10 @@ function DialogContent({
   )
 }
 
-function DialogHeader({
+const DialogHeader = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="dialog-header"
@@ -106,13 +106,13 @@ function DialogHeader({
   )
 }
 
-function DialogFooter({
+const DialogFooter = ({
   className,
   showCloseButton = false,
   sticky = false,
   children,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="dialog-footer"
@@ -133,15 +133,15 @@ function DialogFooter({
   )
 }
 
-function DialogTitle({
+const DialogTitle = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "text-base leading-none font-semibold",
+        "text-base leading-snug font-semibold text-balance",
         className
       )}
       {...props}
@@ -149,10 +149,10 @@ function DialogTitle({
   )
 }
 
-function DialogDescription({
+const DialogDescription = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"

@@ -16,7 +16,7 @@ import {
   UploadSimpleIcon,
 } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,8 +26,8 @@ import {
 } from "@/shared/components/ui/dropdown-menu"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
 import { Segmented } from "@/shared/components/ui/segmented"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
-import { TablePagination, paginate, resetsPage } from "@/shared/components/ui/table-pagination"
+import { DataTable } from "@/shared/components/ui/data-table"
+import { resetsPage } from "@/shared/components/ui/table-pagination"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { StatusBadge } from "@/features/sales/components/sale-status-badges"
 import { downloadFile } from "@/shared/lib/download"
@@ -41,7 +41,6 @@ import { ImportCatalogDialog } from "./import-catalog-dialog"
 import { LabelsDialog } from "./labels-dialog"
 import { ProductFormDialog } from "./product-form-dialog"
 import { Surface } from "@/shared/components/ui/surface"
-import { EmptyState } from "@/shared/components/ui/empty-state"
 
 const statuses = [
   { key: "active", label: "Active" },
@@ -52,22 +51,20 @@ const statuses = [
 const sizeRange = (sizes) => (sizes.length > 1 ? `${sizes[0]}–${sizes.at(-1)}` : sizes[0])
 
 const DeleteDialog = ({ product, onConfirm, onClose }) => (
-  <Dialog open onOpenChange={(open) => !open && onClose()}>
-    <DialogContent className="sm:max-w-sm">
-      <DialogHeader>
-        <DialogTitle>Delete product?</DialogTitle>
-        <DialogDescription>{product.name} has never been stocked or sold, so it can be removed completely. This cannot be undone.</DialogDescription>
-      </DialogHeader>
-      <DialogFooter>
-        <Button variant="outline" onClick={onClose}>
-          Keep it
-        </Button>
+  <AlertDialog open onOpenChange={(open) => !open && onClose()}>
+    <AlertDialogContent>
+      <AlertDialogHeader>
+        <AlertDialogTitle>Delete product?</AlertDialogTitle>
+        <AlertDialogDescription>{product.name} has never been stocked or sold, so it can be removed completely. This cannot be undone.</AlertDialogDescription>
+      </AlertDialogHeader>
+      <AlertDialogFooter>
+        <AlertDialogCancel>Keep it</AlertDialogCancel>
         <Button variant="destructive" onClick={onConfirm}>
           Delete
         </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+      </AlertDialogFooter>
+    </AlertDialogContent>
+  </AlertDialog>
 )
 
 export const ProductsScreen = ({ user }) => {
@@ -93,11 +90,74 @@ export const ProductsScreen = ({ user }) => {
   const visible = products
     .filter((product) => (status === "all" || product.status === status) && (!search || `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(search)))
     .toReversed()
-  const pagination = paginate(visible, page)
 
   const pairsOf = (product) => sumBy((variantsByProduct[product.id] ?? []).filter(({ active: on }) => on), ({ id }) => Math.max(stock[id] ?? 0, 0))
 
   const withReset = resetsPage(setPage)
+
+  const columns = [
+    {
+      id: "product",
+      header: "Product",
+      meta: { cellClassName: "w-full max-w-0 whitespace-normal @lg:w-auto @lg:max-w-64 @lg:whitespace-nowrap" },
+      cell: ({ row: { original: product } }) => (
+        <>
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-medium">{product.name}</p>
+            {product.status === "archived" && <StatusBadge>Archived</StatusBadge>}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {product.brand} · {product.colors.length} {product.colors.length === 1 ? "colour" : "colours"} · sizes {sizeRange(product.sizes)}
+          </p>
+        </>
+      ),
+    },
+    { id: "price", header: "Price", meta: { className: "text-right", cellClassName: "text-sm font-semibold tabular-nums" }, cell: ({ row }) => formatMoney(row.original.price) },
+    { id: "stock", header: "In stock", meta: { className: "hidden text-right @lg:table-cell", cellClassName: "text-sm tabular-nums" }, cell: ({ row }) => pairsOf(row.original) },
+    {
+      id: "actions",
+      header: "",
+      meta: { headerClassName: "w-10" },
+      cell: ({ row: { original: product } }) => (
+        <div onClick={(event) => event.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label={`Actions for ${product.name}`} />}>
+              <DotsThreeIcon className="size-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44">
+              <DropdownMenuItem onClick={() => setEditing(product)}>
+                <PencilSimpleIcon />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLabelling(product)}>
+                <BarcodeIcon />
+                Print labels
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {product.status === "active" ? (
+                <DropdownMenuItem onClick={() => handleStatus(product, "archived")}>
+                  <ArchiveIcon />
+                  Archive
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => handleStatus(product, "active")}>
+                  <ArrowCounterClockwiseIcon />
+                  Restore
+                </DropdownMenuItem>
+              )}
+              {canDelete(product) && (
+                <DropdownMenuItem variant="destructive" onClick={() => setDeleting(product)}>
+                  <TrashIcon />
+                  Delete
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    },
+  ]
+
 
   const handleExport = () => {
     downloadFile(`velora-products-${new Date().toISOString().slice(0, 10)}.csv`, exportCatalogCsv({ products, variants, stock }))
@@ -132,7 +192,7 @@ export const ProductsScreen = ({ user }) => {
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Name, brand or category" />
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} aria-label="Search products" placeholder="Name, brand or category…" />
         </InputGroup>
         <Segmented label="Status" options={statuses} value={status} onChange={withReset(setStatus)} />
         <div className="flex w-full items-center gap-2 @2xl:ml-auto @2xl:w-auto">
@@ -156,70 +216,7 @@ export const ProductsScreen = ({ user }) => {
       </div>
 
       <Surface>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead className="hidden text-right @lg:table-cell">In stock</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pagination.rows.map((product) => (
-              <TableRow key={product.id} onClick={() => setEditing(product)}>
-                <TableCell className="w-full max-w-0 whitespace-normal @lg:w-auto @lg:max-w-64 @lg:whitespace-nowrap">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-medium">{product.name}</p>
-                    {product.status === "archived" && <StatusBadge>Archived</StatusBadge>}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {product.brand} · {product.colors.length} {product.colors.length === 1 ? "colour" : "colours"} · sizes {sizeRange(product.sizes)}
-                  </p>
-                </TableCell>
-                <TableCell className="text-right text-sm font-semibold tabular-nums">{formatMoney(product.price)}</TableCell>
-                <TableCell className="hidden text-right text-sm tabular-nums @lg:table-cell">{pairsOf(product)}</TableCell>
-                <TableCell onClick={(event) => event.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label={`Actions for ${product.name}`} />}>
-                      <DotsThreeIcon className="size-5" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-44">
-                      <DropdownMenuItem onClick={() => setEditing(product)}>
-                        <PencilSimpleIcon />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setLabelling(product)}>
-                        <BarcodeIcon />
-                        Print labels
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {product.status === "active" ? (
-                        <DropdownMenuItem onClick={() => handleStatus(product, "archived")}>
-                          <ArchiveIcon />
-                          Archive
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem onClick={() => handleStatus(product, "active")}>
-                          <ArrowCounterClockwiseIcon />
-                          Restore
-                        </DropdownMenuItem>
-                      )}
-                      {canDelete(product) && (
-                        <DropdownMenuItem variant="destructive" onClick={() => setDeleting(product)}>
-                          <TrashIcon />
-                          Delete
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        {!visible.length && <EmptyState>No products here.</EmptyState>}
-        <TablePagination {...pagination} onPageChange={setPage} />
+        <DataTable columns={columns} data={visible} getRowId={({ id }) => id} onRowClick={setEditing} empty="No products here." page={page} onPageChange={setPage} />
       </Surface>
       <p className="text-xs text-muted-foreground">Products that were ever sold can be archived but not deleted, so old receipts stay correct.</p>
 

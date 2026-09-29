@@ -1,5 +1,6 @@
 "use client"
 
+import { Button } from "@/shared/components/ui/button"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/shared/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/shared/components/ui/input-group"
 import { useDeferredValue } from "react"
@@ -21,9 +22,9 @@ export const CardReferenceField = ({ id, value, onChange, onHide }) => {
     <Field data-invalid={Boolean(error)}>
       <div className="flex items-center justify-between gap-2">
         <FieldLabel htmlFor={id}>Bank slip approval / auth code</FieldLabel>
-        <button type="button" onClick={onHide} className="py-0.5 text-2xs tracking-label text-muted-foreground uppercase hover:text-foreground pointer-coarse:py-2">
+        <Button type="button" variant="text" size="inline" onClick={onHide} className="text-2xs font-normal tracking-label uppercase">
           Hide
-        </button>
+        </Button>
       </div>
       <InputGroup>
         <InputGroupAddon>
@@ -47,8 +48,8 @@ export const CardReferenceField = ({ id, value, onChange, onHide }) => {
 
 export const AddReferenceLink = ({ onClick, children = "+ Add bank slip approval code" }) => (
   <div className="flex justify-end">
-    <button type="button" onClick={onClick} className="text-2xs tracking-label text-muted-foreground uppercase transition-colors hover:text-foreground touch-manipulation py-1 pointer-coarse:py-2">
+    <Button type="button" variant="text" size="inline" onClick={onClick} className="py-1 text-2xs font-normal tracking-label uppercase touch-manipulation">
       {children}
-    </button>
+    </Button>
   </div>
 )

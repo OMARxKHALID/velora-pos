@@ -6,10 +6,27 @@ import { cn } from "cn"
 
 import { Label } from "@/shared/components/ui/label"
 
-function FieldGroup({
+const FieldSet = ({ className, ...props }) => (
+  <fieldset
+    data-slot="field-set"
+    className={cn("flex flex-col gap-6 has-[>[data-slot=checkbox-group]]:gap-3 has-[>[data-slot=radio-group]]:gap-3", className)}
+    {...props}
+  />
+)
+
+const FieldLegend = ({ className, variant = "legend", ...props }) => (
+  <legend
+    data-slot="field-legend"
+    data-variant={variant}
+    className={cn("mb-3 font-medium data-[variant=legend]:text-base data-[variant=label]:text-sm", className)}
+    {...props}
+  />
+)
+
+const FieldGroup = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="field-group"
@@ -40,11 +57,11 @@ const fieldVariants = cva(
   }
 )
 
-function Field({
+const Field = ({
   className,
   orientation = "vertical",
   ...props
-}) {
+}) => {
   return (
     <div
       role="group"
@@ -56,10 +73,10 @@ function Field({
   )
 }
 
-function FieldLabel({
+const FieldLabel = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <Label
       data-slot="field-label"
@@ -73,10 +90,10 @@ function FieldLabel({
   )
 }
 
-function FieldDescription({
+const FieldDescription = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <p
       data-slot="field-description"
@@ -91,12 +108,12 @@ function FieldDescription({
   )
 }
 
-function FieldError({
+const FieldError = ({
   className,
   children,
   errors,
   ...props
-}) {
+}) => {
   const content = useMemo(() => {
     if (children) {
       return children
@@ -146,4 +163,6 @@ export {
   FieldDescription,
   FieldError,
   FieldGroup,
+  FieldLegend,
+  FieldSet,
 }

@@ -85,7 +85,7 @@ describe.skipIf(!hasTestDatabase)("selling on the server", () => {
     await expect(recordSale(as("u-cashier-2"), { ...line, clientId: newId(), shiftId: shift.id })).rejects.toThrow("another cashier")
     const closed = await context.db.collection(C.shifts).findOne({ status: "closed" })
     await expect(recordSale(cashier(), { ...line, clientId: newId(), shiftId: closed._id })).rejects.toThrow("Open a shift")
-    await expect(recordSale({ ...cashier(), shopId: "shop-other" }, { ...line, clientId: newId(), shiftId: shift.id })).rejects.toThrow("Open a shift")
+    await expect(recordSale({ ...cashier(), shopId: "shop-other" }, { ...line, clientId: newId(), shiftId: shift.id })).rejects.toThrow(/Open a shift|no settings/)
     await expect(recordSale(cashier(), { ...line, clientId: newId(), shiftId: shift.id, lines: [{ variantId: "nope", quantity: 1 }] })).rejects.toThrow("Unknown item")
   })
 

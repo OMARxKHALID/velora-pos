@@ -1,17 +1,6 @@
-import { cn } from "cn"
-import { toneClasses } from "@/shared/components/ui/alert"
+import { Badge } from "@/shared/components/ui/badge"
 
-const tones = {
-  ...toneClasses,
-  gold: "border-primary/50 bg-accent text-accent-foreground",
-  muted: "border-border text-muted-foreground",
-}
-
-export const StatusBadge = ({ tone = "muted", children }) => (
-  <span className={cn("inline-flex h-5 items-center border px-1.5 text-2xs font-semibold tracking-label whitespace-nowrap uppercase", tones[tone])}>
-    {children}
-  </span>
-)
+export const StatusBadge = ({ tone = "muted", children }) => <Badge variant={tone}>{children}</Badge>
 
 const FLAGS = {
   price_mismatch: ["warning", "Price differs"],

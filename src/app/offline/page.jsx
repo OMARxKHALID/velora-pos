@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { CloudSlashIcon } from "@phosphor-icons/react/ssr"
+import { buttonVariants } from "@/shared/components/ui/button"
 import { Surface } from "@/shared/components/ui/surface"
 
 export const metadata = { title: "Offline" }
@@ -10,7 +11,7 @@ const OfflinePage = () => (
       <CloudSlashIcon className="mx-auto size-10 text-warning" />
       <h1 className="font-heading text-lg font-bold tracking-wider uppercase">No connection</h1>
       <p className="text-sm text-muted-foreground">This page was not saved on this device. The sell screen keeps working offline once it has been opened here while online.</p>
-      <Link href="/pos" className="inline-flex h-9 items-center border border-primary px-4 text-sm font-semibold text-gold">
+      <Link href="/pos" className={buttonVariants({ variant: "outline" })}>
         Go to the sell screen
       </Link>
     </Surface>

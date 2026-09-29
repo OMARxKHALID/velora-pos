@@ -35,7 +35,7 @@ describe.skipIf(!hasTestDatabase)("ledger version", () => {
   const now = Date.parse("2026-09-26T10:00:00Z")
 
   test("a change in one shop moves that shop's stamp and the owner's, not other shops'", async () => {
-    await context.db.collection(C.shops).insertMany([{ _id: "shop-a" }, { _id: "shop-b" }])
+    await context.db.collection(C.shops).insertMany([{ _id: "shop-a", code: "A" }, { _id: "shop-b", code: "B" }])
     const before = await Promise.all([cashier, other, owner].map((user) => ledgerStamp(context.db, user, now)))
     await bumpLedger(context.db, "shop-a")
     const after = await Promise.all([cashier, other, owner].map((user) => ledgerStamp(context.db, user, now)))

@@ -6,6 +6,7 @@ import { Button } from "@/shared/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldDescription, FieldLabel } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
+import { hasFinePointer } from "@/shared/lib/pointer"
 
 const MAX_HOLD_LABEL = 40
 
@@ -32,7 +33,7 @@ export const HoldSaleDialog = ({ suggestion, onHold, onClose }) => {
             <FieldLabel htmlFor="hold-label">Name it (optional)</FieldLabel>
             <Input
               id="hold-label"
-              autoFocus
+              autoFocus={hasFinePointer()}
               autoComplete="off"
               maxLength={MAX_HOLD_LABEL}
               value={label}

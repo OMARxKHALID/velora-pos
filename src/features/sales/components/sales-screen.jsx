@@ -8,9 +8,10 @@ import { Button } from "@/shared/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
 import { Segmented } from "@/shared/components/ui/segmented"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
+import { useUrlState } from "@/shared/hooks/use-url-state"
+import { DataTable } from "@/shared/components/ui/data-table"
 import { TablePageSkeleton } from "@/shared/components/ui/table-skeleton"
-import { TablePagination, resetsPage } from "@/shared/components/ui/table-pagination"
+import { resetsPage } from "@/shared/components/ui/table-pagination"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
@@ -26,7 +27,6 @@ import { SaleDetailSheet } from "./sale-detail-sheet"
 import { SaleStatusBadges } from "./sale-status-badges"
 import { LoadError } from "@/shared/components/ui/alert"
 import { Surface } from "@/shared/components/ui/surface"
-import { EmptyState } from "@/shared/components/ui/empty-state"
 
 const ranges = [
   { key: "today", label: "Today" },
@@ -34,6 +34,8 @@ const ranges = [
   { key: "30d", label: "30 days" },
   { key: "all", label: "All" },
 ]
+
+const rangeKeys = ranges.map(({ key }) => key)
 
 const MAX_REPORT_SHIFTS = 10
 
@@ -47,7 +49,7 @@ export const SalesScreen = ({ user }) => {
     .toReversed()
     .slice(0, MAX_REPORT_SHIFTS)
   const cashiers = Object.values(staff).filter(({ role }) => role === "cashier").map(({ id }) => id)
-  const [range, setRange] = useState("7d")
+  const [range, setRange] = useUrlState("range", "7d", rangeKeys)
   const [cashier, setCashier] = useState(user.role === "cashier" ? user.id : "all")
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
@@ -62,7 +64,38 @@ export const SalesScreen = ({ user }) => {
   })
   const rows = data?.rows ?? []
   const byId = refundsBySale(data?.refunds ?? [])
-  const pageCount = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
+  const seesCashiers = user.role !== "cashier"
+  const columns = [
+    {
+      id: "sale",
+      header: "Sale",
+      meta: { className: "whitespace-normal @lg:whitespace-nowrap" },
+      cell: ({ row: { original: sale } }) => (
+        <>
+          <p className="font-mono text-xs">{sale.number}</p>
+          <p className="text-xs text-muted-foreground">
+            {formatDateTime(sale.soldAt)}
+            {sale.customerName && <span className="font-medium text-foreground/85"> · {sale.customerName}</span>}
+            {seesCashiers && <span className="@2xl:hidden"> · {nameOf(sale.cashierId)}</span>}
+          </p>
+        </>
+      ),
+    },
+    ...(seesCashiers ? [{ id: "cashier", header: "Cashier", meta: { className: "hidden @2xl:table-cell", cellClassName: "text-sm" }, cell: ({ row }) => nameOf(row.original.cashierId) }] : []),
+    {
+      id: "total",
+      header: "Total",
+      meta: { className: "text-right" },
+      cell: ({ row: { original: sale } }) => (
+        <>
+          <p className="font-semibold tabular-nums">{formatMoney(sale.total)}</p>
+          <div className="mt-1 flex justify-end">
+            <SaleStatusBadges sale={sale} refundState={saleRefundState(sale, byId[sale.id])} />
+          </div>
+        </>
+      ),
+    },
+  ]
 
   const withReset = resetsPage(setPage)
 
@@ -86,10 +119,10 @@ export const SalesScreen = ({ user }) => {
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Receipt no, customer, or product" />
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} aria-label="Search sales" placeholder="Receipt no, customer, or product…" />
         </InputGroup>
         <Segmented label="Date range" options={ranges} value={range} onChange={withReset(setRange)} />
-        {user.role !== "cashier" && (
+        {seesCashiers && (
           <Segmented label="Cashier" options={[{ key: "all", label: "All cashiers" }, ...cashiers.map((id) => ({ key: id, label: nameOf(id).split(" ")[0] }))]} value={cashier} onChange={withReset(setCashier)} />
         )}
         <div className="flex w-full items-center gap-2 @2xl:ml-auto @2xl:w-auto">
@@ -126,39 +159,17 @@ export const SalesScreen = ({ user }) => {
       </div>
 
       <Surface aria-busy={isPlaceholderData} className={cn("transition-opacity", isPlaceholderData && "opacity-60")}>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Sale</TableHead>
-              {user.role !== "cashier" && <TableHead className="hidden @2xl:table-cell">Cashier</TableHead>}
-              <TableHead className="text-right">Total</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((sale) => (
-              <TableRow key={sale.id} onClick={() => setOpenId(sale.id)}>
-                <TableCell className="whitespace-normal @lg:whitespace-nowrap">
-                  <p className="font-mono text-xs">{sale.number}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDateTime(sale.soldAt)}
-                    {sale.customerName && <span className="font-medium text-foreground/85"> · {sale.customerName}</span>}
-                    {user.role !== "cashier" && <span className="@2xl:hidden"> · {nameOf(sale.cashierId)}</span>}
-                  </p>
-                </TableCell>
-                {user.role !== "cashier" && <TableCell className="hidden text-sm @2xl:table-cell">{nameOf(sale.cashierId)}</TableCell>}
-                <TableCell className="text-right">
-                  <p className="font-semibold tabular-nums">{formatMoney(sale.total)}</p>
-                  <div className="mt-1 flex justify-end">
-                    <SaleStatusBadges sale={sale} refundState={saleRefundState(sale, byId[sale.id])} />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        {error && !data && <LoadError message={error.message} onRetry={refetch} className="m-3" />}
-        {data && !rows.length && <EmptyState>No sales match these filters.</EmptyState>}
-        {data && <TablePagination page={data.page} pageCount={pageCount} total={data.total} size={data.pageSize} onPageChange={setPage} />}
+        <DataTable
+          columns={columns}
+          data={rows}
+          getRowId={({ id }) => id}
+          onRowClick={({ id }) => setOpenId(id)}
+          empty={error && !data ? <LoadError message={error.message} onRetry={refetch} className="text-left" /> : "No sales match these filters."}
+          page={data?.page ?? page}
+          pageSize={data?.pageSize}
+          total={data?.total ?? 0}
+          onPageChange={setPage}
+        />
       </Surface>
 
       {openId && <SaleDetailSheet saleId={openId} user={user} onClose={() => setOpenId(null)} />}

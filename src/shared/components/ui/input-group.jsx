@@ -7,10 +7,10 @@ import { cn } from "cn"
 import { Button } from "@/shared/components/ui/button"
 import { Input } from "@/shared/components/ui/input"
 
-function InputGroup({
+const InputGroup = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="input-group"
@@ -43,11 +43,11 @@ const inputGroupAddonVariants = cva(
   }
 )
 
-function InputGroupAddon({
+const InputGroupAddon = ({
   className,
   align = "inline-start",
   ...props
-}) {
+}) => {
   return (
     <div
       role="group"
@@ -82,13 +82,13 @@ const inputGroupButtonVariants = cva(
   }
 )
 
-function InputGroupButton({
+const InputGroupButton = ({
   className,
   type = "button",
   variant = "ghost",
   size = "xs",
   ...props
-}) {
+}) => {
   return (
     <Button
       type={type}
@@ -100,10 +100,10 @@ function InputGroupButton({
   )
 }
 
-function InputGroupText({
+const InputGroupText = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <span
       className={cn(
@@ -115,10 +115,10 @@ function InputGroupText({
   )
 }
 
-function InputGroupInput({
+const InputGroupInput = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <Input
       data-slot="input-group-control"

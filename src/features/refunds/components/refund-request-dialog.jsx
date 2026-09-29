@@ -4,10 +4,12 @@ import { useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { MinusIcon, PlusIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { Button } from "@/shared/components/ui/button"
+import { QuantityStepper } from "@/shared/components/ui/quantity-stepper"
+import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-group"
 import { Checkbox } from "@/shared/components/ui/checkbox"
+import { Label } from "@/shared/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/shared/components/ui/field"
 import { Textarea } from "@/shared/components/ui/textarea"
@@ -15,23 +17,20 @@ import { openShiftFor, previewRefund, refundCapFor, refundMethodsFor, refundable
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { newId } from "@/shared/lib/id"
 import { formatMoney } from "@/shared/lib/money"
-import { refundReasons, refundRequestSchema } from "../schemas"
+import { OTHER_REASON, reasonOptions, refundRequestSchema } from "../schemas"
+import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
 import { sizeLabel } from "@/features/catalog/lib/catalog"
 
 const methodLabels = { cash: "Cash from drawer", card: "Card reversal", jazzcash: "Back to JazzCash", easypaisa: "Back to Easypaisa", bank: "Bank transfer back" }
 
-const Choice = ({ active, children, onClick }) => (
-  <button
-    type="button"
-    aria-pressed={active}
-    onClick={onClick}
-    className={cn(
-      "h-9 border px-3 text-xs transition-colors pointer-coarse:h-11",
-      active ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/60"
-    )}
-  >
-    {children}
-  </button>
+const Choices = ({ label, options, value, onChange }) => (
+  <ToggleGroup aria-label={label} variant="solid" size="chip" spacing={1.5} value={value ? [value] : []} onValueChange={([next]) => next && onChange(next)} className="flex-wrap">
+    {options.map(([key, text]) => (
+      <ToggleGroupItem key={key} value={key}>
+        {text}
+      </ToggleGroupItem>
+    ))}
+  </ToggleGroup>
 )
 
 export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
@@ -44,11 +43,13 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
   const selfApprove = user.role !== "cashier"
   const methods = refundMethodsFor(sale)
   const [clientId] = useState(newId)
+  const settings = useSettingsFor(sale.shopId)
+  const reasons = reasonOptions(settings)
 
   const form = useForm({
-    resolver: zodResolver(refundRequestSchema),
+    resolver: zodResolver(refundRequestSchema(reasons)),
     defaultValues: {
-      lines: sale.items.map(({ variantId }) => ({ variantId, quantity: 0, restock: true })),
+      lines: sale.items.map(({ variantId }) => ({ variantId, quantity: 0, restock: settings.restockReturns !== false })),
       reason: undefined,
       note: "",
       method: methods[0],
@@ -67,7 +68,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
       const refund = await requestRefund({
         saleId: sale.id,
         lines: picked.filter(({ quantity }) => quantity > 0),
-        reason: chosen === "Other" ? note : note ? `${chosen}: ${note}` : chosen,
+        reason: chosen === OTHER_REASON ? note : note ? `${chosen}: ${note}` : chosen,
         method,
         clientId,
       })
@@ -112,15 +113,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
                           name={`lines.${index}.quantity`}
                           control={form.control}
                           render={({ field }) => (
-                            <div className="flex shrink-0 items-center gap-1">
-                              <Button type="button" size="icon-sm" variant="outline" aria-label="Less" disabled={field.value < 1} onClick={() => field.onChange(field.value - 1)}>
-                                <MinusIcon />
-                              </Button>
-                              <span className="w-7 text-center text-sm font-semibold tabular-nums">{field.value}</span>
-                              <Button type="button" size="icon-sm" variant="outline" aria-label="More" disabled={field.value >= max} onClick={() => field.onChange(field.value + 1)}>
-                                <PlusIcon />
-                              </Button>
-                            </div>
+                            <QuantityStepper value={field.value} max={max} onChange={field.onChange} />
                           )}
                         />
                       </div>
@@ -129,10 +122,10 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
                           name={`lines.${index}.restock`}
                           control={form.control}
                           render={({ field }) => (
-                            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Label className="text-xs font-normal text-muted-foreground">
                               <Checkbox checked={field.value} onCheckedChange={field.onChange} />
-                              Put back in stock (untick if damaged)
-                            </label>
+                              Put back in stock (only if it can be sold again)
+                            </Label>
                           )}
                         />
                       )}
@@ -149,13 +142,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel>Reason</FieldLabel>
-                  <div className="flex flex-wrap gap-1.5">
-                    {refundReasons.map((option) => (
-                      <Choice key={option} active={field.value === option} onClick={() => field.onChange(option)}>
-                        {option}
-                      </Choice>
-                    ))}
-                  </div>
+                  <Choices label="Reason" options={reasons.map((option) => [option, option])} value={field.value} onChange={field.onChange} />
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
               )}
@@ -166,7 +153,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>{reason === "Other" ? "Describe the reason" : "Note (optional)"}</FieldLabel>
+                  <FieldLabel htmlFor={field.name}>{reason === OTHER_REASON ? "Describe the reason" : "Note (optional)"}</FieldLabel>
                   <Textarea {...field} id={field.name} rows={2} aria-invalid={fieldState.invalid} />
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
@@ -179,13 +166,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
               render={({ field }) => (
                 <Field>
                   <FieldLabel>Refund to</FieldLabel>
-                  <div className="flex gap-1.5">
-                    {methods.map((option) => (
-                      <Choice key={option} active={field.value === option} onClick={() => field.onChange(option)}>
-                        {methodLabels[option]}
-                      </Choice>
-                    ))}
-                  </div>
+                  <Choices label="Refund to" options={methods.map((option) => [option, methodLabels[option]])} value={field.value} onChange={field.onChange} />
                   <FieldDescription>Money goes back the way it was paid.</FieldDescription>
                   {overCap && <FieldError errors={[{ message: `That is more than was paid by ${field.value}. Refund the rest through the other method.` }]} />}
                 </Field>

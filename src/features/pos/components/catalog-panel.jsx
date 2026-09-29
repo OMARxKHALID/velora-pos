@@ -11,7 +11,9 @@ import { compareSizes, lowLimitFor, sizeLabel, sizeRangeLabel } from "@/features
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { formatMoney, sumBy } from "@/shared/lib/money"
 import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
-import { EmptyState } from "@/shared/components/ui/empty-state"
+import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-group"
+import { Empty, EmptyDescription } from "@/shared/components/ui/empty"
+import { Badge } from "@/shared/components/ui/badge"
 
 const audiences = ["All", "men", "women", "kids", "unisex"]
 
@@ -21,17 +23,21 @@ const LOW_MODEL_FACTOR = 2
 
 const columnSteps = ["grid-cols-2", "@sm:grid-cols-3", "@xl:grid-cols-4", "@3xl:grid-cols-5", "@5xl:grid-cols-6", "@6xl:grid-cols-7", "@7xl:grid-cols-8"]
 
-const Chip = ({ active, children, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cn(
-      "h-7 shrink-0 border px-2.5 pointer-coarse:h-10 pointer-coarse:px-3.5 text-xs font-medium transition-colors",
-      active ? "border-primary bg-primary text-primary-foreground" : "border-border text-muted-foreground hover:border-primary/60 hover:text-foreground"
-    )}
+const FilterChips = ({ label, options, value, onChange }) => (
+  <ToggleGroup
+    aria-label={label}
+    variant="solid"
+    spacing={1.5}
+    value={[value]}
+    onValueChange={([next]) => next && onChange(next)}
+    className="-mx-1 w-auto flex-nowrap self-stretch overflow-x-auto px-1 [scrollbar-width:none] max-lg:pr-8 max-lg:mask-r-from-90% lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden"
   >
-    {children}
-  </button>
+    {options.map(([key, text]) => (
+      <ToggleGroupItem key={key} value={key} className="h-7 px-2.5 font-medium text-muted-foreground hover:text-foreground pointer-coarse:h-10 pointer-coarse:px-3.5">
+        {text}
+      </ToggleGroupItem>
+    ))}
+  </ToggleGroup>
 )
 
 const sizesLeft = (variants, availableFor) => {
@@ -60,10 +66,10 @@ const ProductCardView = ({ product, sizes, lowLimit, onPick }) => {
       <div className="relative flex h-12 items-center justify-center bg-muted">
         <CategoryIcon category={product.category} className="size-8 text-gold" />
         {!available && (
-          <span className="absolute top-1.5 right-1.5 bg-destructive px-1 text-2xs font-semibold tracking-label text-destructive-foreground uppercase">Out</span>
+          <Badge variant="destructive" className="absolute top-1.5 right-1.5 bg-destructive text-destructive-foreground">Out</Badge>
         )}
         {low && (
-          <span className="absolute top-1.5 right-1.5 bg-warning px-1 text-2xs font-semibold tracking-label text-warning-foreground uppercase">Low</span>
+          <Badge variant="warning" className="absolute top-1.5 right-1.5 bg-warning text-warning-foreground">Low</Badge>
         )}
       </div>
       <div className="flex flex-1 flex-col gap-1 p-2.5">
@@ -132,22 +138,10 @@ export const CatalogPanel = ({ shopId, availableFor, onPick, onScan }) => {
         <InputGroupAddon>
           <MagnifyingGlassIcon />
         </InputGroupAddon>
-        <InputGroupInput value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleSearchKeyDown} placeholder="Search products, brands, categories…" />
+        <InputGroupInput value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleSearchKeyDown} aria-label="Search products" placeholder="Search products, brands, categories…" />
       </InputGroup>
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden">
-        {brands.map((name) => (
-          <Chip key={name} active={brand === name} onClick={() => setBrand(name)}>
-            {name}
-          </Chip>
-        ))}
-      </div>
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden">
-        {audiences.map((name) => (
-          <Chip key={name} active={audience === name} onClick={() => setAudience(name)}>
-            {audienceLabels[name]}
-          </Chip>
-        ))}
-      </div>
+      <FilterChips label="Brand" options={brands.map((name) => [name, name])} value={brand} onChange={setBrand} />
+      <FilterChips label="For" options={audiences.map((name) => [name, audienceLabels[name]])} value={audience} onChange={setAudience} />
       <div className={cn("grid min-h-0 flex-1 auto-rows-max gap-2 overflow-y-auto pr-1", columnSteps.slice(0, posColumns - 1).join(" "))}>
         {visible.map((product) => (
           <ProductCard
@@ -158,7 +152,7 @@ export const CatalogPanel = ({ shopId, availableFor, onPick, onScan }) => {
             onPick={handlePickProduct}
           />
         ))}
-        {!visible.length && <EmptyState className="col-span-full">No products match these filters.</EmptyState>}
+        {!visible.length && <Empty className="col-span-full"><EmptyDescription>No products match these filters.</EmptyDescription></Empty>}
       </div>
     </section>
   )

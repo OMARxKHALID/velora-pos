@@ -5,6 +5,7 @@ import { KeyIcon, PencilSimpleIcon, TrashIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Input } from "@/shared/components/ui/input"
+import { Label } from "@/shared/components/ui/label"
 import { formatFullDateTime, timeAgo } from "@/shared/lib/dates"
 import { RoleBadge } from "./role-badge"
 import { useShopNameOf } from "@/features/shops/hooks/use-shop-scope"
@@ -26,9 +27,9 @@ const PasswordForm = ({ person, pending, onSetPassword }) => {
   }
   return (
     <form onSubmit={handleSubmit} className="space-y-2 border-t pt-3">
-      <label htmlFor="new-password" className="block text-xs font-semibold tracking-label text-muted-foreground uppercase">
+      <Label htmlFor="new-password" className="text-xs font-semibold tracking-label text-muted-foreground uppercase">
         New password
-      </label>
+      </Label>
       <div className="flex gap-2">
         <Input id="new-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} />
         <Button type="submit" size="sm" variant="outline" disabled={pending || password.length < 8}>

@@ -1,17 +1,18 @@
 "use client"
 
 import { useState } from "react"
-import { BarcodeIcon, CaretDownIcon, MinusIcon, PauseIcon, PlusIcon, ShoppingBagIcon, TrashIcon, XIcon } from "@phosphor-icons/react"
+import { BarcodeIcon, CaretDownIcon, PauseIcon, ShoppingBagIcon, TrashIcon, XIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { Button } from "@/shared/components/ui/button"
+import { QuantityStepper } from "@/shared/components/ui/quantity-stepper"
+import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-group"
 import { Kbd } from "@/shared/components/ui/kbd"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
-import { MAX_CASHIER_DISCOUNT } from "@/features/ledger/lib/rules"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
-import { cartTotals } from "@/features/pricing/lib/pricing"
+import { cartTotals, discountStepsOf } from "@/features/pricing/lib/pricing"
 import { formatMoney } from "@/shared/lib/money"
 import { useCartStore } from "../store/cart-store-provider"
 import { HeldCartsButton } from "./held-carts-button"
@@ -20,8 +21,6 @@ import { ManagerApprovalDialog } from "./manager-approval-dialog"
 import { sizeLabel } from "@/features/catalog/lib/catalog"
 import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
 
-const discountSteps = [0, 5, 10, 15, 20]
-const cashierLimitPct = MAX_CASHIER_DISCOUNT * 100
 
 const ScanField = ({ onScan, autoFocus }) => {
   const [code, setCode] = useState("")
@@ -44,7 +43,8 @@ const ScanField = ({ onScan, autoFocus }) => {
         onKeyDown={handleKeyDown}
         inputMode="numeric"
         enterKeyHint="done"
-        placeholder="Scan or type barcode"
+        aria-label="Barcode"
+        placeholder="Scan or type barcode…"
       />
     </InputGroup>
   )
@@ -65,18 +65,10 @@ const CartLine = ({ row, highlight, canAdd, onQuantity }) => (
         <span className="truncate">
           {row.variant.attributes.color} · {sizeLabel(row.variant.attributes.size)}
           {row.productDiscount > 0 && <span className="text-gold"> · On offer</span>}
-          {row.entry === "manual" && " · typed in"}
+          {row.entry === "manual" && " · added by hand"}
         </span>
       </p>
-      <div className="flex shrink-0 items-center gap-1">
-        <Button size="icon-sm" variant="outline" aria-label={row.quantity === 1 ? "Remove item" : "Remove one"} onClick={() => onQuantity(row.variantId, row.quantity - 1)}>
-          {row.quantity === 1 ? <TrashIcon /> : <MinusIcon />}
-        </Button>
-        <span className="w-7 text-center text-sm font-semibold tabular-nums select-none">{row.quantity}</span>
-        <Button size="icon-sm" variant="outline" aria-label="Add one" disabled={!canAdd} onClick={() => onQuantity(row.variantId, row.quantity + 1)}>
-          <PlusIcon />
-        </Button>
-      </div>
+      <QuantityStepper value={row.quantity} max={canAdd ? Infinity : row.quantity} onChange={(quantity) => onQuantity(row.variantId, quantity)} onRemove={() => onQuantity(row.variantId, 0)} lessLabel="Remove one" moreLabel="Add one" />
     </div>
   </li>
 )
@@ -91,6 +83,8 @@ export const CartPanel = ({ shopId, lastAdded, availableFor, onScan, onCharge, o
   const restore = useCartStore(({ restore }) => restore)
   const heldCount = useLedgerStore(({ heldCarts }) => heldAt(heldCarts).length)
   const settings = useSettingsFor(shopId)
+  const cashierLimitPct = settings.cashierDiscountPct ?? 5
+  const discountSteps = [0, ...discountStepsOf(settings)]
   const [pendingDiscount, setPendingDiscount] = useState(null)
   const [discountOpen, setDiscountOpen] = useState(false)
   const catalog = useCatalog()
@@ -170,23 +164,21 @@ export const CartPanel = ({ shopId, lastAdded, availableFor, onScan, onCharge, o
       <div className="space-y-3 border-t p-4">
         {settings.cartDiscountEnabled && discountOpen && rows.length > 0 && (
           <div className="space-y-2">
-            <div className="grid grid-cols-5 gap-1">
+            <ToggleGroup
+              aria-label="Cart discount"
+              variant="solid"
+              spacing={1}
+              disabled={!rows.length}
+              value={[String(discountPct)]}
+              onValueChange={([next]) => next !== undefined && handleDiscount(Number(next))}
+              className="grid w-full auto-cols-fr grid-flow-col"
+            >
               {discountSteps.map((pct) => (
-                <button
-                  key={pct}
-                  type="button"
-                  disabled={!rows.length}
-                  aria-pressed={discountPct === pct}
-                  onClick={() => handleDiscount(pct)}
-                  className={cn(
-                    "h-9 border text-xs font-semibold tabular-nums transition-colors disabled:opacity-40 pointer-coarse:h-11",
-                    discountPct === pct ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/60"
-                  )}
-                >
+                <ToggleGroupItem key={pct} value={String(pct)} className="h-9 px-0 font-semibold tabular-nums pointer-coarse:h-11">
                   {pct ? `${pct}%` : "None"}
-                </button>
+                </ToggleGroupItem>
               ))}
-            </div>
+            </ToggleGroup>
           </div>
         )}
 
@@ -205,16 +197,17 @@ export const CartPanel = ({ shopId, lastAdded, availableFor, onScan, onCharge, o
             </dt>
             <dd>
               {settings.cartDiscountEnabled ? (
-                <button
-                  type="button"
+                <Button
+                  variant="link"
+                  size="inline"
                   disabled={!rows.length}
                   aria-expanded={discountOpen}
                   onClick={() => setDiscountOpen((open) => !open)}
-                  className="-my-1 flex items-center gap-1 py-1 text-gold underline-offset-4 hover:underline disabled:text-muted-foreground disabled:no-underline pointer-coarse:-my-2 pointer-coarse:py-2"
+                  className="-my-1 text-sm font-normal no-underline hover:underline disabled:text-muted-foreground disabled:opacity-100 pointer-coarse:-my-2"
                 >
                   {discountTotal ? `− ${formatMoney(discountTotal)}` : "Add"}
                   <CaretDownIcon className={cn("size-3.5 transition-transform", discountOpen && "rotate-180")} />
-                </button>
+                </Button>
               ) : discountTotal ? (
                 `− ${formatMoney(discountTotal)}`
               ) : (

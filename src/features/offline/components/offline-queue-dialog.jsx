@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ArrowsClockwiseIcon, CloudArrowUpIcon, TrashIcon, WarningIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Button } from "@/shared/components/ui/button"
+import { Item, ItemActions, ItemContent, ItemDescription, ItemFooter, ItemGroup } from "@/shared/components/ui/item"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { timeAgo } from "@/shared/lib/dates"
@@ -15,18 +16,18 @@ const Entry = ({ entry, onRetry, onRemove, onView }) => {
   const { sale } = entry
   const count = sale.items.reduce((sum, { quantity }) => sum + quantity, 0)
   return (
-    <li className="space-y-2 border bg-card p-3">
-      <div className="flex items-start justify-between gap-3">
-        <button type="button" onClick={onView} className="min-w-0 text-left">
-          <p className="font-mono text-sm font-semibold">{sale.number}</p>
-          <p className="text-xs text-muted-foreground">
-            {count} {count === 1 ? "item" : "items"} · {timeAgo(sale.soldAt)}
-          </p>
-        </button>
-        <span className="shrink-0 font-semibold tabular-nums">{formatMoney(sale.total)}</span>
-      </div>
+    <Item role="listitem" variant="outline" size="xs" className="items-start gap-y-2 p-3">
+      <ItemContent>
+        <Button variant="link" size="inline" onClick={onView} className="w-fit font-mono text-sm font-semibold text-foreground no-underline hover:underline">
+          {sale.number}
+        </Button>
+        <ItemDescription>
+          {count} {count === 1 ? "item" : "items"} · {timeAgo(sale.soldAt)}
+        </ItemDescription>
+      </ItemContent>
+      <ItemActions className="font-semibold tabular-nums">{formatMoney(sale.total)}</ItemActions>
       {entry.status === "failed" && (
-        <>
+        <ItemFooter className="flex-col items-stretch">
           <p className="flex items-start gap-1.5 text-xs text-destructive">
             <WarningIcon className="mt-0.5 size-3.5 shrink-0" weight="fill" />
             {entry.error}
@@ -55,9 +56,9 @@ const Entry = ({ entry, onRetry, onRemove, onView }) => {
               </>
             )}
           </div>
-        </>
+        </ItemFooter>
       )}
-    </li>
+    </Item>
   )
 }
 
@@ -92,7 +93,7 @@ export const OfflineQueueDialog = ({ onClose }) => {
           </DialogDescription>
         </DialogHeader>
         {pending.length > 0 && (
-          <ul className="max-h-[50dvh] space-y-2 overflow-y-auto">
+          <ItemGroup className="max-h-[50dvh] gap-2 overflow-y-auto">
             {pending.map((entry) => (
               <Entry
                 key={entry.clientId}
@@ -102,7 +103,7 @@ export const OfflineQueueDialog = ({ onClose }) => {
                 onRemove={handle(() => removeOffline(entry.clientId))}
               />
             ))}
-          </ul>
+          </ItemGroup>
         )}
         <DialogFooter>
           <Button variant="outline" disabled={offline || !pending.length} pending={syncing} onClick={handle(syncOutbox)}>

@@ -2,6 +2,7 @@
 
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/shared/components/ui/chart"
+import { Empty, EmptyDescription } from "@/shared/components/ui/empty"
 import { hourIn } from "@/shared/lib/zoned"
 import { splitLiveTail } from "../lib/analytics"
 
@@ -22,9 +23,9 @@ export const TrendChart = ({ data, byHour, timeZone, now, live = true }) => {
 
   if (points.every(({ revenue, profit }) => !revenue && !profit))
     return (
-      <div className="flex h-56 items-center justify-center border border-dashed text-sm text-muted-foreground @2xl:h-72">
-        {byHour && live ? "No sales yet today. The chart fills in as the day goes." : byHour ? "No sales on this day." : "No sales in this period."}
-      </div>
+      <Empty className="h-56 border py-0 @2xl:h-72">
+        <EmptyDescription>{byHour && live ? "No sales yet today. The chart fills in as the day goes." : byHour ? "No sales on this day." : "No sales in this period."}</EmptyDescription>
+      </Empty>
     )
 
   return (

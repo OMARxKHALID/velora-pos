@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { UserError, parseInput } from "@/shared/lib/errors"
 import { PAYMENT_METHODS, applyRefundDecision, applyRefundRequest } from "@/features/ledger/lib/rules"
-import { fbrSeqOf, registerFor, saveFbrSeq } from "@/features/pos/server/register"
+import { fbrSeqOf, registerFor, saveFbrSeq, shopSettings } from "@/features/pos/server/register"
 import { moveStock } from "@/features/inventory/server/stock"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/server/db/collections"
 import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
@@ -34,11 +34,12 @@ export const requestRefund = async ({ db, client, user, shopId, at = new Date() 
       if (user.role === "cashier" && sale.cashierId !== user.id) throw new UserError("You can only return your own sales. Ask a supervisor.")
       await lockSale(db, session, sale._id)
       const openShift = await db.collection(C.shifts).findOne({ registerId: sale.registerId, status: "open" }, { session })
+      const { returnWindowDays } = await shopSettings(db, session, shopId)
       let record
       try {
         ;({ record } = applyRefundRequest(
           { sales: [fromDoc(sale)], refunds: await refundsOf(db, session, sale._id), exchanges: await exchangesOf(db, session, sale._id) },
-          { ...request, requestedBy: user.id, shiftId: openShift?._id ?? sale.shiftId, at }
+          { ...request, requestedBy: user.id, shiftId: openShift?._id ?? sale.shiftId, at, returnWindowDays }
         ))
       } catch (error) {
         throw new UserError(error.message)

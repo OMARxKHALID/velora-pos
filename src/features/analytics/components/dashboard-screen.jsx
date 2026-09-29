@@ -5,10 +5,12 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, CheckCircleIcon, WarningIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { LoadError } from "@/shared/components/ui/alert"
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/shared/components/ui/item"
 import { Panel } from "@/shared/components/ui/panel"
+import { Progress, ProgressLabel } from "@/shared/components/ui/progress"
 import { PanelsSkeleton } from "@/shared/components/ui/table-skeleton"
 import { StatStrip } from "@/shared/components/ui/stat-strip"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
+import { DataTable } from "@/shared/components/ui/data-table"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS } from "@/features/shops/lib/shops"
@@ -19,13 +21,32 @@ import { SHOP_TIME_ZONE, dayIn } from "@/shared/lib/zoned"
 import { useDashboardPeriod } from "../hooks/use-dashboard-period"
 import { PeriodPicker } from "./period-picker"
 import { TrendChart } from "./trend-chart"
-import { EmptyState } from "@/shared/components/ui/empty-state"
+import { Empty, EmptyDescription } from "@/shared/components/ui/empty"
 
 const compare = { today: "yesterday by this time", "7d": "the 7 days before", "30d": "the 30 days before" }
-const compareLabel = (range, days) => compare[range] ?? (days === 1 ? "the day before" : `the ${days} days before`)
+const compareLabel = (range, days, live) => compare[range] ?? (days === 1 ? (live ? compare.today : "the day before") : `the ${days} days before`)
 const percent = (value) => `${Math.round(value * 100)}%`
 const clock = (timeZone, at) => new Intl.DateTimeFormat("en-PK", { hour: "numeric", minute: "2-digit", timeZone }).format(at)
 const daysLeftText = (days) => (days < 1 ? "under a day left" : `about ${Math.floor(days)} ${Math.floor(days) === 1 ? "day" : "days"} left`)
+
+const shopColumns = [
+  {
+    id: "shop",
+    header: "Shop",
+    meta: { cellClassName: "w-full max-w-0 text-sm font-medium whitespace-normal @lg:w-auto @lg:max-w-none" },
+    cell: ({ row: { original } }) => (
+      <>
+        {original.shop.name}
+        <p className="text-xs font-normal text-muted-foreground tabular-nums @lg:hidden">Profit {formatMoney(original.profit)}</p>
+        <p className="text-xs font-normal text-muted-foreground tabular-nums @2xl:hidden">Stock {formatMoney(original.stock)}</p>
+      </>
+    ),
+  },
+  { id: "sales", header: "Sales", meta: { className: "text-right", cellClassName: "tabular-nums" }, cell: ({ row }) => formatMoney(row.original.revenue) },
+  { id: "profit", header: "Profit", meta: { className: "hidden text-right @lg:table-cell", cellClassName: "tabular-nums" }, cell: ({ row }) => formatMoney(row.original.profit) },
+  { id: "short", header: "Cash short", meta: { className: "text-right", cellClassName: "tabular-nums" }, cell: ({ row }) => <span className={cn(row.original.short > 0 && "text-destructive")}>{formatMoney(row.original.short)}</span> },
+  { id: "stock", header: "Stock value", meta: { className: "hidden text-right @2xl:table-cell", cellClassName: "text-muted-foreground tabular-nums" }, cell: ({ row }) => formatMoney(row.original.stock) },
+]
 
 const Delta = ({ now, before, label, comparable, short }) => {
   if (!comparable) return <span>{short ? "No history yet" : "Not enough history to compare"}</span>
@@ -34,11 +55,11 @@ const Delta = ({ now, before, label, comparable, short }) => {
   const up = change >= 0
   const Icon = up ? ArrowUpRightIcon : ArrowDownRightIcon
   return (
-    <span className="inline-flex items-center gap-1">
-      <Icon className={cn("size-3.5", up ? "text-success" : "text-destructive")} />
+    <span>
+      <Icon className={cn("mr-1 inline size-3.5 align-[-0.2em]", up ? "text-success" : "text-destructive")} />
       <span className="sr-only">{up ? "Up" : "Down"}</span>
       <span className="tabular-nums">{percent(Math.abs(change))}</span>
-      {!short && <span>vs {label}</span>}
+      {!short && ` vs ${label}`}
     </span>
   )
 }
@@ -52,19 +73,19 @@ const LinkAction = ({ href, children }) => (
 
 const List = ({ rows, empty }) =>
   rows.length ? (
-    <ul className="divide-y">
+    <ItemGroup className="gap-0 divide-y">
       {rows.map(({ key, title, detail, value, tone }) => (
-        <li key={key} className="flex items-center justify-between gap-3 px-4 py-2.5">
-          <div className="min-w-0">
-            <p className="truncate text-sm">{title}</p>
-            {detail && <p className="truncate text-xs text-muted-foreground">{detail}</p>}
-          </div>
-          <span className={cn("shrink-0 text-sm font-semibold tabular-nums", tone === "warning" && "text-warning", tone === "destructive" && "text-destructive")}>{value}</span>
-        </li>
+        <Item key={key} role="listitem" size="sm" className="flex-nowrap">
+          <ItemContent>
+            <ItemTitle>{title}</ItemTitle>
+            {detail && <ItemDescription className="truncate">{detail}</ItemDescription>}
+          </ItemContent>
+          <ItemActions className={cn("text-sm font-semibold tabular-nums", tone === "warning" && "text-warning", tone === "destructive" && "text-destructive")}>{value}</ItemActions>
+        </Item>
       ))}
-    </ul>
+    </ItemGroup>
   ) : (
-    <EmptyState className="py-8">{empty}</EmptyState>
+    <Empty className="py-8"><EmptyDescription>{empty}</EmptyDescription></Empty>
   )
 
 export const DashboardScreen = ({ user }) => {
@@ -95,7 +116,9 @@ export const DashboardScreen = ({ user }) => {
     return (
       <div className="flex flex-col gap-6">
         {header}
-        <p className="border border-dashed bg-card px-6 py-16 text-center text-sm text-muted-foreground">Pick the dates to see how the shop did.</p>
+        <Empty className="border bg-card py-16">
+          <EmptyDescription>Pick the dates to see how the shop did.</EmptyDescription>
+        </Empty>
       </div>
     )
   if (!view)
@@ -106,11 +129,11 @@ export const DashboardScreen = ({ user }) => {
       </div>
     )
 
-  const { current, previous, best, short, idle, brands, cashiers, comparable, shopRows, byHour, trend, days, live } = view
+  const { range: shownRange, current, previous, best, short, idle, brands, cashiers, comparable, shopRows, byHour, trend, days, live } = view
   const topBrand = Math.max(0, ...brands.map(({ revenue }) => revenue))
-  const label = compareLabel(range, days)
+  const label = compareLabel(shownRange, days, live)
   const dayTitle = new Intl.DateTimeFormat("en-PK", { weekday: "short", day: "numeric", month: "short", timeZone }).format(view.from)
-  const span = custom && days > 1 ? `${new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", year: "numeric", timeZone }).formatRange(view.from, view.from + (days - 1) * DAY)} · ` : ""
+  const span = shownRange === "custom" && days > 1 ? `${new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", year: "numeric", timeZone }).formatRange(view.from, view.from + (days - 1) * DAY)} · ` : ""
 
   return (
     <div className="flex flex-col gap-6">
@@ -142,7 +165,7 @@ export const DashboardScreen = ({ user }) => {
         />
 
         <Panel
-          title={range === "today" ? "Today" : byHour ? dayTitle : "Sales & profit"}
+          title={shownRange === "today" ? "Today" : byHour ? dayTitle : "Sales & profit"}
           description={
             current.count
               ? `${span}${current.count} ${current.count === 1 ? "sale" : "sales"} · ${formatMoney(current.basket)} average · ${percent(view.cashShare)} cash, ${percent(1 - view.cashShare)} card and wallets`
@@ -156,32 +179,7 @@ export const DashboardScreen = ({ user }) => {
 
         {user.role === "admin" && scope === ALL_SHOPS && shopRows.length > 1 && (
           <Panel title="Shops" description="Each shop side by side">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Shop</TableHead>
-                  <TableHead className="text-right">Sales</TableHead>
-                  <TableHead className="hidden text-right @lg:table-cell">Profit</TableHead>
-                  <TableHead className="text-right">Cash short</TableHead>
-                  <TableHead className="hidden text-right @2xl:table-cell">Stock value</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {shopRows.map(({ shop, revenue, profit, short: shortCash, stock: value }) => (
-                  <TableRow key={shop.id}>
-                    <TableCell className="w-full max-w-0 text-sm font-medium whitespace-normal @lg:w-auto @lg:max-w-none">
-                      {shop.name}
-                      <p className="text-xs font-normal text-muted-foreground tabular-nums @lg:hidden">Profit {formatMoney(profit)}</p>
-                      <p className="text-xs font-normal text-muted-foreground tabular-nums @2xl:hidden">Stock {formatMoney(value)}</p>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{formatMoney(revenue)}</TableCell>
-                    <TableCell className="hidden text-right tabular-nums @lg:table-cell">{formatMoney(profit)}</TableCell>
-                    <TableCell className={cn("text-right tabular-nums", shortCash > 0 && "text-destructive")}>{formatMoney(shortCash)}</TableCell>
-                    <TableCell className="hidden text-right text-muted-foreground tabular-nums @2xl:table-cell">{formatMoney(value)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable columns={shopColumns} data={shopRows} getRowId={({ shop }) => shop.id} />
           </Panel>
         )}
 
@@ -217,21 +215,20 @@ export const DashboardScreen = ({ user }) => {
             {brands.length ? (
               <ul className="space-y-3 p-4">
                 {brands.map(({ brand, revenue, pairs }) => (
-                  <li key={brand} className="space-y-1.5">
-                    <div className="flex justify-between gap-3 text-sm">
-                      <span className="min-w-0 truncate">{brand}</span>
-                      <span className="shrink-0 text-muted-foreground tabular-nums">
-                        {formatMoney(revenue)} · {pairs} sold
-                      </span>
-                    </div>
-                    <div className="h-2 bg-muted">
-                      <div className="h-full bg-chart-1" style={{ width: `${topBrand ? (Math.max(revenue, 0) / topBrand) * 100 : 0}%` }} />
-                    </div>
+                  <li key={brand}>
+                    <Progress value={topBrand ? (Math.max(revenue, 0) / topBrand) * 100 : 0} className="gap-1.5" trackClassName="h-2" indicatorClassName="bg-chart-1">
+                      <div className="flex w-full justify-between gap-3 text-sm">
+                        <ProgressLabel className="min-w-0 truncate text-sm font-normal tracking-normal normal-case">{brand}</ProgressLabel>
+                        <span className="shrink-0 text-muted-foreground tabular-nums">
+                          {formatMoney(revenue)} · {pairs} sold
+                        </span>
+                      </div>
+                    </Progress>
                   </li>
                 ))}
               </ul>
             ) : (
-              <EmptyState className="py-8">No sales in this period.</EmptyState>
+              <Empty className="py-8"><EmptyDescription>No sales in this period.</EmptyDescription></Empty>
             )}
           </Panel>
           <Panel title="Staff" description="Anything worth a closer look" action={user.role === "admin" && <LinkAction href="/staff">Manage access</LinkAction>}>

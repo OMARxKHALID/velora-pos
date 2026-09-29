@@ -48,7 +48,7 @@ export const StaffProfileFields = ({ values, onChange, autoFocus = false }) => {
             </Button>
           )}
         </div>
-        <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
+        <Input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
       </div>
 
       <Field>

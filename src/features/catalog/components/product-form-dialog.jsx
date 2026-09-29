@@ -4,14 +4,16 @@ import { useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { PlusIcon, XIcon } from "@phosphor-icons/react"
+import { PlusIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { Autocomplete, AutocompleteContent, AutocompleteEmpty, AutocompleteInput, AutocompleteItem, AutocompleteList } from "@/shared/components/ui/autocomplete"
 import { Button } from "@/shared/components/ui/button"
+import { Combobox, ComboboxChip, ComboboxChips, ComboboxChipsInput, ComboboxContent, ComboboxItem, ComboboxList, ComboboxValue, useComboboxAnchor } from "@/shared/components/ui/combobox"
+import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-group"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput, InputGroupText } from "@/shared/components/ui/input-group"
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/shared/components/ui/input-group"
 import { Segmented } from "@/shared/components/ui/segmented"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
@@ -26,6 +28,7 @@ import { ColorDot } from "./color-dot"
 import { OpeningStockGrid, stockKey, toPairs } from "./opening-stock-grid"
 import { productSchema } from "../schemas"
 import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
+import { hasFinePointer } from "@/shared/lib/pointer"
 
 const presetSizes = (sizeType, audience) => (sizeType === "shoe" ? sizePresets[audience].map(String) : sizeType === "one" ? [ONE_SIZE] : ["S", "M", "L", "XL"])
 const audiences = ["men", "women", "kids", "unisex"].map((key) => ({ key, label: key[0].toUpperCase() + key.slice(1) }))
@@ -57,75 +60,69 @@ const PercentInput = ({ field, fieldState, label }) => (
 )
 
 const ColorChip = ({ color, suffix, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="flex h-7 items-center gap-1.5 border border-transparent px-2 text-xs text-muted-foreground transition-colors hover:border-border hover:text-foreground pointer-coarse:h-10 pointer-coarse:px-3"
-  >
+  <Button type="button" variant="text" size="xs" onClick={onClick} className="gap-1.5 border border-transparent px-2 font-normal hover:border-border">
     <ColorDot color={color} className="size-3.5" />
     {color}
     {suffix && <span className="text-2xs tabular-nums">{suffix}</span>}
-  </button>
+  </Button>
 )
+
+const titleCase = (text) => text.trim().replace(/\s+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
 
 const ColorPicker = ({ value, onChange, popular }) => {
   const [draft, setDraft] = useState("")
+  const anchor = useComboboxAnchor()
+  const typed = titleCase(draft)
   const suggestions = suggestColors(draft, value)
-  const typedKnown = draft.trim() && swatchStyle(draft)
+  const items = typed && !value.some((color) => sameColor(color, typed)) && !suggestions.some((color) => sameColor(color, typed)) ? [typed, ...suggestions] : suggestions
 
   const handleAdd = (color) => {
-    const name = color.trim().replace(/\s+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
-    if (name && !value.some((color) => sameColor(color, name))) onChange([...value, name])
+    const name = titleCase(color)
+    if (name && !value.some((item) => sameColor(item, name))) onChange([...value, name])
+    setDraft("")
+  }
+
+  const handleValueChange = (next) => {
+    onChange(next.filter((color, index) => next.findIndex((item) => sameColor(item, color)) === index))
     setDraft("")
   }
 
   const handleKeyDown = (event) => {
-    if (event.key !== "Enter") return
-    event.preventDefault()
-    if (draft.trim()) handleAdd(draft)
+    if (event.key === "Enter" && !draft.trim()) event.preventDefault()
   }
 
   return (
     <div className="space-y-3">
-      {value.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {value.map((color) => (
-            <span key={color} className="flex h-8 items-center gap-2 border border-primary/60 bg-accent/60 pr-1 pl-2.5 text-xs pointer-coarse:h-11">
-              <ColorDot color={color} />
-              {color}
-              <button
-                type="button"
-                aria-label={`Remove ${color}`}
-                onClick={() => onChange(value.filter((item) => item !== color))}
-                className="flex items-center justify-center p-1 text-muted-foreground hover:text-foreground pointer-coarse:size-10"
-              >
-                <XIcon className="size-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
+      <Combobox multiple autoHighlight items={items} filter={null} value={value} onValueChange={handleValueChange} inputValue={draft} onInputValueChange={setDraft}>
+        <ComboboxChips ref={anchor}>
+          <ComboboxValue>
+            {(colors) => (
+              <>
+                {colors.map((color) => (
+                  <ComboboxChip key={color} removeLabel={`Remove ${color}`} className="h-7 gap-1.5 border border-primary/60 bg-accent/60 pl-2 font-normal pointer-coarse:h-10">
+                    <ColorDot color={color} className="size-3.5" />
+                    {color}
+                  </ComboboxChip>
+                ))}
+                <ComboboxChipsInput aria-label="Add a colour" placeholder={colors.length ? "Add another colour" : "Type a colour, e.g. Burgundy"} onKeyDown={handleKeyDown} />
+              </>
+            )}
+          </ComboboxValue>
+        </ComboboxChips>
+        <ComboboxContent anchor={anchor}>
+          <ComboboxList>
+            {(color) => (
+              <ComboboxItem key={color} value={color}>
+                <ColorDot color={color} className="size-3.5" />
+                <span className="min-w-0 flex-1 truncate">{color}</span>
+                {color === typed && !swatchStyle(color) && <span className="shrink-0 text-2xs text-muted-foreground">no swatch · saved as typed</span>}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
 
-      <InputGroup>
-        <InputGroupAddon>
-          <ColorDot color={draft} className="size-4" />
-        </InputGroupAddon>
-        <InputGroupInput value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleKeyDown} placeholder="Type a colour, e.g. Burgundy" />
-        <InputGroupAddon align="inline-end">
-          <InputGroupButton size="xs" variant="ghost" disabled={!draft.trim()} onClick={() => handleAdd(draft)}>
-            Add
-          </InputGroupButton>
-        </InputGroupAddon>
-      </InputGroup>
-      {draft.trim() && !typedKnown && <p className="text-xs text-muted-foreground">No swatch for “{draft.trim()}”. It will be saved as typed.</p>}
-
-      {suggestions.length > 0 ? (
-        <div className="flex flex-wrap gap-1">
-          {suggestions.map((color) => (
-            <ColorChip key={color} color={color} onClick={() => handleAdd(color)} />
-          ))}
-        </div>
-      ) : (
+      {!draft.trim() && popular.some(({ color }) => !value.includes(color)) && (
         <div className="space-y-1">
           <p className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">Most used</p>
           <div className="flex flex-wrap gap-1">
@@ -205,7 +202,7 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor={field.name}>Name</FieldLabel>
-                  <Input {...field} id={field.name} autoFocus placeholder="Velora Crest Sneaker" aria-invalid={fieldState.invalid} />
+                  <Input {...field} id={field.name} autoFocus={hasFinePointer()} placeholder="Velora Crest Sneaker" aria-invalid={fieldState.invalid} />
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
               )}
@@ -344,21 +341,21 @@ export const ProductFormDialog = ({ product, user, onClose }) => {
                   {sizeType === "one" ? (
                     <p className="border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">{ONE_SIZE}. Each colour is one item.</p>
                   ) : (
-                  <div className={cn("grid gap-1", sizeType === "shoe" ? "grid-cols-10" : "grid-cols-6")}>
-                    {SIZE_TYPES[sizeType].sizes.map((size) => {
-                      const on = field.value.includes(size)
-                      return (
-                        <button
-                          key={size}
-                          type="button"
-                          onClick={() => field.onChange(on ? field.value.filter((item) => item !== size) : [...field.value, size])}
-                          className={cn("h-8 border text-xs tabular-nums transition-colors pointer-coarse:h-11", on ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground hover:border-primary/60")}
-                        >
+                    <ToggleGroup
+                      aria-label="Sizes"
+                      multiple
+                      variant="solid"
+                      spacing={1}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      className={cn("grid w-full", sizeType === "shoe" ? "grid-cols-6 sm:grid-cols-10" : "grid-cols-6")}
+                    >
+                      {SIZE_TYPES[sizeType].sizes.map((size) => (
+                        <ToggleGroupItem key={size} value={size} className="h-8 px-0 text-muted-foreground tabular-nums pointer-coarse:h-11">
                           {size}
-                        </button>
-                      )
-                    })}
-                  </div>
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
                   )}
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>

@@ -4,14 +4,42 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { DownloadSimpleIcon, FileCsvIcon, WarningIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
+import { Input } from "@/shared/components/ui/input"
+import { Label } from "@/shared/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
+import { DataTable } from "@/shared/components/ui/data-table"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { downloadFile } from "@/shared/lib/download"
 import { formatMoney } from "@/shared/lib/money"
 import { importTemplateCsv, parseCatalogImport } from "../lib/catalog-csv"
 import { ColorDot } from "./color-dot"
 import { sizeLabel } from "../lib/catalog"
+
+const previewColumns = [
+  {
+    id: "product",
+    header: "Product",
+    meta: { cellClassName: "max-w-48 truncate text-sm" },
+    cell: ({ row: { original } }) => (
+      <>
+        {original.product} <span className="text-muted-foreground">· {original.brand}</span>
+      </>
+    ),
+  },
+  {
+    id: "variant",
+    header: "Colour / size",
+    meta: { cellClassName: "text-sm" },
+    cell: ({ row: { original } }) => (
+      <span className="flex items-center gap-1.5">
+        <ColorDot color={original.color} className="size-3.5" />
+        {original.color} · {sizeLabel(original.size)}
+      </span>
+    ),
+  },
+  { id: "price", header: "Price", meta: { className: "text-right", cellClassName: "text-sm tabular-nums" }, cell: ({ row }) => formatMoney(row.original.price) },
+  { id: "stock", header: "Receive", meta: { className: "hidden text-right @lg:table-cell", cellClassName: "text-sm tabular-nums" }, cell: ({ row }) => row.original.stock },
+]
 
 export const ImportCatalogDialog = ({ onClose }) => {
   const importCatalog = useLedgerStore(({ importCatalog }) => importCatalog)
@@ -48,11 +76,11 @@ export const ImportCatalogDialog = ({ onClose }) => {
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-2">
-          <label className="flex h-10 cursor-pointer items-center gap-2 border border-dashed px-4 text-sm transition-colors hover:border-primary">
+          <Label className="h-10 cursor-pointer border border-dashed px-4 font-normal transition-colors focus-within:border-primary hover:border-primary">
             <FileCsvIcon className="size-5 text-gold" />
             {file ?? "Choose a CSV file"}
-            <input type="file" accept=".csv,text/csv" className="sr-only" onChange={handleFile} />
-          </label>
+            <Input type="file" accept=".csv,text/csv" className="sr-only" onChange={handleFile} />
+          </Label>
           <Button variant="link" size="sm" onClick={() => downloadFile("velora-products-template.csv", importTemplateCsv())}>
             <DownloadSimpleIcon />
             Download template
@@ -80,33 +108,7 @@ export const ImportCatalogDialog = ({ onClose }) => {
 
             {result.rows.length > 0 && (
               <div className="border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Colour / size</TableHead>
-                      <TableHead className="text-right">Price</TableHead>
-                      <TableHead className="hidden text-right @lg:table-cell">Receive</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {result.rows.slice(0, 5).map((row, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="max-w-48 truncate text-sm">
-                          {row.product} <span className="text-muted-foreground">· {row.brand}</span>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          <span className="flex items-center gap-1.5">
-                            <ColorDot color={row.color} className="size-3.5" />
-                            {row.color} · {sizeLabel(row.size)}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right text-sm tabular-nums">{formatMoney(row.price)}</TableCell>
-                        <TableCell className="hidden text-right text-sm tabular-nums @lg:table-cell">{row.stock}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable columns={previewColumns} data={result.rows.slice(0, 5)} />
                 {result.rows.length > 5 && <p className="border-t px-3 py-2 text-xs text-muted-foreground">+ {result.rows.length - 5} more rows</p>}
               </div>
             )}

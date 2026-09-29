@@ -15,7 +15,7 @@ const INITIAL_DIMENSION = {
 
 const ChartContext = React.createContext(null)
 
-function useChart() {
+const useChart = () => {
   const context = React.useContext(ChartContext)
 
   if (!context) {
@@ -25,14 +25,14 @@ function useChart() {
   return context
 }
 
-function ChartContainer({
+const ChartContainer = ({
   id,
   className,
   children,
   config,
   initialDimension = INITIAL_DIMENSION,
   ...props
-}) {
+}) => {
   const uniqueId = React.useId()
   const chartId = `chart-${id ?? uniqueId.replace(/:/g, "")}`
 
@@ -96,7 +96,7 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
-function ChartTooltipContent({
+const ChartTooltipContent = ({
   active,
   payload,
   className,
@@ -110,7 +110,7 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey
-}) {
+}) => {
   const { config } = useChart()
 
   const tooltipLabel = React.useMemo(() => {
@@ -237,11 +237,11 @@ function ChartTooltipContent({
   );
 }
 
-function getPayloadConfigFromPayload(
+const getPayloadConfigFromPayload = (
   config,
   payload,
   key
-) {
+) => {
   if (typeof payload !== "object" || payload === null) {
     return undefined
   }

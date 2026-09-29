@@ -3,6 +3,7 @@
 import { useActionState, useRef } from "react"
 import { CashRegisterIcon, CrownIcon, SignInIcon, UserGearIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/shared/components/ui/item"
 import { Field, FieldError, FieldLabel } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
 import { signIn } from "../actions"
@@ -15,31 +16,26 @@ const SampleAccounts = ({ accounts, password, onPick }) => (
     <p className="text-xs text-muted-foreground">
       Sample accounts. The password for each is <span className="font-mono font-semibold text-foreground">{password}</span>
     </p>
-    <div className="grid gap-2">
+    <ItemGroup role="group" aria-label="Sample accounts" className="gap-2">
       {accounts.map(({ username, name, role }) => {
         const Icon = icons[role]
         return (
-          <button
-            key={username}
-            type="button"
-            onClick={() => onPick(username)}
-            className="flex min-w-0 items-center gap-3 border bg-card p-2.5 text-left transition-colors hover:border-primary touch-manipulation"
-          >
-            <span className="flex size-9 shrink-0 items-center justify-center border border-primary/40 text-gold">
-              <Icon className="size-4" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-semibold tracking-label uppercase">
+          <Item key={username} variant="outline" size="xs" render={<button type="button" onClick={() => onPick(username)} />} className="flex-nowrap p-2.5 hover:border-primary touch-manipulation">
+            <ItemMedia variant="icon">
+              <Icon />
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle className="text-xs font-semibold tracking-label uppercase">
                 {roleLabels[role]} · <span className="font-mono normal-case">{username}</span>
-              </span>
-              <span className="block truncate text-xs text-muted-foreground">
+              </ItemTitle>
+              <ItemDescription className="truncate">
                 {name} · {roleBlurbs[role]}
-              </span>
-            </span>
-          </button>
+              </ItemDescription>
+            </ItemContent>
+          </Item>
         )
       })}
-    </div>
+    </ItemGroup>
   </div>
 )
 

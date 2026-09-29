@@ -30,7 +30,7 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
 const SidebarContext = React.createContext(null)
 
-function useSidebar() {
+const useSidebar = () => {
   const context = React.useContext(SidebarContext)
   if (!context) {
     throw new Error("useSidebar must be used within a SidebarProvider.")
@@ -39,7 +39,7 @@ function useSidebar() {
   return context
 }
 
-function SidebarProvider({
+const SidebarProvider = ({
   defaultOpen = true,
   open: openProp,
   onOpenChange: setOpenProp,
@@ -47,7 +47,7 @@ function SidebarProvider({
   style,
   children,
   ...props
-}) {
+}) => {
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
 
@@ -121,7 +121,7 @@ function SidebarProvider({
   );
 }
 
-function Sidebar({
+const Sidebar = ({
   side = "left",
   variant = "sidebar",
   collapsible = "offcanvas",
@@ -129,7 +129,7 @@ function Sidebar({
   children,
   dir,
   ...props
-}) {
+}) => {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
   if (collapsible === "none") {
@@ -217,11 +217,11 @@ function Sidebar({
   )
 }
 
-function SidebarTrigger({
+const SidebarTrigger = ({
   className,
   onClick,
   ...props
-}) {
+}) => {
   const { toggleSidebar } = useSidebar()
 
   return (
@@ -243,10 +243,10 @@ function SidebarTrigger({
   )
 }
 
-function SidebarRail({
+const SidebarRail = ({
   className,
   ...props
-}) {
+}) => {
   const { toggleSidebar } = useSidebar()
 
   return (
@@ -258,7 +258,7 @@ function SidebarRail({
       onClick={toggleSidebar}
       title="Toggle Sidebar"
       className={cn(
-        "absolute inset-y-0 z-20 hidden w-4 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:start-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
+        "absolute inset-y-0 z-20 hidden w-4 transition-transform ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:start-1/2 after:w-[2px] hover:after:bg-sidebar-border sm:flex ltr:-translate-x-1/2 rtl:-translate-x-1/2",
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
         "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
         "group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full hover:group-data-[collapsible=offcanvas]:bg-sidebar",
@@ -271,10 +271,10 @@ function SidebarRail({
   )
 }
 
-function SidebarInset({
+const SidebarInset = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <main
       data-slot="sidebar-inset"
@@ -287,10 +287,10 @@ function SidebarInset({
   )
 }
 
-function SidebarHeader({
+const SidebarHeader = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="sidebar-header"
@@ -301,10 +301,10 @@ function SidebarHeader({
   )
 }
 
-function SidebarFooter({
+const SidebarFooter = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="sidebar-footer"
@@ -315,10 +315,10 @@ function SidebarFooter({
   )
 }
 
-function SidebarContent({
+const SidebarContent = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="sidebar-content"
@@ -332,10 +332,10 @@ function SidebarContent({
   )
 }
 
-function SidebarGroup({
+const SidebarGroup = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="sidebar-group"
@@ -346,11 +346,11 @@ function SidebarGroup({
   )
 }
 
-function SidebarGroupLabel({
+const SidebarGroupLabel = ({
   className,
   render,
   ...props
-}) {
+}) => {
   return useRender({
     defaultTagName: "div",
     props: mergeProps({
@@ -367,10 +367,10 @@ function SidebarGroupLabel({
   });
 }
 
-function SidebarGroupContent({
+const SidebarGroupContent = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="sidebar-group-content"
@@ -381,10 +381,10 @@ function SidebarGroupContent({
   )
 }
 
-function SidebarMenu({
+const SidebarMenu = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <ul
       data-slot="sidebar-menu"
@@ -395,10 +395,10 @@ function SidebarMenu({
   )
 }
 
-function SidebarMenuItem({
+const SidebarMenuItem = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <li
       data-slot="sidebar-menu-item"
@@ -431,7 +431,7 @@ const sidebarMenuButtonVariants = cva(
   }
 )
 
-function SidebarMenuButton({
+const SidebarMenuButton = ({
   render,
   isActive = false,
   variant = "default",
@@ -439,7 +439,7 @@ function SidebarMenuButton({
   tooltip,
   className,
   ...props
-}) {
+}) => {
   const { isMobile, state } = useSidebar()
   const comp = useRender({
     defaultTagName: "button",
@@ -478,10 +478,10 @@ function SidebarMenuButton({
   )
 }
 
-function SidebarMenuBadge({
+const SidebarMenuBadge = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="sidebar-menu-badge"

@@ -3,10 +3,10 @@
 import * as React from "react"
 import { cn } from "cn"
 
-function Label({
+const Label = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <label
       data-slot="label"

@@ -2,9 +2,10 @@
 
 import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
-import { Field, FieldDescription, FieldLabel } from "@/shared/components/ui/field"
+import { Field, FieldDescription, FieldLabel, FieldLegend, FieldSet } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
 import { Segmented } from "@/shared/components/ui/segmented"
+import { Separator } from "@/shared/components/ui/separator"
 import { Textarea } from "@/shared/components/ui/textarea"
 import { Panel } from "@/shared/components/ui/panel"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
@@ -17,13 +18,69 @@ const papers = [
   { key: "58", label: "58 mm" },
 ]
 
-const textFields = [["title", "Brand at the top", "VELORA", 24]]
-
-const toggles = [
-  ["showCashier", "Cashier name"],
-  ["showCustomer", "Customer name and phone"],
-  ["showBarcode", "Receipt barcode for returns"],
+const textSizes = [
+  { key: "small", label: "Small" },
+  { key: "normal", label: "Normal" },
+  { key: "large", label: "Large" },
 ]
+
+const titleStyles = [
+  { key: "brand", label: "Brand letters" },
+  { key: "plain", label: "Plain" },
+]
+
+const sections = [
+  {
+    legend: "Header",
+    texts: [
+      ["title", "Brand at the top", "VELORA", 40, false],
+      ["tagline", "Line under the brand", "Fashion · Footwear · Lifestyle", 60, false],
+      ["headerNote", "Note under the address", "Open daily 11 am to 10 pm", 120, true],
+    ],
+    toggles: [
+      ["showShopName", "Shop name"],
+      ["showAddress", "Shop address"],
+      ["showPhone", "Shop phone"],
+    ],
+    hint: "The shop name, address and phone come from each shop in the Shops tab.",
+  },
+  {
+    legend: "Sale details",
+    toggles: [
+      ["showCashier", "Cashier name"],
+      ["showCustomer", "Customer name and phone"],
+    ],
+  },
+  {
+    legend: "Items",
+    toggles: [
+      ["showColorSize", "Colour and size under each item"],
+      ["showLineDiscounts", "Offer and discount under each item", "The total discount is always shown with the totals."],
+    ],
+  },
+  {
+    legend: "Footer",
+    toggles: [
+      ["showReturnDeadline", "Last day for returns", "Printed from the time limit in the Returns tab."],
+      ["showBarcode", "Receipt barcode for returns"],
+    ],
+    texts: [
+      ["policy", "Return policy", "Shoes must be unworn and in the original box", 400, true],
+      ["footer", "Closing message", "Thank you for shopping with us", 160, true],
+    ],
+  },
+]
+
+const TextSetting = ({ name, label, placeholder, max, multiline, value, onChange }) => {
+  const id = `receipt-${name}`
+  const Control = multiline ? Textarea : Input
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Control id={id} rows={multiline ? 2 : undefined} value={value} maxLength={max} onChange={(event) => onChange(event.target.value.slice(0, max))} placeholder={placeholder} />
+    </Field>
+  )
+}
 
 export const ReceiptDesigner = ({ settings, update, shopId = null, scopeBar = null }) => {
   const firstShopId = useLedgerStore(({ shops }) => shops[0]?.id)
@@ -39,47 +96,55 @@ export const ReceiptDesigner = ({ settings, update, shopId = null, scopeBar = nu
         title="Receipt design"
         description="What every printed receipt shows. Changes apply to new prints and reprints straight away."
         action={
-          <Button type="button" size="sm" variant="ghost" onClick={() => update({ receipt: receiptDefaults })}>
+          <Button type="button" size="sm" variant="ghost" onClick={() => update({ receipt: receiptDefaults }, "Receipt back to the default design")}>
             <ArrowCounterClockwiseIcon />
             Default
           </Button>
         }
       >
-        <div className="space-y-5 p-4">
-          <Field>
-            <FieldLabel>Paper width</FieldLabel>
-            <Segmented label="Paper width" options={papers} value={design.paper} onChange={(paper) => change({ paper })} />
-            <FieldDescription>Match the roll in the receipt printer.</FieldDescription>
-          </Field>
-
-          <div className="grid gap-4 @lg:grid-cols-2">
-            {textFields.map(([key, label, placeholder, max]) => (
-              <Field key={key}>
-                <FieldLabel htmlFor={`receipt-${key}`}>{label}</FieldLabel>
-                <Input id={`receipt-${key}`} value={design[key]} onChange={(event) => change({ [key]: event.target.value.slice(0, max) })} placeholder={placeholder} />
+        <div className="space-y-6 p-4">
+          <FieldSet>
+            <FieldLegend>Paper and text</FieldLegend>
+            <div className="grid gap-4 @lg:grid-cols-3">
+              <Field>
+                <FieldLabel>Paper width</FieldLabel>
+                <Segmented label="Paper width" options={papers} value={design.paper} onChange={(paper) => change({ paper })} />
               </Field>
-            ))}
-          </div>
+              <Field>
+                <FieldLabel>Text size</FieldLabel>
+                <Segmented label="Text size" options={textSizes} value={design.textSize} onChange={(textSize) => change({ textSize })} />
+              </Field>
+              <Field>
+                <FieldLabel>Brand style</FieldLabel>
+                <Segmented label="Brand style" options={titleStyles} value={design.titleStyle} onChange={(titleStyle) => change({ titleStyle })} />
+              </Field>
+            </div>
+            <FieldDescription>Match the paper to the roll in the receipt printer.</FieldDescription>
+          </FieldSet>
 
-          <FieldDescription>The shop name, address and phone under the brand come from each shop in the Shops tab.</FieldDescription>
+          {sections.map(({ legend, texts = [], toggles, hint }) => (
+            <div key={legend} className="space-y-6">
+              <Separator />
+              <FieldSet>
+                <FieldLegend>{legend}</FieldLegend>
+                {texts.length > 0 && (
+                  <div className="grid gap-4 @lg:grid-cols-2">
+                    {texts.map(([name, label, placeholder, max, multiline]) => (
+                      <TextSetting key={name} name={name} label={label} placeholder={placeholder} max={max} multiline={multiline} value={design[name]} onChange={(value) => change({ [name]: value })} />
+                    ))}
+                  </div>
+                )}
+                <div className="space-y-4">
+                  {toggles.map(([name, label, description]) => (
+                    <SettingToggle key={name} on={design[name]} onChange={(value) => change({ [name]: value })} label={label} description={description} />
+                  ))}
+                </div>
+                {hint && <FieldDescription>{hint}</FieldDescription>}
+              </FieldSet>
+            </div>
+          ))}
 
-          <div className="grid gap-4 @lg:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="receipt-policy">Return policy</FieldLabel>
-              <Textarea id="receipt-policy" rows={2} value={design.policy} onChange={(event) => change({ policy: event.target.value.slice(0, 160) })} placeholder="Exchange within 7 days with this receipt" />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="receipt-footer">Closing message</FieldLabel>
-              <Textarea id="receipt-footer" rows={2} value={design.footer} onChange={(event) => change({ footer: event.target.value.slice(0, 120) })} placeholder="Thank you for shopping with us" />
-            </Field>
-          </div>
-
-          <div className="space-y-4 border-t pt-4">
-            {toggles.map(([key, label]) => (
-              <SettingToggle key={key} on={design[key]} onChange={(value) => change({ [key]: value })} label={label} />
-            ))}
-          </div>
-
+          <Separator />
           <FieldDescription>Tax lines, the FBR number, QR code, NTN and STRN are always printed when they apply, because the law asks for them.</FieldDescription>
         </div>
       </Panel>

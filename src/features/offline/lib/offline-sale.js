@@ -14,6 +14,7 @@ const pricingOf = (settings) => ({
   pricesIncludeTax: Boolean(settings.pricesIncludeTax),
   fbrServiceFee: settings.fbrServiceFee !== false,
   cashRounding: settings.cashRounding ?? 1,
+  cashierDiscountPct: settings.cashierDiscountPct ?? 5,
 })
 
 export const buildOfflineSale = (state, { cashierId, at }, input) => {

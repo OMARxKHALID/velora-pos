@@ -3,15 +3,16 @@
 import { useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { BarcodeIcon, CheckCircleIcon, MinusIcon, PlusIcon } from "@phosphor-icons/react"
+import { BarcodeIcon, CheckCircleIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { Button, buttonVariants } from "@/shared/components/ui/button"
+import { QuantityStepper } from "@/shared/components/ui/quantity-stepper"
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/shared/components/ui/input-group"
 import { StatStrip } from "@/shared/components/ui/stat-strip"
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
-import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
+import { useSettingsFor, useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { useBarcodeScanner } from "@/features/pos/hooks/use-barcode-scanner"
 import { beep } from "@/features/pos/lib/beep"
 import { sumBy } from "@/shared/lib/money"
@@ -20,24 +21,13 @@ import { Surface, surface } from "@/shared/components/ui/surface"
 
 const bySize = (a, b) => compareSizes(a.attributes.size, b.attributes.size)
 
-const Stepper = ({ value, onChange }) => (
-  <div className="flex items-center gap-1">
-    <Button type="button" size="icon-xs" variant="outline" aria-label="One less" disabled={value < 1} onClick={() => onChange(value - 1)}>
-      <MinusIcon />
-    </Button>
-    <span className="w-8 text-center font-semibold tabular-nums">{value}</span>
-    <Button type="button" size="icon-xs" variant="outline" aria-label="One more" onClick={() => onChange(value + 1)}>
-      <PlusIcon />
-    </Button>
-  </div>
-)
-
 export const StockCountScreen = ({ user }) => {
   const stock = useLedgerStore(({ stock }) => stock)
   const countStock = useLedgerStore(({ countStock }) => countStock)
   const categories = useLedgerStore(({ categories }) => categories)
   const { productById, variantByBarcode, variantsByProduct, variants: allVariants } = useCatalog()
   const shopId = useShopScope(user)
+  const settings = useSettingsFor(shopId)
   const variants = allVariants.filter(({ productId }) => productById[productId]?.shopId === shopId)
   const [code, setCode] = useState("")
   const [counts, setCounts] = useState({})
@@ -49,11 +39,11 @@ export const StockCountScreen = ({ user }) => {
   const handleScan = (barcode) => {
     const variant = variantByBarcode[barcode]
     if (!variant?.active || productById[variant.productId]?.status !== "active" || productById[variant.productId]?.shopId !== shopId) {
-      beep(false)
+      beep(false, settings)
       toast.error("Barcode not found", { description: barcode })
       return
     }
-    beep(true)
+    beep(true, settings)
     setProductIds((ids) => (ids.includes(variant.productId) ? ids : [variant.productId, ...ids]))
     setCounts((current) => ({ ...current, [variant.id]: (current[variant.id] ?? 0) + 1 }))
     setLastScanned(variant.id)
@@ -134,6 +124,7 @@ export const StockCountScreen = ({ user }) => {
             disabled={reviewing}
             onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
             onKeyDown={handleKeyDown}
+            aria-label="Item barcode"
             placeholder="Scan each item, then Enter"
           />
           <InputGroupAddon align="inline-end">
@@ -213,7 +204,7 @@ export const StockCountScreen = ({ user }) => {
                             <span className={cn("w-10 text-right font-semibold", diff > 0 ? "text-success" : "text-destructive")}>{diff > 0 ? `+${diff}` : diff}</span>
                           </span>
                         ) : (
-                          <Stepper value={counted} onChange={(value) => handleSetCount(variant.id, value)} />
+                          <QuantityStepper size="xs" value={counted} onChange={(value) => handleSetCount(variant.id, value)} />
                         )}
                       </li>
                     )

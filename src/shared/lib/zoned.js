@@ -23,10 +23,14 @@ const offsetAt = (timeZone, at) => {
   return Date.UTC(year, month - 1, day, hour, minute, second) - Math.floor(at / 1000) * 1000
 }
 
-export const startOfDayIn = (timeZone, now) => {
-  const { year, month, day } = partsIn(timeZone, now)
+const midnightIn = (timeZone, year, month, day) => {
   const midnightAsUtc = Date.UTC(year, month - 1, day)
   return midnightAsUtc - offsetAt(timeZone, midnightAsUtc - offsetAt(timeZone, midnightAsUtc))
+}
+
+export const startOfDayIn = (timeZone, now) => {
+  const { year, month, day } = partsIn(timeZone, now)
+  return midnightIn(timeZone, year, month, day)
 }
 
 export const hourIn = (timeZone, at) => partsIn(timeZone, at).hour
@@ -38,5 +42,5 @@ export const dayIn = (timeZone, at) => {
 
 export const startOfDateIn = (timeZone, date) => {
   const [year, month, day] = date.split("-").map(Number)
-  return startOfDayIn(timeZone, Date.UTC(year, month - 1, day, 12))
+  return midnightIn(timeZone, year, month, day)
 }

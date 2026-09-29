@@ -1,5 +1,6 @@
 import { cn } from "cn"
+import { Card, surface } from "@/shared/components/ui/card"
 
-export const surface = "border bg-card shadow-xs dark:shadow-md dark:shadow-black/30"
+export { surface }
 
-export const Surface = ({ className, ...props }) => <div className={cn(surface, className)} {...props} />
+export const Surface = ({ className, ...props }) => <Card className={cn("gap-0 overflow-visible py-0", className)} {...props} />

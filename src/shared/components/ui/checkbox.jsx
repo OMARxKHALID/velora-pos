@@ -4,10 +4,10 @@ import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox"
 import { cn } from "cn"
 import { CheckIcon } from "@phosphor-icons/react"
 
-function Checkbox({
+const Checkbox = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <CheckboxPrimitive.Root
       data-slot="checkbox"

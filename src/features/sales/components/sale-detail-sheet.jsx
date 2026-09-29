@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
+import { cn } from "cn"
 import {
   ArrowUUpLeftIcon,
   ArrowsLeftRightIcon,
@@ -19,7 +20,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/shared/components/ui/sheet"
-import { refundableQuantity } from "@/features/ledger/lib/rules"
+import { refundableQuantity, returnDeadline, returnWindowClosed } from "@/features/ledger/lib/rules"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useQuery } from "@tanstack/react-query"
@@ -29,7 +30,7 @@ import { receiptDesign, receiptPaper } from "@/features/pos/lib/receipt-design"
 import { Receipt } from "@/features/pos/components/receipt"
 import { FbrSection } from "@/features/fbr/components/fbr-section"
 import { RefundRequestDialog } from "@/features/refunds/components/refund-request-dialog"
-import { formatFullDateTime } from "@/shared/lib/dates"
+import { formatDateTime, formatFullDateTime } from "@/shared/lib/dates"
 import { formatMoney } from "@/shared/lib/money"
 import { saleRefundState } from "../lib/sale-status"
 import { ExchangeDialog } from "./exchange-dialog"
@@ -84,6 +85,7 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
   const variants = useLedgerStore(({ variants }) => variants)
   const [refunding, setRefunding] = useState(false)
   const [exchanging, setExchanging] = useState(false)
+  const [openedAt] = useState(Date.now)
   const receipt = useRef(null)
   const nameOf = useStaffName()
   const { data, error, refetch } = useQuery({ queryKey: ["sale", saleId], queryFn: ({ signal }) => getJson(`/api/sales/${encodeURIComponent(saleId)}`, { signal }) })
@@ -109,7 +111,9 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
   const design = receiptDesign({ receipt: settings.receipt })
   const { sale, refunds: saleRefunds } = data
   const saleExchanges = exchanges.filter((exchange) => exchange.saleId === saleId)
-  const canRefund = sale.items.some(({ variantId }) => refundableQuantity({ sales: [sale], refunds: saleRefunds, exchanges }, sale.id, variantId) > 0)
+  const deadline = returnDeadline(sale, settings.returnWindowDays)
+  const windowClosed = returnWindowClosed(sale, settings.returnWindowDays, openedAt)
+  const canRefund = !windowClosed && sale.items.some(({ variantId }) => refundableQuantity({ sales: [sale], refunds: saleRefunds, exchanges }, sale.id, variantId) > 0)
   const sizeOf = (variantId) => {
     const variant = variants.find(({ id }) => id === variantId)
     return variant ? `${variant.attributes.color} · ${sizeLabel(variant.attributes.size)}` : "Unknown"
@@ -287,6 +291,11 @@ export const SaleDetailSheet = ({ saleId, user, onClose }) => {
 
           {user.role !== "admin" && (
             <SheetFooter className="shrink-0 border-t p-4 sm:p-6 flex-row flex-wrap gap-2">
+              {deadline !== null && (
+                <p className={cn("w-full text-xs", windowClosed ? "text-warning" : "text-muted-foreground")}>
+                  {windowClosed ? `Returns and exchanges closed on ${formatDateTime(deadline)}.` : `Returns and exchanges open until ${formatDateTime(deadline)}.`}
+                </p>
+              )}
               <Button
                 variant="outline"
                 className="flex-1"

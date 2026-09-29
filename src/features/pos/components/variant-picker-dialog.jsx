@@ -9,7 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/components/ui/dialog"
-import { ColorDot } from "@/features/catalog/components/color-dot"
+import { Button } from "@/shared/components/ui/button"
+import { ColorChoice } from "@/features/catalog/components/color-choice"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { formatMoney } from "@/shared/lib/money"
 
@@ -24,25 +25,16 @@ const SizeGrid = ({ product, color, availableFor, onChoose }) => {
         .map((variant) => {
           const left = availableFor(variant.id)
           return (
-            <button
+            <Button
               key={variant.id}
-              type="button"
+              variant="outline"
               disabled={left < 1}
               onClick={() => onChoose(variant)}
-              className="flex h-16 flex-col items-center justify-center gap-0.5 border transition-colors hover:border-primary disabled:pointer-events-none disabled:opacity-35"
+              className="h-16 flex-col gap-0.5 px-0 hover:border-primary hover:bg-transparent disabled:opacity-35"
             >
-              <span className={cn("font-semibold tabular-nums", /^\d+$/.test(variant.attributes.size) ? "text-lg" : "text-sm")}>
-                {variant.attributes.size}
-              </span>
-              <span
-                className={cn(
-                  "text-2xs tracking-label uppercase",
-                  left <= 2 ? "text-warning" : "text-muted-foreground"
-                )}
-              >
-                {left < 1 ? "None" : `${left} left`}
-              </span>
-            </button>
+              <span className={cn("font-semibold tabular-nums", /^\d+$/.test(variant.attributes.size) ? "text-lg" : "text-sm")}>{variant.attributes.size}</span>
+              <span className={cn("text-2xs tracking-label uppercase", left <= 2 ? "text-warning" : "text-muted-foreground")}>{left < 1 ? "None" : `${left} left`}</span>
+            </Button>
           )
         })}
     </div>
@@ -74,24 +66,7 @@ export const VariantPickerDialog = ({
             <p className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">
               Colour
             </p>
-            <div className="flex flex-wrap gap-2">
-              {product.colors.map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => setColor(name)}
-                  className={cn(
-                    "flex h-9 items-center gap-2 border px-3 text-xs transition-colors pointer-coarse:h-11",
-                    color === name
-                      ? "border-primary bg-accent/60"
-                      : "hover:border-primary/60"
-                  )}
-                >
-                  <ColorDot color={name} className="size-3.5" />
-                  {name}
-                </button>
-              ))}
-            </div>
+            <ColorChoice colors={product.colors} value={color} onChange={setColor} />
           </div>
           <div className="space-y-2">
             <p className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">

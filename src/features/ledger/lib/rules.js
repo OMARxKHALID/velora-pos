@@ -1,10 +1,27 @@
 import { REGISTER_CODE, REGISTER_ID, SHOP_ID, indexCatalog, pctCodeFor } from "@/features/catalog/lib/catalog"
 import { FBR_INVOICE_TYPE, POSID_PATTERN, simulatedFiscalNumber } from "@/features/fbr/lib/fbr"
 import { effectiveRate, lineDiscount, lineTax, netRevenue, serviceFeeFor } from "@/features/pricing/lib/pricing"
+import { DAY } from "@/shared/lib/dates"
 import { newId } from "@/shared/lib/id"
 import { roundToRupee, sumBy } from "@/shared/lib/money"
 
-export const MAX_CASHIER_DISCOUNT = 0.05
+export const CASHIER_DISCOUNT_LIMITS = [0, 5, 10, 15, 20]
+
+export const cashierLimitOf = (settings) => (settings?.cashierDiscountPct ?? 5) / 100
+
+export const RETURN_WINDOWS = [0, 1, 3, 7, 14, 30]
+
+export const returnDeadline = (sale, days) => (days ? Number(new Date(sale.soldAt)) + days * DAY : null)
+
+export const returnWindowClosed = (sale, days, at) => {
+  const deadline = returnDeadline(sale, days)
+  return deadline !== null && Number(new Date(at)) > deadline
+}
+
+const assertReturnWindow = (sale, days, at) => {
+  if (returnWindowClosed(sale, days, at)) throw new Error(`Returns and exchanges close ${days} ${days === 1 ? "day" : "days"} after the sale. This sale is past that.`)
+}
+
 export const PAYMENT_METHODS = ["cash", "card", "jazzcash", "easypaisa", "bank"]
 
 export const REFERENCE_REQUIRED = ["jazzcash", "easypaisa", "bank"]
@@ -165,7 +182,7 @@ export const applySale = (
 
   if (change < 0) throw new Error("Payment is short")
   if (change > cashPaid) throw new Error("Change can only be given from cash")
-  if (cartDiscount > subtotal * MAX_CASHIER_DISCOUNT && !approvedBy) throw new Error("Supervisor approval needed for this discount")
+  if (cartDiscount > subtotal * cashierLimitOf(settings) && !approvedBy) throw new Error("Supervisor approval needed for this discount")
 
   const receiptSeq = state.receiptSeq + 1
   const counterSeq = (state.receiptSeqs?.[registerId] ?? (registerId === REGISTER_ID ? state.receiptSeq : 0)) + 1
@@ -223,7 +240,7 @@ export const applySale = (
   }
 
   if (items.some(({ variantId }) => next.stock[variantId] < 0)) sale.flags.push("negative_stock")
-  if (cartDiscount > subtotal * MAX_CASHIER_DISCOUNT) sale.flags.push("big_discount")
+  if (cartDiscount > subtotal * cashierLimitOf(settings)) sale.flags.push("big_discount")
 
   return {
     state: {
@@ -302,12 +319,13 @@ export const previewRefund = (state, saleId, lines) => {
   return { sale, items, amount, taxTotal, total: (sale.taxInclusive ? amount : amount + taxTotal) + rounding }
 }
 
-export const applyRefundRequest = (state, { saleId, lines, reason, method, requestedBy, shiftId, at, clientId = newId() }) => {
+export const applyRefundRequest = (state, { saleId, lines, reason, method, requestedBy, shiftId, at, returnWindowDays = 0, clientId = newId() }) => {
   const existing = state.refunds.find((refund) => refund.clientId === clientId)
   if (existing) return { state, record: existing }
 
   const sale = state.sales.find(({ id }) => id === saleId)
   if (!sale) throw new Error("Sale not found")
+  assertReturnWindow(sale, returnWindowDays, at)
   if (!reason?.trim()) throw new Error("A reason is required")
   if (!lines.length) throw new Error("Pick at least one item")
 
@@ -464,13 +482,19 @@ const liveSummary = (state, shift) => {
 
 export const shiftSummary = (state, shift) => (shift.status === "closed" && shift.summary ? shift.summary : liveSummary(state, shift))
 
-export const applyCloseShift = (state, { shiftId, countedCash, closedBy, note = null, at }) => {
+export const NOTE_NEEDED_END = "Count again, or add a note explaining the difference."
+
+export const noteNeededMessage = (noteAbove) =>
+  `${noteAbove ? `The count differs from what the till expects by more than Rs ${(noteAbove / 100).toLocaleString("en-PK")}` : "The count does not match what the till expects"}. ${NOTE_NEEDED_END}`
+
+export const applyCloseShift = (state, { shiftId, countedCash, closedBy, note = null, noteAbove = null, at }) => {
   const shift = state.shifts.find(({ id }) => id === shiftId)
   if (!shift || shift.status !== "open") throw new Error("Shift is not open")
   if (!isMoney(countedCash)) throw new Error("Counted cash must be a whole amount, not negative")
 
   const summary = liveSummary(state, shift)
   const expected = summary.expectedCash
+  if (noteAbove !== null && Math.abs(countedCash - expected) > noteAbove && !note?.trim()) throw new Error(noteNeededMessage(noteAbove))
   const closed = {
     ...shift,
     status: "closed",
@@ -530,12 +554,13 @@ export const applyAdjustment = (state, { variantId, quantity, reason, note, user
   return { state: next, record: movement }
 }
 
-export const applyExchange = (state, { saleId, fromVariantId, toVariantId, quantity, userId, at, offline = false, clientId = newId() }) => {
+export const applyExchange = (state, { saleId, fromVariantId, toVariantId, quantity, userId, at, returnWindowDays = 0, offline = false, clientId = newId() }) => {
   const existing = state.exchanges.find((exchange) => exchange.clientId === clientId)
   if (existing) return { state, record: existing }
 
   const sale = state.sales.find(({ id }) => id === saleId)
   if (!sale) throw new Error("Sale not found")
+  assertReturnWindow(sale, returnWindowDays, at)
   const item = sale.items.find(({ variantId }) => variantId === fromVariantId)
   if (!item) throw new Error("Item is not on this sale")
   if (!pairCount(quantity) || quantity > refundableQuantity(state, saleId, fromVariantId)) throw new Error("That is more than can still be swapped")

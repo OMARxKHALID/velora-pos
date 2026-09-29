@@ -14,6 +14,7 @@ import { ShopSelect } from "@/features/shops/components/shop-select"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS } from "@/features/shops/lib/shops"
 import { StaffProfileFields } from "./staff-profile-fields"
+import { hasFinePointer } from "@/shared/lib/pointer"
 
 const roleOptions = [
   { key: "cashier", label: "Cashier" },
@@ -62,7 +63,7 @@ export const CreateStaffDialog = ({ user, pending, onClose, onCreate }) => {
 
           <ShopSelect id="staff-shop" value={shopId} onChange={setShopId} label="Works at" />
 
-          <StaffProfileFields values={profile} onChange={(patch) => setProfile((current) => ({ ...current, ...patch }))} autoFocus />
+          <StaffProfileFields values={profile} onChange={(patch) => setProfile((current) => ({ ...current, ...patch }))} autoFocus={hasFinePointer()} />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field>

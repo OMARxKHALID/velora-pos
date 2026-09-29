@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/shared/components/ui/button"
 import { Input } from "@/shared/components/ui/input"
+import { Label } from "@/shared/components/ui/label"
 import { ColorDot } from "./color-dot"
 import { sizeLabel } from "../lib/catalog"
 
@@ -42,17 +43,17 @@ export const OpeningStockGrid = ({ colors, sizes, value, onChange, unit = "pairs
             {sizes.map((size) => {
               const key = stockKey(color, size)
               return (
-                <label key={key} className="flex flex-col items-center gap-1 border px-1 pt-1 pb-1.5 focus-within:border-primary">
+                <Label key={key} className="flex-col gap-1 border px-1 pt-1 pb-1.5 font-normal focus-within:border-primary">
                   <span className="text-2xs text-muted-foreground tabular-nums">{sizeLabel(size)}</span>
-                  <input
+                  <Input
                     value={value[key] ?? ""}
                     onChange={(event) => onChange({ ...value, [key]: event.target.value.replace(/\D/g, "").slice(0, 3) })}
                     inputMode="numeric"
                     placeholder="0"
                     aria-label={`${color} ${sizeLabel(size)} in stock`}
-                    className="w-full bg-transparent text-center text-sm font-semibold tabular-nums outline-none placeholder:text-muted-foreground/60 pointer-coarse:text-base"
+                    className="h-auto border-0 py-0 text-center text-sm font-semibold tabular-nums placeholder:text-muted-foreground/60 pointer-coarse:h-auto"
                   />
-                </label>
+                </Label>
               )
             })}
           </div>

@@ -1,4 +1,5 @@
-export const beep = (ok = true) => {
+export const beep = (ok = true, settings = null) => {
+  if (settings?.scanBeep === false) return
   const AudioContext = window.AudioContext ?? window.webkitAudioContext
   if (!AudioContext) return
   const audio = new AudioContext()

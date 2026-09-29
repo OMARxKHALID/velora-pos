@@ -2,6 +2,7 @@
 
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { Button } from "@/shared/components/ui/button"
 import { Surface } from "@/shared/components/ui/surface"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
@@ -24,9 +25,7 @@ const GlobalError = ({ error, retry }) => {
                 </>
               ) : null}
             </p>
-            <button type="button" onClick={handleRetry} className="h-9 bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/80">
-              Try again
-            </button>
+            <Button onClick={handleRetry}>Try again</Button>
           </Surface>
         </main>
       </body>

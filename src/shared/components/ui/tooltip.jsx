@@ -3,10 +3,10 @@
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 import { cn } from "cn"
 
-function TooltipProvider({
+const TooltipProvider = ({
   delay = 0,
   ...props
-}) {
+}) => {
   return (
     <TooltipPrimitive.Provider
       data-slot="tooltip-provider"
@@ -16,19 +16,19 @@ function TooltipProvider({
   )
 }
 
-function Tooltip({
+const Tooltip = ({
   ...props
-}) {
+}) => {
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
 }
 
-function TooltipTrigger({
+const TooltipTrigger = ({
   ...props
-}) {
+}) => {
   return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
 }
 
-function TooltipContent({
+const TooltipContent = ({
   className,
   side = "top",
   sideOffset = 4,
@@ -36,7 +36,7 @@ function TooltipContent({
   alignOffset = 0,
   children,
   ...props
-}) {
+}) => {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Positioner

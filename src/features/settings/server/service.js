@@ -1,11 +1,18 @@
 import { z } from "zod"
 import { NTN_PATTERN, POSID_PATTERN } from "@/features/fbr/lib/fbr"
+import { CASHIER_DISCOUNT_LIMITS, RETURN_WINDOWS } from "@/features/ledger/lib/rules"
+import { RECEIPT_TEXT_SIZES, RECEIPT_TITLE_STYLES } from "@/features/pos/lib/receipt-design"
+import { CASH_NOTE_CHOICES, DISCOUNT_STEP_CHOICES, MAX_RETURN_REASONS, PHONE_REQUIRED_CHOICES } from "@/features/pricing/lib/pricing"
 import { UserError, parseInput } from "@/shared/lib/errors"
 import { changesBetween, writeAudit } from "@/server/db/audit"
 import { COLLECTIONS as C } from "@/server/db/collections"
 import { withTransaction } from "@/server/db/transaction"
 
-const FIELDS = ["taxEnabled", "taxLabel", "taxRate", "productDiscountEnabled", "cartDiscountEnabled", "customerInfoEnabled", "lowStockThreshold", "paymentMethods", "posColumns", "cashRounding", "pricesIncludeTax", "fbrEnabled", "fbrServiceFee", "receipt"]
+const FIELDS = ["taxEnabled", "taxLabel", "taxRate", "productDiscountEnabled", "cartDiscountEnabled", "customerInfoEnabled", "lowStockThreshold", "paymentMethods", "posColumns", "cashRounding", "pricesIncludeTax", "fbrEnabled", "fbrServiceFee", "returnWindowDays", "cashierDiscountPct", "discountSteps", "restockReturns", "returnReasons", "cashNoteAbove", "scanBeep", "phoneRequiredAbove", "receipt"]
+
+const oneOf = (values) => z.union(values.map((value) => z.literal(value)))
+
+const distinct = (list) => new Set(list.map((item) => String(item).toLowerCase())).size === list.length
 
 const patchSchema = z
   .object({
@@ -22,14 +29,32 @@ const patchSchema = z
     pricesIncludeTax: z.boolean(),
     fbrEnabled: z.boolean(),
     fbrServiceFee: z.boolean(),
+    returnWindowDays: oneOf(RETURN_WINDOWS),
+    cashierDiscountPct: oneOf(CASHIER_DISCOUNT_LIMITS),
+    discountSteps: z.array(oneOf(DISCOUNT_STEP_CHOICES)).min(1, { error: "Keep at least one discount button" }).max(6, { error: "At most six discount buttons fit" }).refine(distinct),
+    restockReturns: z.boolean(),
+    returnReasons: z.array(z.string().trim().min(2, { error: "Each reason needs a few letters" }).max(40)).max(MAX_RETURN_REASONS, { error: `At most ${MAX_RETURN_REASONS} reasons` }).refine(distinct, { error: "Each reason must be different" }),
+    cashNoteAbove: oneOf(CASH_NOTE_CHOICES),
+    scanBeep: z.boolean(),
+    phoneRequiredAbove: oneOf(PHONE_REQUIRED_CHOICES),
     receipt: z
       .object({
         title: z.string().trim().max(40),
+        tagline: z.string().trim().max(60),
+        headerNote: z.string().trim().max(120),
         footer: z.string().trim().max(160),
         policy: z.string().trim().max(400),
         paper: z.enum(["58", "80"]),
+        textSize: z.enum(RECEIPT_TEXT_SIZES),
+        titleStyle: z.enum(RECEIPT_TITLE_STYLES),
+        showShopName: z.boolean(),
+        showAddress: z.boolean(),
+        showPhone: z.boolean(),
         showCashier: z.boolean(),
         showCustomer: z.boolean(),
+        showColorSize: z.boolean(),
+        showLineDiscounts: z.boolean(),
+        showReturnDeadline: z.boolean(),
         showBarcode: z.boolean(),
       })
       .partial()

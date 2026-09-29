@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowsSplitIcon, CreditCardIcon, DeviceMobileIcon, MoneyIcon, PhoneIcon, UserIcon } from "@phosphor-icons/react"
@@ -14,6 +14,7 @@ import { Input } from "@/shared/components/ui/input"
 import { Segmented } from "@/shared/components/ui/segmented"
 import { REFERENCE_REQUIRED, cashRoundingFor } from "@/features/ledger/lib/rules"
 import { formatMoney, toPaisa } from "@/shared/lib/money"
+import { phoneLooksValid, phoneRequiredFor } from "@/features/pricing/lib/pricing"
 import { hasFinePointer } from "@/shared/lib/pointer"
 import { MAX_REFERENCE, referenceError } from "../lib/card-reference"
 import { cardEnabled, enabledOtherMethods, methodLabel } from "../lib/payment-methods"
@@ -23,6 +24,8 @@ import { AddReferenceLink, CardReferenceField } from "./card-reference-field"
 import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
 
 const tabColumns = { 1: "grid-cols-1", 2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4" }
+
+const handleSelectAll = (event) => event.currentTarget.select()
 
 const ctaClass = "h-12 w-full whitespace-normal pointer-coarse:h-14"
 
@@ -56,6 +59,7 @@ const CashForm = ({ total, rounding, busy, onPay }) => {
                 id={field.name}
                 inputMode="numeric"
                 autoFocus={hasFinePointer()}
+                onFocus={handleSelectAll}
                 className="text-xl font-semibold tabular-nums sm:text-2xl pointer-coarse:text-xl!"
                 aria-invalid={fieldState.invalid}
               />
@@ -258,6 +262,7 @@ const SplitForm = ({ total, methods, busy, onPay }) => {
             <InputGroupInput
               id="split-cash-part"
               value={cashPart}
+              onFocus={handleSelectAll}
               onChange={(e) => {
                 const val = e.target.value.replace(/\D/g, "")
                 setCashPart(val)
@@ -274,20 +279,16 @@ const SplitForm = ({ total, methods, busy, onPay }) => {
           <div className="flex items-center justify-between gap-2">
             <FieldLabel htmlFor="split-tendered">Cash received</FieldLabel>
             {cashRupees > 0 && tenderedRupees !== cashRupees && (
-              <button
-                type="button"
-                onClick={() => setTendered(String(cashRupees))}
-                className="py-0.5 text-xs font-medium text-gold hover:underline pointer-coarse:py-2"
-              >
+              <Button type="button" variant="link" size="inline" onClick={() => setTendered(String(cashRupees))} className="no-underline hover:underline">
                 Exact
-              </button>
+              </Button>
             )}
           </div>
           <InputGroup>
             <InputGroupAddon>
               <InputGroupText>Rs</InputGroupText>
             </InputGroupAddon>
-            <InputGroupInput id="split-tendered" value={tendered} onChange={(e) => setTendered(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="0" className="font-semibold tabular-nums" />
+            <InputGroupInput id="split-tendered" value={tendered} onFocus={handleSelectAll} onChange={(e) => setTendered(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="0" className="font-semibold tabular-nums" />
           </InputGroup>
         </Field>
       </div>
@@ -358,6 +359,9 @@ export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
   const customerName = useCartStore(({ customerName }) => customerName)
   const customerPhone = useCartStore(({ customerPhone }) => customerPhone)
   const setCustomer = useCartStore(({ setCustomer }) => setCustomer)
+  const [phoneError, setPhoneError] = useState(false)
+  const phoneInput = useRef(null)
+  const phoneNeeded = phoneRequiredFor(settings, total)
   const others = enabledOtherMethods(settings)
   const splitMethods = [...(cardEnabled(settings) ? ["card"] : []), ...others]
   const tabs = [
@@ -369,6 +373,11 @@ export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
 
   const handlePay = async (payments) => {
     if (busy) return
+    if (phoneNeeded && !phoneLooksValid(customerPhone)) {
+      setPhoneError(true)
+      phoneInput.current?.focus()
+      return
+    }
     setBusy(true)
     try {
       await onPay(payments)
@@ -390,15 +399,11 @@ export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
         {settings?.customerInfoEnabled !== false && (
           <div className="min-w-0 space-y-2 border-b pb-4">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">Customer (optional)</span>
+              <span className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">{phoneNeeded ? "Customer (phone needed)" : "Customer (optional)"}</span>
               {(customerName || customerPhone) && (
-                <button
-                  type="button"
-                  onClick={() => setCustomer({ name: "", phone: "" })}
-                  className="py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground pointer-coarse:py-2"
-                >
+                <Button type="button" variant="text" size="inline" onClick={() => setCustomer({ name: "", phone: "" })} className="font-normal">
                   Clear
-                </button>
+                </Button>
               )}
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
@@ -406,14 +411,30 @@ export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
                 <InputGroupAddon>
                   <UserIcon className="size-3.5 shrink-0 text-gold" />
                 </InputGroupAddon>
-                <InputGroupInput placeholder="Customer name" value={customerName} onChange={(e) => setCustomer({ name: e.target.value })} autoComplete="off" />
+                <InputGroupInput aria-label="Customer name" name="customerName" placeholder="Customer name" value={customerName} onChange={(e) => setCustomer({ name: e.target.value })} autoComplete="off" />
               </InputGroup>
               <InputGroup>
                 <InputGroupAddon>
                   <PhoneIcon className="size-3.5 shrink-0 text-gold" />
                 </InputGroupAddon>
-                <InputGroupInput placeholder="Phone number" type="tel" inputMode="tel" value={customerPhone} onChange={(e) => setCustomer({ phone: e.target.value })} autoComplete="off" />
+                <InputGroupInput
+                  ref={phoneInput}
+                  aria-label="Customer phone"
+                  aria-invalid={phoneError}
+                  aria-required={phoneNeeded}
+                  name="customerPhone"
+                  placeholder="03xx xxxxxxx"
+                  type="tel"
+                  inputMode="tel"
+                  value={customerPhone}
+                  onChange={(e) => {
+                    setPhoneError(false)
+                    setCustomer({ phone: e.target.value })
+                  }}
+                  autoComplete="off"
+                />
               </InputGroup>
+              {phoneError && <FieldError className="sm:col-start-2" errors={[{ message: `Enter the phone number for sales above ${formatMoney(settings.phoneRequiredAbove)}` }]} />}
             </div>
           </div>
         )}

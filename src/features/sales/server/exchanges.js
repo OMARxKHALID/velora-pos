@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { applyExchange } from "@/features/ledger/lib/rules"
 import { moveStock } from "@/features/inventory/server/stock"
-import { fbrSeqOf, registerFor, saveFbrSeq } from "@/features/pos/server/register"
+import { fbrSeqOf, registerFor, saveFbrSeq, shopSettings } from "@/features/pos/server/register"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/server/db/collections"
 import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
 import { UserError, parseInput } from "@/shared/lib/errors"
@@ -29,6 +29,7 @@ const exchangeInSession = async (db, session, { user, shopId, at }, request) => 
   const products = await docsOf(db, session, C.products, { _id: { $in: [...new Set(variants.map(({ productId }) => productId))] }, shopId })
   const stock = await db.collection(C.stock).findOne({ shopId, variantId: request.toVariantId }, { session })
   const register = await registerFor(db, session, shopId, sale.registerId)
+  const { returnWindowDays } = await shopSettings(db, session, shopId)
 
   let result
   try {
@@ -43,7 +44,7 @@ const exchangeInSession = async (db, session, { user, shopId, at }, request) => 
         movements: [],
         fbrSeq: fbrSeqOf(register),
       },
-      { ...request, userId: user.id, at }
+      { ...request, userId: user.id, at, returnWindowDays }
     )
   } catch (error) {
     throw new UserError(error.message)

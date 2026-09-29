@@ -7,7 +7,7 @@ import { DayPicker, getDefaultClassNames } from "react-day-picker"
 import { Button, buttonVariants } from "@/shared/components/ui/button"
 import { CaretLeftIcon, CaretRightIcon, CaretDownIcon } from "@phosphor-icons/react"
 
-function Calendar({
+export const Calendar = ({
   className,
   classNames,
   showOutsideDays = true,
@@ -17,7 +17,7 @@ function Calendar({
   formatters,
   components,
   ...props
-}) {
+}) => {
   const defaultClassNames = getDefaultClassNames()
 
   return (
@@ -173,13 +173,13 @@ function Calendar({
   )
 }
 
-function CalendarDayButton({
+const CalendarDayButton = ({
   className,
   day,
   modifiers,
   locale,
   ...props
-}) {
+}) => {
   const defaultClassNames = getDefaultClassNames()
 
   const ref = React.useRef(null)
@@ -211,4 +211,3 @@ function CalendarDayButton({
   )
 }
 
-export { Calendar, CalendarDayButton }

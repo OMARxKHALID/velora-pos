@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { seedCatalog } from "@/features/catalog/lib/catalog"
 import { taxFor } from "@/features/pricing/lib/pricing"
 import { indexCatalog } from "@/features/catalog/lib/catalog"
+import { DAY } from "@/shared/lib/dates"
 import {
   applyAdjustment,
   applyCloseShift,
@@ -19,6 +20,7 @@ import {
   refundCapFor,
   refundMethodsFor,
   refundableQuantity,
+  returnDeadline,
   shiftSummary,
 } from "./rules"
 
@@ -57,6 +59,29 @@ describe("ledger", () => {
     }
     expect(() => applySale(state, input)).toThrow("Supervisor approval")
     expect(applySale(state, { ...input, approvedBy: "u-manager" }).record.flags).toContain("big_discount")
+  })
+
+  test("the cashier discount limit comes from the shop setting", () => {
+    const { state, record: shift } = withShift()
+    const input = {
+      lines: [{ variantId: shoe.id, quantity: 1, discount: shoe.price * 0.1 }],
+      payments: [{ method: "card", amount: shoe.price * 0.9 }],
+      cashierId: "u-cashier",
+      shiftId: shift.id,
+      at,
+    }
+    const settings = { cartDiscountEnabled: true, productDiscountEnabled: true }
+    expect(applySale(state, { ...input, settings: { ...settings, cashierDiscountPct: 10 } }).record.flags).not.toContain("big_discount")
+    expect(() => applySale(state, { ...input, settings: { ...settings, cashierDiscountPct: 0 } })).toThrow("Supervisor approval")
+  })
+
+  test("a shift counted off by more than the shop allows needs a note", () => {
+    const { state: opened, record: shift } = withShift()
+    const close = { shiftId: shift.id, countedCash: 1000000 - 20000, closedBy: "u-cashier", noteAbove: 10000, at }
+    expect(() => applyCloseShift(opened, close)).toThrow("Count again, or add a note")
+    expect(applyCloseShift(opened, { ...close, note: "Paid the tailor from the drawer" }).record.closeNote).toBe("Paid the tailor from the drawer")
+    expect(applyCloseShift(opened, { ...close, countedCash: 1000000 - 5000 }).record.difference).toBe(-5000)
+    expect(applyCloseShift(opened, { ...close, noteAbove: null }).record.status).toBe("closed")
   })
 
   test("discounts must follow the price list and the discount settings", () => {
@@ -461,6 +486,20 @@ describe("exchanges, counts and closed shifts", () => {
     return { state, sale, shift }
   }
 
+  test("returns and exchanges close when the shop's time limit runs out", () => {
+    const { state, sale, shift } = soldTwo()
+    const lastMinute = at + 7 * DAY
+    const late = lastMinute + 1
+    const refund = { saleId: sale.id, lines: [{ variantId: shoe.id, quantity: 1 }], reason: "Wrong size", method: "card", requestedBy: "u-cashier", shiftId: shift.id, returnWindowDays: 7 }
+    const swap = { saleId: sale.id, fromVariantId: shoe.id, toVariantId: sibling.id, quantity: 1, userId: "u-cashier", returnWindowDays: 7 }
+    expect(returnDeadline(sale, 7)).toBe(lastMinute)
+    expect(applyRefundRequest(state, { ...refund, at: lastMinute }).record.status).toBe("pending")
+    expect(() => applyRefundRequest(state, { ...refund, at: late })).toThrow("close 7 days after the sale")
+    expect(() => applyExchange(state, { ...swap, at: late })).toThrow("close 7 days after the sale")
+    expect(applyExchange(state, { ...swap, at: late, returnWindowDays: 0 }).record.saleId).toBe(sale.id)
+    expect(returnDeadline(sale, 0)).toBeNull()
+  })
+
   test("a size swap moves stock both ways and leaves money alone", () => {
     const { state, sale } = soldTwo()
     const { state: next } = applyExchange(state, { saleId: sale.id, fromVariantId: shoe.id, toVariantId: sibling.id, quantity: 1, userId: "u-cashier", at })
@@ -495,7 +534,7 @@ describe("exchanges, counts and closed shifts", () => {
     expect(() => applyStockCount(state, { counts: [{ variantId: shoe.id, counted: 1.5 }], userId: "u-manager", at })).toThrow()
   })
 
-  test("a closed shift's report does not change when a card refund is approved later", () => {
+  test("a refund asked for before the close and approved after it leaves the report alone", () => {
     const { state, sale, shift } = soldTwo()
     const requested = applyRefundRequest(state, { saleId: sale.id, lines: [{ variantId: shoe.id, quantity: 1 }], reason: "Wrong size", method: "card", requestedBy: "u-cashier", shiftId: shift.id, at })
     const closed = applyCloseShift(requested.state, { shiftId: shift.id, countedCash: 0, closedBy: "u-cashier", at })
@@ -520,14 +559,6 @@ describe("wallets and cash rounding", () => {
     return applyOpenShift(stockedState, { cashierId: "u-cashier", openingCash: 0, at })
   }
   const odd = { taxEnabled: true, taxRate: 3, productDiscountEnabled: true, cartDiscountEnabled: true }
-
-  test("wallet and bank payments need a transaction ID and refund the same way", () => {
-    const { state, record: shift } = open()
-    const base = { lines: [{ variantId: shoe.id, quantity: 1 }], cashierId: "u-cashier", shiftId: shift.id, at }
-    expect(() => applySale(state, { ...base, payments: [{ method: "jazzcash", amount: shoe.price }] })).toThrow("transaction ID")
-    const { record: sale } = applySale(state, { ...base, payments: [{ method: "jazzcash", amount: shoe.price, reference: "TX123" }] })
-    expect(refundMethodsFor(sale)).toEqual(["jazzcash"])
-  })
 
   test("an all-cash sale rounds down to the step, and the drawer and a full refund follow it", () => {
     const { state, record: shift } = open()

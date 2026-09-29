@@ -1,6 +1,6 @@
 "use client"
 
-import { PauseCircleIcon } from "@phosphor-icons/react"
+import { StackIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { Button } from "@/shared/components/ui/button"
 
@@ -23,7 +23,7 @@ export const HeldCartsButton = ({ count, onClick, variant = "panel", className }
         onClick={onClick}
         aria-label={heldLabel(count)}
       >
-        <PauseCircleIcon className="size-5" />
+        <StackIcon className="size-5" />
         <CountBadge count={count} className="absolute -top-1.5 -right-1.5" />
       </Button>
     )
@@ -38,7 +38,7 @@ export const HeldCartsButton = ({ count, onClick, variant = "panel", className }
         className={cn("shrink-0 border-gold/50 bg-gold/10 text-gold hover:bg-gold/20", className)}
         onClick={onClick}
       >
-        <PauseCircleIcon />
+        <StackIcon />
         {heldLabel(count)}
       </Button>
     )
@@ -55,7 +55,7 @@ export const HeldCartsButton = ({ count, onClick, variant = "panel", className }
       title={active ? `${heldLabel(count)} waiting` : "No held carts"}
       className={cn("relative", active && "border-gold/50 bg-gold/10 text-gold hover:bg-gold/20", className)}
     >
-      <PauseCircleIcon className="size-4" />
+      <StackIcon className="size-4" />
       {active && <CountBadge count={count} className="absolute -top-1.5 -right-1.5" />}
     </Button>
   )

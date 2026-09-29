@@ -4,7 +4,7 @@ import { applyOpenShift, applyPurchase, applyRefundDecision, applyRefundRequest,
 import { createSeed } from "@/features/sample-data/lib/seed"
 import { SAMPLE_TEAM } from "@/features/sample-data/lib/team"
 import { DAY } from "@/shared/lib/dates"
-import { brandPerformance, cashierIdsFor, cashierStats, customRangeError, dailySeries, hourlySeries, lowStock, notSelling, paymentSplit, periodBetween, periodFor, runningShort, splitLiveTail, stockValue, summarize } from "./analytics"
+import { brandPerformance, cashierIdsFor, cashierStats, customRangeError, dailySeries, hourlySeries, lowStock, notSelling, paymentSplit, periodBetween, periodFor, runningShort, salesPace, splitLiveTail, stockValue, summarize } from "./analytics"
 
 test("net revenue and profit subtract approved refunds, keeping cost when restocked", () => {
   const catalog = seedCatalog()
@@ -77,7 +77,6 @@ test("low stock follows the shop setting when one is given", () => {
   const state = createSeed(new Date(2026, 8, 16, 15).getTime())
   expect(lowStock(state, 5).length).toBeGreaterThan(lowStock(state, 0).length)
   expect(lowStock(state).every(({ quantity, variant }) => quantity <= variant.lowStockAt)).toBe(true)
-  expect(lowStock(state, () => 5)).toEqual(lowStock(state, 5))
 })
 
 test("the staff panel lists current cashiers and anyone who has sold", () => {
@@ -140,6 +139,9 @@ test("custom dates must be real, in order, and a year or less", () => {
   expect(customRangeError("2026-09-10", "2026-09-01")).toMatch(/before/)
   expect(customRangeError("2025-01-01", "2026-09-01")).toMatch(/year/)
   expect(customRangeError("", "2026-09-01")).toMatch(/Pick/)
+  expect(customRangeError("2026-13-01", "2026-13-05")).toMatch(/Pick/)
+  expect(customRangeError("2026-02-31", "2026-03-05")).toMatch(/Pick/)
+  expect(customRangeError("2028-02-29", "2028-03-01")).toBeNull()
 })
 
 test("running short adds sizes that will sell out within a week at the recent pace", () => {
@@ -156,4 +158,9 @@ test("running short adds sizes that will sell out within a week at the recent pa
   expect(row.daysLeft).toBeCloseTo(7, 5)
   expect(runningShort(state, { threshold: 2, now: at, horizon: 6 }).some(({ variant }) => variant.id === fast.id)).toBe(false)
   expect(rows.some(({ variant }) => variant.id === slow.id)).toBe(false)
+
+  const sale = state.sales.at(-1)
+  const requested = applyRefundRequest(state, { saleId: sale.id, lines: [{ variantId: fast.id, quantity: 8, restock: true }], reason: "Wrong size", method: "card", requestedBy: "u-cashier", shiftId: opened.record.id, at: at - 6 * DAY })
+  const returned = applyRefundDecision(requested.state, { refundId: requested.record.id, approve: true, userId: "u-manager", at: at - 6 * DAY }).state
+  expect(salesPace(returned, at - 28 * DAY, at)[fast.id]).toBeCloseTo(8 / 28, 5)
 })

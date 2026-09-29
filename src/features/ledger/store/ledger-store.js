@@ -6,6 +6,8 @@ import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 
 const UNREACHABLE = "Could not reach the server. Check the connection and try again."
 
+const APP_UPDATED = "Velora was updated. Reload the page, then try again."
+
 const LEDGER_TIMEOUT_MS = 30_000
 
 const ACTION_TIMEOUTS = { recordSale: 15_000 }
@@ -47,7 +49,8 @@ const withLock = (name, work) => (typeof navigator !== "undefined" && navigator.
 export const createLedgerStore = ({ directory = {}, user = null, till = null, actions = {}, loadLedger = fetchLedger, sendSale = sendOfflineSale, onChanged = () => {}, timeouts = ACTION_TIMEOUTS } = {}) =>
   createStore()((set, get) => {
     const call = async (name, ...args) => {
-      const result = await withinTime(actions[name](...args), timeouts[name]).catch(() => {
+      const result = await withinTime(actions[name](...args), timeouts[name]).catch((error) => {
+        if (error?.name === "UnrecognizedActionError") throw new Error(APP_UPDATED)
         set({ offline: true })
         throw unreachable()
       })

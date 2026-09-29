@@ -29,6 +29,13 @@ test("a refused change throws the server's message and keeps the old data", asyn
   await expect(offline.getState().recordSale({})).rejects.toThrow("Could not reach the server")
 })
 
+test("a page left open across a deploy asks for a reload instead of going offline", async () => {
+  const stale = Object.assign(new Error("Server Action was not found"), { name: "UnrecognizedActionError" })
+  const store = createLedgerStore({ actions: { recordSale: async () => Promise.reject(stale) }, loadLedger: async () => snapshot() })
+  await expect(store.getState().recordSale({})).rejects.toThrow("Reload the page")
+  expect(store.getState().offline).toBe(false)
+})
+
 test("settings change on screen at once and roll back if the server refuses", async () => {
   const store = createLedgerStore({ actions: { updateSettings: async () => ({ error: "Use at most two decimals" }) }, loadLedger: async () => snapshot() })
   store.setState({ settings: { taxRate: 5 } })

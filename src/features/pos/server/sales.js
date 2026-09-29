@@ -1,17 +1,18 @@
 import { z } from "zod"
 import { readApproval } from "@/features/auth/server/approval-token"
 import { UserError, parseInput } from "@/shared/lib/errors"
-import { MAX_CASHIER_DISCOUNT, PAYMENT_METHODS, applySale } from "@/features/ledger/lib/rules"
+import { CASHIER_DISCOUNT_LIMITS, PAYMENT_METHODS, applySale, cashierLimitOf } from "@/features/ledger/lib/rules"
 import { moveStock } from "@/features/inventory/server/stock"
-import { cartTotals, effectiveRate } from "@/features/pricing/lib/pricing"
+import { cartTotals, effectiveRate, phoneLooksValid, phoneRequiredFor } from "@/features/pricing/lib/pricing"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/server/db/collections"
 import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
+import { formatMoney } from "@/shared/lib/money"
 import { inBlocks, receiptNumber } from "../lib/receipts"
 import { fbrSeqOf, registerFor, saveFbrSeq, shopSettings } from "./register"
 
 const CLOCK_SLACK = 5 * 60 * 1000
 const PRICE_HISTORY_SLACK = 24 * 60 * 60 * 1000
-const TILL_SETTINGS = ["taxEnabled", "taxRate", "productDiscountEnabled", "cartDiscountEnabled", "pricesIncludeTax", "fbrServiceFee", "cashRounding"]
+const TILL_SETTINGS = ["taxEnabled", "taxRate", "productDiscountEnabled", "cartDiscountEnabled", "pricesIncludeTax", "fbrServiceFee", "cashRounding", "cashierDiscountPct"]
 
 const lineSchema = z.object({
   variantId: z.string().min(1).max(80),
@@ -50,6 +51,7 @@ const offlineSaleSchema = saleSchema.extend({
     pricesIncludeTax: z.boolean().optional(),
     fbrServiceFee: z.boolean().optional(),
     cashRounding: z.union([z.literal(1), z.literal(5), z.literal(10)]).optional(),
+    cashierDiscountPct: z.union(CASHIER_DISCOUNT_LIMITS.map((pct) => z.literal(pct))).optional(),
   }),
 })
 
@@ -87,7 +89,7 @@ const shopConfig = async (db, shopId) => {
 const buildSale = async (db, session, { user, shift, register, shop, categories, catalog, settings, lines, input, at, approvalSecret, number }) => {
   const { rows, subtotal } = cartTotals(lines, input.discountPct, indexOf(catalog), settings)
   const cartDiscount = rows.reduce((sum, { discount }) => sum + discount, 0)
-  const needsApproval = cartDiscount > subtotal * MAX_CASHIER_DISCOUNT
+  const needsApproval = cartDiscount > subtotal * cashierLimitOf(settings)
   const approvedBy = needsApproval ? await approverFor(db, session, { approvalSecret, cashierId: user.id, discountPct: input.discountPct, token: input.approvalToken, at }) : null
   try {
     const { record, state } = applySale(
@@ -167,6 +169,7 @@ const recordInSession = async (db, session, { user, shopId, at, approvalSecret, 
 
   const number = await nextReceiptNumber(db, session, register)
   const sale = await buildSale(db, session, { user, shift, register, shop, categories, catalog, settings, lines, input, at, approvalSecret, number })
+  if (phoneRequiredFor(settings, sale.total) && !phoneLooksValid(sale.customerPhone)) throw new UserError(`Enter the customer's phone number for sales above ${formatMoney(settings.phoneRequiredAbove)}`)
   await takeStock(db, session, { sale, number, user, at, allowNegative: false })
 
   const stored = { ...sale, number, flags: sale.flags.filter((flag) => flag !== "negative_stock"), syncedAt: at, offline: false }

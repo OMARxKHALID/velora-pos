@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Field, FieldLabel } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
+import { hasFinePointer } from "@/shared/lib/pointer"
 
 export const DrawerDialog = ({ register, shift, onClose }) => {
   const openDrawer = useLedgerStore(({ openDrawer }) => openDrawer)
@@ -34,7 +35,7 @@ export const DrawerDialog = ({ register, shift, onClose }) => {
           </DialogHeader>
           <Field>
             <FieldLabel htmlFor="drawer-note">Reason</FieldLabel>
-            <Input id="drawer-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="e.g. Change for a Rs 5,000 note" maxLength={120} autoFocus />
+            <Input id="drawer-note" value={note} onChange={(event) => setNote(event.target.value)} placeholder="e.g. Change for a Rs 5,000 note" maxLength={120} autoFocus={hasFinePointer()} />
           </Field>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>

@@ -2,11 +2,11 @@ import * as React from "react"
 import { Input as InputPrimitive } from "@base-ui/react/input"
 import { cn } from "cn"
 
-function Input({
+const Input = ({
   className,
   type,
   ...props
-}) {
+}) => {
   return (
     <InputPrimitive
       type={type}

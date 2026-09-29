@@ -15,12 +15,16 @@ export const periodFor = (range, now = Date.now(), startOfDay = localMidnight) =
   return { from, to: now, prevFrom: from - days * DAY, prevTo: from - days * DAY + (now - from), days }
 }
 
+export const RANGES = ["today", "7d", "30d", "custom"]
 export const MAX_CUSTOM_DAYS = 366
+export const PACE_DAYS = 28
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
+const isRealDate = (value) => ISO_DATE.test(value ?? "") && !Number.isNaN(Date.parse(value)) && new Date(Date.parse(value)).toISOString().startsWith(value)
+
 export const customRangeError = (from, to) => {
-  if (!ISO_DATE.test(from ?? "") || !ISO_DATE.test(to ?? "")) return "Pick a start and an end date"
+  if (!isRealDate(from) || !isRealDate(to)) return "Pick a start and an end date"
   if (from > to) return "The start date must be on or before the end date"
   if ((Date.parse(to) - Date.parse(from)) / DAY + 1 > MAX_CUSTOM_DAYS) return "Pick a year or less"
   return null
@@ -139,16 +143,18 @@ export const lowStock = (state, threshold = null) => {
     .toSorted((a, b) => a.quantity - b.quantity)
 }
 
-export const salesPace = (sales, from, to) => {
+export const salesPace = ({ sales, refunds = [] }, from, to) => {
   const sold = {}
   for (const sale of within(sales, "soldAt", from, to)) for (const { variantId, quantity } of sale.items) sold[variantId] = (sold[variantId] ?? 0) + quantity
+  const restocked = within(refunds.filter(({ status }) => status === "approved"), "decidedAt", from, to)
+  for (const refund of restocked) for (const { variantId, quantity, restock } of refund.items) if (restock && sold[variantId]) sold[variantId] -= quantity
   const days = (to - from) / DAY
-  return Object.fromEntries(Object.entries(sold).map(([variantId, quantity]) => [variantId, quantity / days]))
+  return Object.fromEntries(Object.entries(sold).map(([variantId, quantity]) => [variantId, Math.max(quantity, 0) / days]))
 }
 
-export const runningShort = (state, { threshold = null, now = Date.now(), window = 28, horizon = 7 } = {}) => {
+export const runningShort = (state, { threshold = null, now = Date.now(), window = PACE_DAYS, horizon = 7 } = {}) => {
   const { productById } = indexCatalog(state)
-  const pace = salesPace(state.sales, now - window * DAY, now)
+  const pace = salesPace(state, now - window * DAY, now)
   const low = new Set(lowStock(state, threshold).map(({ variant }) => variant.id))
   return state.variants
     .filter((variant) => variant.active && productById[variant.productId]?.status === "active")

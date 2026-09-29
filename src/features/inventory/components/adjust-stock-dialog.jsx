@@ -4,8 +4,8 @@ import { useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
-import { cn } from "cn"
 import { Button } from "@/shared/components/ui/button"
+import { ToggleGroup, ToggleGroupItem } from "@/shared/components/ui/toggle-group"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
@@ -77,18 +77,13 @@ const AdjustForm = ({ row, size, onHand, onDone }) => {
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel>Reason</FieldLabel>
-              <div className="flex flex-wrap gap-1.5">
+              <ToggleGroup aria-label="Reason" variant="solid" size="chip" spacing={1.5} value={field.value ? [field.value] : []} onValueChange={([next]) => next && field.onChange(next)} className="flex-wrap">
                 {Object.entries(reasons).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => field.onChange(key)}
-                    className={cn("h-8 border px-3 text-xs transition-colors pointer-coarse:h-11", field.value === key ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/60")}
-                  >
+                  <ToggleGroupItem key={key} value={key} className="h-8">
                     {label}
-                  </button>
+                  </ToggleGroupItem>
                 ))}
-              </div>
+              </ToggleGroup>
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
@@ -130,22 +125,14 @@ export const AdjustStockDialog = ({ row, onClose }) => {
         </DialogHeader>
         <Field>
           <FieldLabel>Size</FieldLabel>
-          <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
+          <ToggleGroup aria-label="Size" variant="chip" size="tile" spacing={1.5} value={variantId ? [variantId] : []} onValueChange={([next]) => next && setVariantId(next)} className="grid w-full grid-cols-4 sm:grid-cols-5">
             {row.sizes.map(({ variant }) => (
-              <button
-                key={variant.id}
-                type="button"
-                onClick={() => setVariantId(variant.id)}
-                className={cn(
-                  "flex h-12 flex-col items-center justify-center border text-sm transition-colors",
-                  variantId === variant.id ? "border-primary bg-accent" : "hover:border-primary/60"
-                )}
-              >
+              <ToggleGroupItem key={variant.id} value={variant.id} className="h-12 px-0 text-sm aria-pressed:bg-accent aria-pressed:hover:bg-accent">
                 <span className="font-semibold tabular-nums">{variant.attributes.size}</span>
                 <span className="text-2xs text-muted-foreground tabular-nums">{stock[variant.id] ?? 0} left</span>
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
           {size && <FieldDescription className="font-mono">Barcode {size.variant.barcode} · SKU {size.variant.sku}</FieldDescription>}
         </Field>
         {size ? (

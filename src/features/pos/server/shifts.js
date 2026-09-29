@@ -4,7 +4,7 @@ import { applyCloseShift, applyOpenShift } from "@/features/ledger/lib/rules"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/server/db/collections"
 import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
 import { MAX_BLOCKS } from "../lib/receipts"
-import { registerFor, reserveOfflineBlock } from "./register"
+import { registerFor, reserveOfflineBlock, shopSettings } from "./register"
 
 const money = z.number().int({ error: "Whole amounts only" }).min(0, { error: "Cannot be negative" }).max(10_000_000_00, { error: "That looks too large" })
 
@@ -47,9 +47,10 @@ export const closeShift = async ({ db, client, user, shopId, at = new Date() }, 
     const sales = await db.collection(C.sales).find({ shiftId }, { session }).toArray()
     const refunds = await db.collection(C.refunds).find({ $or: [{ payoutShiftId: shiftId }, { approvedInShiftId: shiftId }] }, { session }).toArray()
     const drawerEvents = await db.collection(C.drawerEvents).find({ shiftId }, { session }).toArray()
+    const { cashNoteAbove } = await shopSettings(db, session, shopId)
     let record
     try {
-      ;({ record } = applyCloseShift({ shifts: [fromDoc(shift)], sales: sales.map(fromDoc), refunds: refunds.map(fromDoc), drawerEvents: drawerEvents.map(fromDoc) }, { shiftId, countedCash, closedBy: user.id, note, at }))
+      ;({ record } = applyCloseShift({ shifts: [fromDoc(shift)], sales: sales.map(fromDoc), refunds: refunds.map(fromDoc), drawerEvents: drawerEvents.map(fromDoc) }, { shiftId, countedCash, closedBy: user.id, note, noteAbove: cashNoteAbove ?? null, at }))
     } catch (error) {
       throw new UserError(error.message)
     }

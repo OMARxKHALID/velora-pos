@@ -5,10 +5,11 @@ import { LockSimpleIcon, MagnifyingGlassIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
 import { Segmented } from "@/shared/components/ui/segmented"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
+import { useUrlState } from "@/shared/hooks/use-url-state"
+import { DataTable } from "@/shared/components/ui/data-table"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { TablePageSkeleton } from "@/shared/components/ui/table-skeleton"
-import { TablePagination, resetsPage } from "@/shared/components/ui/table-pagination"
+import { resetsPage } from "@/shared/components/ui/table-pagination"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { formatDateTime } from "@/shared/lib/dates"
@@ -16,7 +17,6 @@ import { getJson, queryString } from "@/shared/lib/get-json"
 import { addReasons, removeReasons } from "../schemas"
 import { LoadError } from "@/shared/components/ui/alert"
 import { Surface } from "@/shared/components/ui/surface"
-import { EmptyState } from "@/shared/components/ui/empty-state"
 
 const types = [
   { key: "all", label: "All" },
@@ -33,6 +33,10 @@ const ranges = [
   { key: "all", label: "All" },
 ]
 
+const typeKeys = types.map(({ key }) => key)
+
+const rangeKeys = ranges.map(({ key }) => key)
+
 const typeLabel = { sale: "Sold", return: "Returned", exchange: "Exchanged", purchase: "Delivery", adjustment: "Fixed" }
 const reasonLabel = { ...addReasons, ...removeReasons }
 
@@ -44,8 +48,8 @@ const referenceFor = (movement) => {
 export const StockHistoryScreen = ({ user }) => {
   const scope = useShopScope(user)
   const nameOf = useStaffName()
-  const [type, setType] = useState("all")
-  const [range, setRange] = useState("7d")
+  const [type, setType] = useUrlState("type", "all", typeKeys)
+  const [range, setRange] = useUrlState("range", "7d", rangeKeys)
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
   const search = useDeferredValue(query.trim())
@@ -56,7 +60,38 @@ export const StockHistoryScreen = ({ user }) => {
     placeholderData: keepPreviousData,
   })
   const rows = data?.rows ?? []
-  const pageCount = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
+  const columns = [
+    {
+      id: "item",
+      header: "Item",
+      meta: { cellClassName: "max-w-64" },
+      cell: ({ row: { original: movement } }) => (
+        <>
+          <p className="truncate text-sm">{movement.productName ?? "Deleted product"}</p>
+          <p className="truncate text-xs text-muted-foreground">
+            {movement.label ?? movement.sku ?? movement.variantId} · {referenceFor(movement)}
+          </p>
+          <p className="truncate text-xs text-muted-foreground @lg:hidden">
+            {formatDateTime(movement.createdAt)} · {nameOf(movement.userId)}
+          </p>
+          <p className="hidden truncate text-xs text-muted-foreground @lg:block @4xl:hidden">By {nameOf(movement.userId)}</p>
+        </>
+      ),
+    },
+    {
+      id: "change",
+      header: "Change",
+      meta: { className: "text-right" },
+      cell: ({ row: { original: movement } }) => (
+        <>
+          <p className={cn("font-semibold tabular-nums", movement.quantity > 0 ? "text-success" : "text-destructive")}>{movement.quantity > 0 ? `+${movement.quantity}` : movement.quantity}</p>
+          <p className="text-xs text-muted-foreground">{typeLabel[movement.type]}</p>
+        </>
+      ),
+    },
+    { id: "when", header: "When", meta: { className: "hidden @lg:table-cell", cellClassName: "text-xs whitespace-nowrap text-muted-foreground" }, cell: ({ row }) => formatDateTime(row.original.createdAt) },
+    { id: "by", header: "By", meta: { className: "hidden @4xl:table-cell", cellClassName: "text-sm" }, cell: ({ row }) => nameOf(row.original.userId) },
+  ]
 
   const withReset = resetsPage(setPage)
 
@@ -69,52 +104,23 @@ export const StockHistoryScreen = ({ user }) => {
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Product, SKU, receipt or person" />
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} aria-label="Search stock history" placeholder="Product, SKU, receipt or person…" />
         </InputGroup>
         <Segmented label="Movement type" options={types} value={type} onChange={withReset(setType)} />
         <Segmented label="Date range" options={ranges} value={range} onChange={withReset(setRange)} />
       </div>
 
       <Surface aria-busy={isPlaceholderData} className={cn("transition-opacity", isPlaceholderData && "opacity-60")}>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Item</TableHead>
-              <TableHead className="text-right">Change</TableHead>
-              <TableHead className="hidden @lg:table-cell">When</TableHead>
-              <TableHead className="hidden @4xl:table-cell">By</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((movement) => {
-              return (
-                <TableRow key={movement.id}>
-                  <TableCell className="max-w-64">
-                    <p className="truncate text-sm">{movement.productName ?? "Deleted product"}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {movement.label ?? movement.sku ?? movement.variantId} · {referenceFor(movement)}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground @lg:hidden">
-                      {formatDateTime(movement.createdAt)} · {nameOf(movement.userId)}
-                    </p>
-                    <p className="hidden truncate text-xs text-muted-foreground @lg:block @4xl:hidden">By {nameOf(movement.userId)}</p>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <p className={cn("font-semibold tabular-nums", movement.quantity > 0 ? "text-success" : "text-destructive")}>
-                      {movement.quantity > 0 ? `+${movement.quantity}` : movement.quantity}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{typeLabel[movement.type]}</p>
-                  </TableCell>
-                  <TableCell className="hidden text-xs whitespace-nowrap text-muted-foreground @lg:table-cell">{formatDateTime(movement.createdAt)}</TableCell>
-                  <TableCell className="hidden text-sm @4xl:table-cell">{nameOf(movement.userId)}</TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-        {error && !data && <LoadError message={error.message} onRetry={refetch} className="m-3" />}
-        {data && !rows.length && <EmptyState>Nothing in the stock history matches.</EmptyState>}
-        {data && <TablePagination page={data.page} pageCount={pageCount} total={data.total} size={data.pageSize} onPageChange={setPage} />}
+        <DataTable
+          columns={columns}
+          data={rows}
+          getRowId={({ id }) => id}
+          empty={error && !data ? <LoadError message={error.message} onRetry={refetch} className="text-left" /> : "Nothing in the stock history matches."}
+          page={data?.page ?? page}
+          pageSize={data?.pageSize}
+          total={data?.total ?? 0}
+          onPageChange={setPage}
+        />
       </Surface>
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <LockSimpleIcon className="size-3.5 text-gold" />

@@ -4,11 +4,11 @@ import * as React from "react"
 import { Autocomplete as AutocompletePrimitive } from "@base-ui/react/autocomplete"
 import { cn } from "cn"
 
-function Autocomplete({ ...props }) {
+const Autocomplete = ({ ...props }) => {
   return <AutocompletePrimitive.Root data-slot="autocomplete" openOnInputClick {...props} />
 }
 
-function AutocompleteInput({ className, ...props }) {
+const AutocompleteInput = ({ className, ...props }) => {
   return (
     <AutocompletePrimitive.Input
       data-slot="autocomplete-input"
@@ -21,7 +21,7 @@ function AutocompleteInput({ className, ...props }) {
   )
 }
 
-function AutocompleteContent({ className, children, side = "bottom", sideOffset = 4, align = "start", ...props }) {
+const AutocompleteContent = ({ className, children, side = "bottom", sideOffset = 4, align = "start", ...props }) => {
   return (
     <AutocompletePrimitive.Portal>
       <AutocompletePrimitive.Positioner side={side} sideOffset={sideOffset} align={align} className="isolate z-50 outline-none">
@@ -40,11 +40,11 @@ function AutocompleteContent({ className, children, side = "bottom", sideOffset 
   )
 }
 
-function AutocompleteList({ className, ...props }) {
+const AutocompleteList = ({ className, ...props }) => {
   return <AutocompletePrimitive.List data-slot="autocomplete-list" className={cn("outline-none empty:hidden", className)} {...props} />
 }
 
-function AutocompleteItem({ className, ...props }) {
+const AutocompleteItem = ({ className, ...props }) => {
   return (
     <AutocompletePrimitive.Item
       data-slot="autocomplete-item"
@@ -57,7 +57,7 @@ function AutocompleteItem({ className, ...props }) {
   )
 }
 
-function AutocompleteEmpty({ className, ...props }) {
+const AutocompleteEmpty = ({ className, ...props }) => {
   return <AutocompletePrimitive.Empty data-slot="autocomplete-empty" className={cn("px-3 py-2 text-xs text-muted-foreground empty:hidden", className)} {...props} />
 }
 

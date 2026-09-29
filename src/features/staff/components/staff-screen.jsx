@@ -16,8 +16,9 @@ import {
 } from "@/shared/components/ui/dropdown-menu"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
 import { Segmented } from "@/shared/components/ui/segmented"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
-import { TablePagination, paginate, resetsPage } from "@/shared/components/ui/table-pagination"
+import { useUrlState } from "@/shared/hooks/use-url-state"
+import { DataTable } from "@/shared/components/ui/data-table"
+import { resetsPage } from "@/shared/components/ui/table-pagination"
 import { roleLabels } from "@/features/auth/lib/roles"
 import { activeStaff, isOnLeave, worksAtClosedShop } from "@/features/staff/lib/people"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
@@ -33,13 +34,14 @@ import { RoleBadge } from "./role-badge"
 import { StaffAvatar } from "./staff-avatar"
 import { StaffDetailsDialog } from "./staff-details-dialog"
 import { Surface } from "@/shared/components/ui/surface"
-import { EmptyState } from "@/shared/components/ui/empty-state"
 
 const roleFilters = [
   { key: "all", label: "All staff" },
   { key: "manager", label: "Supervisors" },
   { key: "cashier", label: "Cashiers" },
 ]
+
+const roleKeys = roleFilters.map(({ key }) => key)
 
 const unreachable = { error: "Could not reach the server. Check the connection." }
 
@@ -51,7 +53,7 @@ export const StaffScreen = ({ user }) => {
   const [editing, setEditing] = useState(null)
   const [leaveFor, setLeaveFor] = useState(null)
 
-  const [roleFilter, setRoleFilter] = useState("all")
+  const [roleFilter, setRoleFilter] = useUrlState("role", "all", roleKeys)
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
   const [pending, startTransition] = useTransition()
@@ -71,7 +73,6 @@ export const StaffScreen = ({ user }) => {
       (!search || [person.name, person.username, person.email, person.phone, shopOf(person), roleLabels[person.role]].some((value) => value?.toLowerCase().includes(search)))
   )
 
-  const pagination = paginate(visible, page)
 
   const withReset = resetsPage(setPage)
 
@@ -147,6 +148,121 @@ export const StaffScreen = ({ user }) => {
       }
     )
 
+  const statusOf = (person) => (person.disabled ? "Disabled" : isOnLeave(person) ? "On leave" : worksAtClosedShop(person, shops) ? "Shop closed" : "Active")
+
+  const columns = [
+    {
+      id: "person",
+      header: "Staff member",
+      meta: { cellClassName: "w-full max-w-0 @lg:w-auto @lg:max-w-none" },
+      cell: ({ row: { original: person } }) => (
+        <div className="flex items-center gap-3">
+          <StaffAvatar person={person} className="size-9 shrink-0" fallbackClassName="text-xs font-semibold" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className={cn("min-w-0 max-w-full truncate text-sm font-medium", person.disabled && "text-muted-foreground line-through")}>{person.name}</p>
+              <RoleBadge role={person.role} className="@3xl:hidden" />
+            </div>
+            <p className="truncate text-xs text-muted-foreground">
+              <span className="font-mono">{person.username}</span> · {shopOf(person)}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    { id: "role", header: "Role", meta: { className: "hidden @3xl:table-cell" }, cell: ({ row }) => <RoleBadge role={row.original.role} /> },
+    {
+      id: "contact",
+      header: "Contact",
+      meta: { className: "hidden @2xl:table-cell", cellClassName: "text-xs text-muted-foreground" },
+      cell: ({ row: { original: person } }) => (
+        <>
+          <p className="truncate">{person.email || "—"}</p>
+          <p className="mt-0.5">{person.phone || "—"}</p>
+        </>
+      ),
+    },
+    { id: "location", header: "Location", meta: { className: "hidden @4xl:table-cell", cellClassName: "text-xs text-muted-foreground" }, cell: ({ row }) => shopOf(row.original) },
+    {
+      id: "lastActive",
+      header: "Last active",
+      meta: { className: "hidden @5xl:table-cell", cellClassName: "text-xs text-muted-foreground" },
+      cell: ({ row }) => {
+        const lastActive = activityOf(row.original.id).lastActive
+        return lastActive ? timeAgo(lastActive) : "Never"
+      },
+    },
+    {
+      id: "access",
+      header: "Access",
+      meta: { className: "text-right" },
+      cell: ({ row: { original: person } }) => {
+        const off = person.disabled
+        const status = statusOf(person)
+        const isOwner = person.role === "admin"
+        return (
+          <div onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-end gap-2">
+              <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold tracking-label uppercase", statusTones[status])}>
+                <span className="size-1.5 rounded-full bg-current" />
+                <span className="hidden @lg:inline">{status}</span>
+              </span>
+
+              {isOwner ? (
+                <span className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">Owner</span>
+              ) : (
+                <>
+                  <Button size="xs" variant={off ? "default" : "outline"} disabled={pending} onClick={() => handleToggleAccess(person)} className="hidden @lg:inline-flex">
+                    {off ? "Turn on" : "Turn off"}
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger render={<Button size="icon-xs" variant="ghost" aria-label={`Options for ${person.name}`} />}>
+                      <DotsThreeVerticalIcon />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>Manage staff</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => setSelectedId(person.id)}>
+                          <InfoIcon />
+                          View details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="@lg:hidden" disabled={pending} onClick={() => handleToggleAccess(person)}>
+                          {off ? <CheckCircleIcon className="text-success" /> : <ProhibitIcon className="text-destructive" />}
+                          {off ? "Turn on access" : "Turn off access"}
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      {person.leave ? (
+                        <DropdownMenuItem onClick={() => handleLeave(person, null)}>
+                          <CheckCircleIcon className="text-success" />
+                          End leave
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onClick={() => setLeaveFor(person)}>
+                          <AirplaneTiltIcon />
+                          Mark on leave
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => handleTransfer(person, person.role === "cashier" ? "manager" : "cashier")}>
+                        <UserSwitchIcon />
+                        {person.role === "cashier" ? "Make supervisor" : "Make cashier"}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem variant="destructive" onClick={() => setRemoving(person)}>
+                        <TrashIcon />
+                        Remove from staff
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
+              )}
+            </div>
+          </div>
+        )
+      },
+    },
+  ]
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2.5">
@@ -154,7 +270,7 @@ export const StaffScreen = ({ user }) => {
           <InputGroupAddon>
             <MagnifyingGlassIcon />
           </InputGroupAddon>
-          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} placeholder="Name, username, email or phone" />
+          <InputGroupInput value={query} onChange={(event) => withReset(setQuery)(event.target.value)} aria-label="Search staff" placeholder="Name, username, email or phone…" />
         </InputGroup>
         <Segmented label="Role" options={roleFilters} value={roleFilter} onChange={withReset(setRoleFilter)} />
         <Button size="sm" className="w-full @2xl:ml-auto @2xl:w-auto" onClick={() => setCreating(true)}>
@@ -164,113 +280,7 @@ export const StaffScreen = ({ user }) => {
       </div>
 
       <Surface>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Staff member</TableHead>
-              <TableHead className="hidden @@4xl:table-cell">Role</TableHead>
-              <TableHead className="hidden @2xl:table-cell">Contact</TableHead>
-              <TableHead className="hidden @4xl:table-cell">Location</TableHead>
-              <TableHead className="hidden @@4xl:table-cell">Last active</TableHead>
-              <TableHead className="text-right">Access</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pagination.rows.map((person) => {
-              const off = person.disabled
-              const status = off ? "Disabled" : isOnLeave(person) ? "On leave" : worksAtClosedShop(person, shops) ? "Shop closed" : "Active"
-              const lastActive = activityOf(person.id).lastActive
-              const isOwner = person.role === "admin"
-
-              return (
-                <TableRow key={person.id} className="hover:bg-accent/40" onClick={() => setSelectedId(person.id)}>
-                  <TableCell className="w-full max-w-0 @lg:w-auto @lg:max-w-none">
-                    <div className="flex items-center gap-3">
-                      <StaffAvatar person={person} className="size-9 shrink-0" fallbackClassName="text-xs font-semibold" />
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                          <p className={cn("min-w-0 max-w-full truncate text-sm font-medium", off && "text-muted-foreground line-through")}>{person.name}</p>
-                          <RoleBadge role={person.role} className="@lg:hidden" />
-                        </div>
-                        <p className="truncate text-xs text-muted-foreground">
-                          <span className="font-mono">{person.username}</span> · {shopOf(person)}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden @3xl:table-cell">
-                    <RoleBadge role={person.role} />
-                  </TableCell>
-                  <TableCell className="hidden text-xs text-muted-foreground @2xl:table-cell">
-                    <p className="truncate">{person.email || "—"}</p>
-                    <p className="mt-0.5">{person.phone || "—"}</p>
-                  </TableCell>
-                  <TableCell className="hidden text-xs text-muted-foreground @4xl:table-cell">{shopOf(person)}</TableCell>
-                  <TableCell className="hidden text-xs text-muted-foreground @5xl:table-cell">{lastActive ? timeAgo(lastActive) : "Never"}</TableCell>
-                  <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-2">
-                      <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold tracking-label uppercase", statusTones[status])}>
-                        <span className="size-1.5 rounded-full bg-current" />
-                        <span className="hidden @lg:inline">{status}</span>
-                      </span>
-
-                      {isOwner ? (
-                        <span className="text-2xs font-semibold tracking-label text-muted-foreground uppercase">Owner</span>
-                      ) : (
-                        <>
-                          <Button size="xs" variant={off ? "default" : "outline"} disabled={pending} onClick={() => handleToggleAccess(person)} className="hidden @lg:inline-flex">
-                            {off ? "Turn on" : "Turn off"}
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger render={<Button size="icon-xs" variant="ghost" aria-label={`Options for ${person.name}`} />}>
-                              <DotsThreeVerticalIcon />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-52">
-                              <DropdownMenuGroup>
-                                <DropdownMenuLabel>Manage staff</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => setSelectedId(person.id)}>
-                                  <InfoIcon />
-                                  View details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="@lg:hidden" disabled={pending} onClick={() => handleToggleAccess(person)}>
-                                  {off ? <CheckCircleIcon className="text-success" /> : <ProhibitIcon className="text-destructive" />}
-                                  {off ? "Turn on access" : "Turn off access"}
-                                </DropdownMenuItem>
-                              </DropdownMenuGroup>
-                              <DropdownMenuSeparator />
-                              {person.leave ? (
-                                <DropdownMenuItem onClick={() => handleLeave(person, null)}>
-                                  <CheckCircleIcon className="text-success" />
-                                  End leave
-                                </DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuItem onClick={() => setLeaveFor(person)}>
-                                  <AirplaneTiltIcon />
-                                  Mark on leave
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem onClick={() => handleTransfer(person, person.role === "cashier" ? "manager" : "cashier")}>
-                                <UserSwitchIcon />
-                                {person.role === "cashier" ? "Make supervisor" : "Make cashier"}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem variant="destructive" onClick={() => setRemoving(person)}>
-                                <TrashIcon />
-                                Remove from staff
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-        {!visible.length && <EmptyState>No staff members match.</EmptyState>}
-        <TablePagination {...pagination} onPageChange={setPage} />
+        <DataTable columns={columns} data={visible} getRowId={({ id }) => id} onRowClick={({ id }) => setSelectedId(id)} rowClassName="hover:bg-accent/40" empty="No staff members match." page={page} onPageChange={setPage} />
       </Surface>
 
       <p className="text-xs text-muted-foreground">Tap a staff member to see their profile and activity, or to set a new password. Everyone on this list signs in with their own username.</p>

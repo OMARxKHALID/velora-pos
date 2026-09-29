@@ -11,19 +11,23 @@ import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/
 import { Textarea } from "@/shared/components/ui/textarea"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
-import { toPaisa } from "@/shared/lib/money"
+import { formatMoney, toPaisa } from "@/shared/lib/money"
+import { NOTE_NEEDED_END } from "@/features/ledger/lib/rules"
+import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
 import { closeShiftSchema } from "../schemas"
 
 export const CloseShiftDialog = ({ shift, onClosed, onCancel }) => {
   const closeShift = useLedgerStore(({ closeShift }) => closeShift)
   const nameOf = useStaffName()
+  const noteAbove = useSettingsFor(shift.shopId).cashNoteAbove ?? null
   const form = useForm({ resolver: zodResolver(closeShiftSchema), defaultValues: { countedCash: "", note: "" } })
 
   const handleSubmit = form.handleSubmit(async ({ countedCash, note }) => {
     try {
       onClosed(await closeShift({ shiftId: shift.id, countedCash: toPaisa(countedCash), note }))
     } catch (error) {
-      toast.error(error.message)
+      if (error.message.endsWith(NOTE_NEEDED_END)) form.setError("note", { message: error.message }, { shouldFocus: true })
+      else toast.error(error.message)
     }
   })
 
@@ -64,7 +68,10 @@ export const CloseShiftDialog = ({ shift, onClosed, onCancel }) => {
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor={field.name}>Note (optional)</FieldLabel>
                   <Textarea {...field} id={field.name} rows={2} placeholder="e.g. Counted twice, drawer handed to Hamza" aria-invalid={fieldState.invalid} />
-                  <FieldDescription>Mention anything that could explain a difference, such as a handover.</FieldDescription>
+                  <FieldDescription>
+                    Mention anything that could explain a difference, such as a handover.
+                    {noteAbove !== null && ` A note is needed if the count is off by ${noteAbove ? `more than ${formatMoney(noteAbove)}` : "any amount"}.`}
+                  </FieldDescription>
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
               )}

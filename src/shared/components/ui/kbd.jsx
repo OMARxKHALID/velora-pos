@@ -1,9 +1,9 @@
 import { cn } from "cn"
 
-function Kbd({
+const Kbd = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <kbd
       data-slot="kbd"

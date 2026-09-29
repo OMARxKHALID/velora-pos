@@ -1,9 +1,9 @@
 import { cn } from "cn"
 
-function Skeleton({
+const Skeleton = ({
   className,
   ...props
-}) {
+}) => {
   return (
     <div
       data-slot="skeleton"

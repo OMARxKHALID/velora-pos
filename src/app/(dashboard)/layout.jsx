@@ -25,10 +25,13 @@ const DashboardLayout = async ({ children }) => {
     <QueryProvider>
     <LedgerStoreProvider user={user} directory={directory}>
       <SidebarProvider defaultOpen={sidebarOpen}>
+        <a href="#page-content" className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-2 focus-visible:left-2 focus-visible:z-50 focus-visible:bg-primary focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:font-medium focus-visible:text-primary-foreground">
+          Skip to content
+        </a>
         <AppSidebar user={user} />
         <SidebarInset className="min-w-0">
           <AppHeader user={user} />
-          <div data-slot="page-content" className="@container flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
+          <div id="page-content" tabIndex={-1} data-slot="page-content" className="outline-none @container flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
             {children}
           </div>
         </SidebarInset>

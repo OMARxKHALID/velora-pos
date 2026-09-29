@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/shared/components/ui/
 import { Segmented } from "@/shared/components/ui/segmented"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/shared/components/ui/sheet"
 import { useMediaQuery } from "@/shared/hooks/use-media-query"
+import { DAY } from "@/shared/lib/dates"
 import { MAX_CUSTOM_DAYS } from "../lib/analytics"
 
 const ranges = [
@@ -29,7 +30,7 @@ const presets = [
 
 const toDate = (iso) => (iso ? new Date(`${iso}T00:00:00`) : undefined)
 const toIso = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-const daysIn = ({ from, to }) => Math.round((to - from) / 864e5) + 1
+const daysIn = ({ from, to }) => Math.round((to - from) / DAY) + 1
 const withYear = new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short", year: "numeric" })
 const monthOf = (date, back = 0) => new Date(date.getFullYear(), date.getMonth() - back, 1)
 const withoutYear = new Intl.DateTimeFormat("en-PK", { day: "numeric", month: "short" })
@@ -122,13 +123,13 @@ export const PeriodPicker = ({ range, from, to, error, today, onRangeChange, onD
   }
 
   const trigger = (
-    <button
-      type="button"
+    <Button
+      variant="outline"
       aria-pressed={custom}
       aria-label={shown ? `Custom dates, ${spanText(shown)}` : "Pick custom dates"}
       className={cn(
-        "flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 border px-2 text-xs font-medium whitespace-nowrap transition-colors outline-none @xs:px-3 focus-visible:ring-2 focus-visible:ring-ring pointer-coarse:h-11 md:flex-none md:pointer-coarse:px-4",
-        custom ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+        "h-9 min-w-0 flex-1 gap-1.5 px-2 text-xs @xs:px-3 active:scale-100 active:not-aria-[haspopup]:translate-y-0 pointer-coarse:h-11 md:flex-none md:pointer-coarse:px-4",
+        custom ? "border-primary bg-primary text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground aria-expanded:bg-primary aria-expanded:text-primary-foreground" : "text-muted-foreground",
         error && "border-destructive"
       )}
       {...(wide ? {} : { onClick: () => handleOpenChange(true) })}
@@ -137,7 +138,7 @@ export const PeriodPicker = ({ range, from, to, error, today, onRangeChange, onD
       <span className={cn("truncate tabular-nums", shown && "md:hidden")}>Custom</span>
       {shown && <span className="hidden truncate tabular-nums md:inline">{spanText(shown)}</span>}
       <CaretDownIcon className="hidden size-3 shrink-0 opacity-70 md:block" />
-    </button>
+    </Button>
   )
   const panel = <RangePanel draft={draft} month={month} onMonthChange={setMonth} onDayPick={handleDayPick} onPreset={handlePreset} onCancel={() => setOpen(false)} onApply={handleApply} last={last} wide={wide} />
 
@@ -157,13 +158,13 @@ export const PeriodPicker = ({ range, from, to, error, today, onRangeChange, onD
         )}
       </div>
       {shown && (
-        <button type="button" onClick={() => handleOpenChange(true)} className="-mt-2 flex h-11 w-full md:hidden items-center justify-between gap-3 border border-t-0 bg-card px-3 text-left text-sm">
+        <Button variant="outline" onClick={() => handleOpenChange(true)} className="-mt-2 h-11 w-full justify-between gap-3 border-t-0 bg-card px-3 text-left font-normal active:scale-100 active:not-aria-[haspopup]:translate-y-0 md:hidden">
           <span className="flex min-w-0 items-center gap-2">
             <CalendarBlankIcon className="size-4 shrink-0 text-gold" />
             <span className="truncate tabular-nums">{spanText(shown)}</span>
           </span>
           <span className="shrink-0 text-xs text-gold">Change</span>
-        </button>
+        </Button>
       )}
       {!wide && (
         <Sheet open={open} onOpenChange={handleOpenChange}>
