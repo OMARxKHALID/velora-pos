@@ -1,4 +1,5 @@
 import { roundToRupee, sumBy } from "@/shared/lib/money"
+import { SHOP_TIME_ZONE, partsIn } from "@/shared/lib/zoned"
 
 export const FBR_INVOICE_TYPE = { sale: 1, debit: 2, credit: 3 }
 
@@ -19,14 +20,14 @@ const pad = (value, size = 2) => String(value).padStart(size, "0")
 
 const rupees = (paisa) => paisa / 100
 
-export const fbrDateTime = (at) => {
-  const date = new Date(at)
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+export const fbrDateTime = (at, timeZone = SHOP_TIME_ZONE) => {
+  const { year, month, day, hour, minute, second } = partsIn(timeZone, new Date(at).getTime())
+  return `${year}-${pad(month)}-${pad(day)} ${pad(hour)}:${pad(minute)}:${pad(second)}`
 }
 
-export const simulatedFiscalNumber = (posId, at, sequence) => {
-  const date = new Date(at)
-  const stamp = [date.getDate(), date.getMonth() + 1, date.getFullYear() % 100, date.getHours(), date.getMinutes(), date.getSeconds()].map((part) => pad(part)).join("")
+export const simulatedFiscalNumber = (posId, at, sequence, timeZone = SHOP_TIME_ZONE) => {
+  const { year, month, day, hour, minute, second } = partsIn(timeZone, new Date(at).getTime())
+  const stamp = [day, month, year % 100, hour, minute, second].map((part) => pad(part)).join("")
   return `${posId}${stamp}${pad(sequence % 10000, 4)}`
 }
 

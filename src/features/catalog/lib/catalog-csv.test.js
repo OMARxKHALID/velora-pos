@@ -14,3 +14,9 @@ test("template imports with receive quantities and rejects bad rows", () => {
   const bad = parseCatalogImport("product,brand,category,audience,color,size,price,cost\nX,Velora,Boots,men,Black,42,100,500")
   expect(bad.errors[0].message).toContain("cost is higher than price")
 })
+
+test("one product cannot carry two prices", () => {
+  const csv = ["product,brand,category,audience,color,size,price,cost", "Crest,Velora,Sneakers,men,Black,42,13500,6000", "Crest,Velora,Sneakers,men,Black,43,14000,6000"].join("\n")
+  const { errors } = parseCatalogImport(csv)
+  expect(errors.map(({ message }) => message).join()).toMatch("different prices")
+})

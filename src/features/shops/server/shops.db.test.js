@@ -34,6 +34,10 @@ describe.skipIf(!hasTestDatabase)("shops and counters", () => {
     await expect(saveRegister(owner(), { shopId: FIRST, name: "Counter 3", fbrPosId: "12" })).rejects.toThrow("POSID")
     const edited = await saveRegister(owner(), { registerId: counter.id, shopId: FIRST, name: "Till", fbrPosId: "110015", drawerOnCash: false })
     expect(edited).toMatchObject({ code: "SH1-R2", name: "Till", drawerOnCash: false, autoPrint: true })
+    await context.db.collection(C.settings).updateOne({ _id: FIRST }, { $set: { fbrEnabled: true } })
+    await expect(saveRegister(owner(), { shopId: FIRST, name: "Counter 3" })).rejects.toThrow("needs its 6-digit POSID")
+    await expect(saveRegister(owner(), { registerId: counter.id, shopId: FIRST, name: "Till", fbrPosId: "" })).rejects.toThrow("needs its 6-digit POSID")
+    await context.db.collection(C.settings).updateOne({ _id: FIRST }, { $set: { fbrEnabled: false } })
   })
 
   test("the snapshot carries every shop with its settings and counters", async () => {

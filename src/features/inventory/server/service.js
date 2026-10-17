@@ -1,12 +1,15 @@
 import { z } from "zod"
 import { parseInput } from "@/shared/lib/errors"
 import { COLLECTIONS as C } from "@/server/db/collections"
-import { withTransaction } from "@/server/db/transaction"
+import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
 import { newId } from "@/shared/lib/id"
 import { addReasons, removeReasons } from "../schemas"
 import { moveStock, moveStockMany, shopVariants } from "./stock"
 
+const clientId = z.string().min(8).max(64).default(() => newId())
+
 const deliverySchema = z.object({
+  clientId,
   supplier: z.string().trim().min(2, { error: "Enter the supplier name" }).max(80),
   lines: z
     .array(
@@ -22,6 +25,7 @@ const deliverySchema = z.object({
 
 const adjustmentSchema = z
   .object({
+    clientId,
     variantId: z.string().min(1),
     quantity: z.number().int({ error: "Whole pairs only" }).refine((value) => value !== 0 && Math.abs(value) <= 500, { error: "Between 1 and 500 pairs" }),
     reason: z.string(),
@@ -29,31 +33,67 @@ const adjustmentSchema = z
   })
   .refine(({ quantity, reason }) => (quantity < 0 ? reason in removeReasons : reason in addReasons), { error: "Pick a reason", path: ["reason"] })
 
+const deliveryResult = (purchase) => ({ id: purchase._id, pairs: purchase.items.reduce((sum, { quantity }) => sum + quantity, 0), total: purchase.total })
+
+const adjustmentResult = (movement) => ({ id: movement._id, balanceAfter: movement.balanceAfter })
+
+const once = async (work, replay) => {
+  try {
+    return await work()
+  } catch (error) {
+    if (!isDuplicateKey(error)) throw error
+    const existing = await replay()
+    if (existing) return existing
+    throw error
+  }
+}
+
 export const receiveDelivery = async ({ db, client, user, shopId, at = new Date() }, input) => {
-  const { supplier, lines } = parseInput(deliverySchema, input)
-  return withTransaction(client, async (session) => {
-    const variants = await shopVariants(db, session, shopId, lines.map(({ variantId }) => variantId))
-    const items = lines.map((line) => ({ ...line, unitCost: line.unitCost ?? variants[line.variantId].cost }))
-    const purchase = {
-      _id: newId(),
-      shopId,
-      supplier,
-      items,
-      total: items.reduce((sum, { quantity, unitCost }) => sum + quantity * unitCost, 0),
-      receivedBy: user.id,
-      receivedAt: at,
-    }
-    await db.collection(C.purchases).insertOne(purchase, { session })
-    await moveStockMany(db, session, items.map(({ variantId, quantity, unitCost }) => ({ shopId, variantId, quantity, type: "purchase", unitCost, ref: { kind: "Purchase", id: purchase._id, number: supplier }, userId: user.id, at })))
-    return { id: purchase._id, pairs: items.reduce((sum, { quantity }) => sum + quantity, 0), total: purchase.total }
-  })
+  const { clientId: key, supplier, lines } = parseInput(deliverySchema, input)
+  const replay = async (session) => {
+    const existing = await db.collection(C.purchases).findOne({ clientId: key, shopId }, { session })
+    return existing && deliveryResult(existing)
+  }
+  return once(
+    () =>
+      withTransaction(client, async (session) => {
+        const existing = await replay(session)
+        if (existing) return existing
+        const variants = await shopVariants(db, session, shopId, lines.map(({ variantId }) => variantId))
+        const items = lines.map((line) => ({ ...line, unitCost: line.unitCost ?? variants[line.variantId].cost }))
+        const purchase = {
+          _id: newId(),
+          clientId: key,
+          shopId,
+          supplier,
+          items,
+          total: items.reduce((sum, { quantity, unitCost }) => sum + quantity * unitCost, 0),
+          receivedBy: user.id,
+          receivedAt: at,
+        }
+        await db.collection(C.purchases).insertOne(purchase, { session })
+        await moveStockMany(db, session, items.map(({ variantId, quantity, unitCost }) => ({ shopId, variantId, quantity, type: "purchase", unitCost, ref: { kind: "Purchase", id: purchase._id, number: supplier }, userId: user.id, at })))
+        return deliveryResult(purchase)
+      }),
+    () => replay()
+  )
 }
 
 export const adjustStock = async ({ db, client, user, shopId, at = new Date() }, input) => {
-  const { variantId, quantity, reason, note } = parseInput(adjustmentSchema, input)
-  return withTransaction(client, async (session) => {
-    const variants = await shopVariants(db, session, shopId, [variantId])
-    const movement = await moveStock(db, session, { shopId, variantId, quantity, type: "adjustment", unitCost: variants[variantId].cost, reason, note: note || null, userId: user.id, at })
-    return { id: movement._id, balanceAfter: movement.balanceAfter }
-  })
+  const { clientId: key, variantId, quantity, reason, note } = parseInput(adjustmentSchema, input)
+  const replay = async (session) => {
+    const existing = await db.collection(C.movements).findOne({ clientId: key, shopId }, { session })
+    return existing && adjustmentResult(existing)
+  }
+  return once(
+    () =>
+      withTransaction(client, async (session) => {
+        const existing = await replay(session)
+        if (existing) return existing
+        const variants = await shopVariants(db, session, shopId, [variantId])
+        const movement = await moveStock(db, session, { shopId, variantId, quantity, type: "adjustment", unitCost: variants[variantId].cost, reason, note: note || null, userId: user.id, at, clientId: key })
+        return adjustmentResult(movement)
+      }),
+    () => replay()
+  )
 }

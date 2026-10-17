@@ -41,8 +41,26 @@ const seedCustomers = [
   { name: "Sadia Khan", phone: "0304 6619283" },
 ]
 
-export const createSeed = (now = Date.now()) => {
-  const catalog = seedCatalog()
+export const DEMO_SEED = {
+  products: {
+    "Velora Aurum Runner": ["Black/Gold"],
+    "Velora Noir Oxford": ["Black"],
+    "Velora Seraph Heel": ["Black"],
+    "Velora Khussa Zari": ["Gold"],
+    "Servis Calza Peshawari": ["Brown"],
+    "Servis Cheetah Kids": ["Blue"],
+    "Bata Comfit Sandal": ["Brown"],
+    "Nike Air Max 90": ["White"],
+  },
+  historyDays: 6,
+  pace: 0.28,
+  refundChance: 0.08,
+  adjustOn: [3],
+  openingStock: [3, 8],
+}
+
+export const createSeed = (now = Date.now(), { products: picked = null, historyDays = 30, pace = 1, refundChance = null, restockOn = 14, adjustOn = [9, 22], openingStock: [fewest, most] = [5, 12] } = {}) => {
+  const catalog = seedCatalog(picked)
   const { products, variants } = catalog
   const { productById, variantsByProduct } = indexCatalog(catalog)
   const random = mulberry32(2026)
@@ -50,7 +68,7 @@ export const createSeed = (now = Date.now()) => {
   const between = (min, max) => min + Math.floor(random() * (max - min + 1))
   const popularity = products.flatMap((product) => Array(product.popularity).fill(product.id))
   const today = new Date(now).setHours(0, 0, 0, 0)
-  const start = today - 30 * DAY
+  const start = today - historyDays * DAY
 
   let state = { ...emptyLedger(), ...catalog, shops: seedShops(), registers: seedRegisters() }
   const run = (reducer, input) => {
@@ -60,7 +78,7 @@ export const createSeed = (now = Date.now()) => {
   }
 
   run(applyPurchase, {
-    lines: variants.map(({ id, cost }) => ({ variantId: id, quantity: between(5, 12), unitCost: cost })),
+    lines: variants.map(({ id, cost }) => ({ variantId: id, quantity: between(fewest, most), unitCost: cost })),
     supplier: "Opening stock",
     receivedBy: "u-manager",
     at: start - DAY + 9 * HOUR,
@@ -78,7 +96,7 @@ export const createSeed = (now = Date.now()) => {
     const isToday = day === today
     const weekend = [0, 6].includes(new Date(day).getDay())
 
-    if (day === start + 14 * DAY) {
+    if (day === start + restockOn * DAY) {
       const lowLines = variants
         .filter(({ id }) => (state.stock[id] ?? 0) <= 1)
         .slice(0, 140)
@@ -92,7 +110,7 @@ export const createSeed = (now = Date.now()) => {
       if (isToday && closeAt <= openAt + 30 * MINUTE) continue
 
       const shift = run(applyOpenShift, { cashierId: plan.cashierId, openingCash: 1000000, at: openAt })
-      const saleCount = Math.round(((closeAt - openAt) / HOUR) * (weekend ? 2.6 : 1.8) * (0.7 + random() * 0.6))
+      const saleCount = Math.round(((closeAt - openAt) / HOUR) * (weekend ? 2.6 : 1.8) * pace * (0.7 + random() * 0.6))
       const soldInShift = []
 
       const times = Array.from({ length: saleCount }, () => openAt + Math.floor(random() * (closeAt - openAt - 10 * 60000))).toSorted((a, b) => a - b)
@@ -139,7 +157,7 @@ export const createSeed = (now = Date.now()) => {
         soldInShift.push(sale)
       }
 
-      for (const sale of soldInShift.filter(() => random() < plan.refundChance)) {
+      for (const sale of soldInShift.filter(() => random() < (refundChance ?? plan.refundChance))) {
         const item = sale.items[0]
         const refund = run(applyRefundRequest, {
           saleId: sale.id,
@@ -160,7 +178,7 @@ export const createSeed = (now = Date.now()) => {
       run(applyCloseShift, { shiftId: shift.id, countedCash: expected - short, closedBy: plan.cashierId, at: closeAt })
     }
 
-    if (day === start + 9 * DAY || day === start + 22 * DAY) {
+    if (adjustOn.some((offset) => day === start + offset * DAY)) {
       const damaged = variants.find(({ id }) => (state.stock[id] ?? 0) > 2)
       run(applyAdjustment, { variantId: damaged.id, quantity: -1, reason: "damaged", note: "Scuffed on display", userId: "u-manager", at: day + 11 * HOUR })
     }

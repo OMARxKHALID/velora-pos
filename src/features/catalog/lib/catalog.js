@@ -173,8 +173,11 @@ export const makeVariant = (product, color, size, serial) => ({
   active: true,
 })
 
-export const seedCatalog = () => {
-  const products = catalog.map(([name, brand, category, audience, rupees, colors, popularity], index) => ({
+const pickRows = (pick) =>
+  pick ? catalog.filter(([name]) => pick[name]).map(([name, ...rest]) => [name, ...rest.slice(0, 4), pick[name], ...rest.slice(5)]) : catalog
+
+export const seedCatalog = (pick = null) => {
+  const products = pickRows(pick).map(([name, brand, category, audience, rupees, colors, popularity], index) => ({
     id: `p-${String(index + 1).padStart(2, "0")}`,
     code: String(index + 1).padStart(2, "0"),
     shopId: SHOP_ID,

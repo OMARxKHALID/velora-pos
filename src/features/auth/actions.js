@@ -37,7 +37,8 @@ export const signIn = async (_previous, formData) => {
   const requestHeaders = await headers()
   const attempt = { username: parsed.data.username, address: clientAddress(requestHeaders) }
   const attempts = createSignInAttempts(getDb())
-  if (await attempts.blocked(attempt)) return { error: TOO_MANY, username: attempt.username }
+  const claim = await attempts.claim(attempt)
+  if (!claim) return { error: TOO_MANY, username: attempt.username }
 
   let role
   try {
@@ -45,11 +46,12 @@ export const signIn = async (_previous, formData) => {
     const blocked = await blockedReason(getDb(), result.user)
     if (blocked) {
       await getDb().collection(C.sessions).deleteMany({ token: result.token })
+      await attempts.release(claim)
       return { error: blocked, username: attempt.username }
     }
     role = result.user.role
   } catch (error) {
-    if (wrongPassword(error)) await attempts.fail(attempt)
+    if (!wrongPassword(error)) await attempts.release(claim)
     return { error: signInError(error), username: attempt.username }
   }
   await attempts.clear(attempt.username)

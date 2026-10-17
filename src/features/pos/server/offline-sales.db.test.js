@@ -188,11 +188,16 @@ describe.skipIf(!hasTestDatabase)("sales made offline and uploaded later", () =>
     await expect(syncOfflineSale(as("u-cashier"), offlineSale(variant, { lines: [{ variantId: "nope", quantity: 1, unitPrice: 100, productDiscountPct: 0 }] }))).rejects.toThrow("Unknown item")
   })
 
-  test("sales that reach the server after the shift was closed are accepted and marked, since its Z-report did not count them", async () => {
+  test("sales that reach the server after the shift was closed are accepted, marked, and added to its Z-report", async () => {
     const variant = await pick()
     const closed = await closeShift(as("u-cashier"), { shiftId: shift.id, countedCash: 0 })
-    const before = await syncOfflineSale(as("u-cashier"), offlineSale(variant, { soldAt: closed.closedAt.getTime() - MINUTE }))
+    const before = await syncOfflineSale(as("u-cashier"), offlineSale(variant, { soldAt: closed.closedAt.getTime() - MINUTE, payments: [{ method: "cash", amount: variant.price }] }))
     expect(before.flags).toEqual(["after_close"])
+    const recounted = await context.db.collection(C.shifts).findOne({ _id: shift.id })
+    expect(recounted.summary.saleCount).toBe(closed.summary.saleCount + 1)
+    expect(recounted.expectedCash).toBe(closed.expectedCash + variant.price)
+    expect(recounted.difference).toBe(recounted.countedCash - recounted.expectedCash)
+    expect(recounted.closedBy).toBe(closed.closedBy)
     const after = await syncOfflineSale(as("u-cashier"), offlineSale(variant, { soldAt: closed.closedAt.getTime() + MINUTE }))
     expect(after.flags).toEqual(["after_close"])
     await expect(reserveReceipts(as("u-cashier"), { shiftId: shift.id })).rejects.toThrow("not open")

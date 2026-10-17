@@ -20,7 +20,7 @@ import { fitToStock } from "../lib/cart-fit"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { cartTotals } from "@/features/pricing/lib/pricing"
 import { newId } from "@/shared/lib/id"
-import { formatTime } from "@/shared/lib/dates"
+import { formatTimeOrDate } from "@/shared/lib/dates"
 import { formatMoney } from "@/shared/lib/money"
 import { useBarcodeScanner } from "../hooks/use-barcode-scanner"
 import { beep } from "../lib/beep"
@@ -273,7 +273,7 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
       )}
       <div className="flex items-center gap-x-5 gap-y-1 border bg-card px-3 py-2 text-xs text-muted-foreground">
         <span className="whitespace-nowrap">
-          Shift since <span className="font-semibold text-foreground">{formatTime(shift.openedAt)}</span>
+          Shift since <span className="font-semibold text-foreground">{formatTimeOrDate(shift.openedAt)}</span>
         </span>
         <span className="hidden whitespace-nowrap xl:inline">
           Cashier <span className="font-semibold text-foreground">{nameOf(shift.cashierId)}</span>

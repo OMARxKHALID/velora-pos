@@ -45,6 +45,16 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     expect(session.user.pinHash).toBeUndefined()
   })
 
+  test("staff cannot move themselves to another shop or reach the auth endpoints over HTTP", async () => {
+    const headers = await signIn("hamza")
+    const error = await deps.auth.api.updateUser({ headers, body: { shopIds: ["shop-other"] } }).catch((failure) => failure)
+    expect(error.body.code).toBe("FIELD_NOT_ALLOWED")
+    const post = (path, body) => deps.auth.handler(new Request(`http://localhost:3000/api/auth${path}`, { method: "POST", headers: { cookie: headers.get("cookie"), "content-type": "application/json", origin: "http://localhost:3000" }, body: JSON.stringify(body) }))
+    expect((await post("/update-user", { name: "X" })).status).toBe(404)
+    expect((await post("/sign-in/username", { username: "hamza", password: PASSWORD })).status).toBe(404)
+    expect((await deps.auth.api.getSession({ headers })).user.shopIds).toEqual(["shop-shoes"])
+  })
+
   test("nobody can sign themselves up", async () => {
     const error = await deps.auth.api.signUpEmail({ body: { name: "X", email: "x@x.com", password: "password-1" } }).catch((failure) => failure)
     expect(error.body.code).toBe("EMAIL_PASSWORD_SIGN_UP_DISABLED")

@@ -18,6 +18,7 @@ import { useSettingsFor, useShopScope } from "@/features/shops/hooks/use-shop-sc
 import { beep } from "@/features/pos/lib/beep"
 import { formatMoney, sumBy } from "@/shared/lib/money"
 import { purchaseSchema } from "../schemas"
+import { newId } from "@/shared/lib/id"
 import { lowLimitFor, sizeLabel } from "@/features/catalog/lib/catalog"
 
 export const ReceiveStockDialog = ({ user, onClose }) => {
@@ -30,6 +31,7 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
   const lowLimit = settings.lowStockThreshold
   const categories = useLedgerStore(({ categories }) => categories)
   const [code, setCode] = useState("")
+  const [clientId] = useState(newId)
   const form = useForm({ resolver: zodResolver(purchaseSchema), defaultValues: { supplier: "Velora Warehouse", lines: [] } })
   const { fields, append, update, remove, replace } = useFieldArray({ control: form.control, name: "lines" })
   const lines = useWatch({ control: form.control, name: "lines" })
@@ -67,7 +69,7 @@ export const ReceiveStockDialog = ({ user, onClose }) => {
 
   const handleSubmit = form.handleSubmit(async ({ supplier, lines: received }) => {
     try {
-      const purchase = await receivePurchase({ supplier, lines: received.map(({ variantId, quantity }) => ({ variantId, quantity: Number(quantity) })) })
+      const purchase = await receivePurchase({ clientId, supplier, lines: received.map(({ variantId, quantity }) => ({ variantId, quantity: Number(quantity) })) })
       toast.success("Delivery received", {
         description: `${purchase.pairs} pairs from ${supplier} · ${formatMoney(purchase.total)} at cost`,
       })

@@ -4,6 +4,7 @@ import { SALE_RANGES, salesForExport, salesPage } from "@/features/sales/server/
 import { viewerScope } from "@/features/sales/server/request"
 import { COLLECTIONS as C } from "@/server/db/collections"
 import { toCsv } from "@/shared/lib/csv"
+import { formatFullDateTime } from "@/shared/lib/dates"
 import { denied, noStore } from "@/server/http"
 
 const querySchema = z.object({
@@ -33,7 +34,7 @@ export const GET = async (request) => {
     ["Receipt #", "Date/Time", "Cashier", "Customer", "Phone", "Items Count", "Subtotal", "Discount", "Tax", "Total", "Payment Methods"],
     ...sales.map((sale) => [
       sale.number,
-      new Date(sale.soldAt).toLocaleString("en-PK", { timeZone, dateStyle: "medium", timeStyle: "short" }),
+      formatFullDateTime(sale.soldAt, timeZone),
       staffName(sale.cashierId, people),
       sale.customerName || "",
       sale.customerPhone || "",

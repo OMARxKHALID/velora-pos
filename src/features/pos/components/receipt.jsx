@@ -10,10 +10,9 @@ import { returnDeadline } from "@/features/ledger/lib/rules"
 import { receiptDesign } from "../lib/receipt-design"
 import { formatMoney } from "@/shared/lib/money"
 import { sizeLabel } from "@/features/catalog/lib/catalog"
+import { formatFullDateTime } from "@/shared/lib/dates"
 import { methodLabel } from "../lib/payment-methods"
 import { PrintRow, PrintRule } from "./print-parts"
-
-const when = new Intl.DateTimeFormat("en-PK", { dateStyle: "medium", timeStyle: "short" })
 
 const textSizes = {
   "58": { small: "text-[9px]", normal: "text-[10px]", large: "text-[11px]" },
@@ -70,7 +69,7 @@ export const Receipt = ({ sale, ref, design: previewDesign = null }) => {
       </div>
       <PrintRule className="my-3" />
       <PrintRow label="Receipt" value={sale.number} />
-      <PrintRow label="Date" value={when.format(new Date(sale.soldAt))} />
+      <PrintRow label="Date" value={formatFullDateTime(sale.soldAt)} />
       {design.showCashier && <PrintRow label="Cashier" value={nameOf(sale.cashierId)} />}
       {design.showCustomer && sale.customerName && <PrintRow label="Customer" value={sale.customerName} />}
       {design.showCustomer && sale.customerPhone && <PrintRow label="Phone" value={sale.customerPhone} />}
@@ -119,7 +118,7 @@ export const Receipt = ({ sale, ref, design: previewDesign = null }) => {
           <svg ref={barcode} />
         </div>
       )}
-      {deadline !== null && <p className="mt-3 text-center text-[10px]">Returns and exchanges until {when.format(new Date(deadline))} with this receipt</p>}
+      {deadline !== null && <p className="mt-3 text-center text-[10px]">Returns and exchanges until {formatFullDateTime(deadline)} with this receipt</p>}
       {design.policy && <p className="mt-3 text-center text-[10px] whitespace-pre-line">{design.policy}</p>}
       {design.footer && <p className="mt-3 text-center whitespace-pre-line">{design.footer}</p>}
     </div>

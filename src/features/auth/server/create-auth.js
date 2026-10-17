@@ -7,6 +7,38 @@ import { ac, accessRoles } from "../lib/access"
 
 const AUTH_COLLECTIONS = { user: "users", session: "sessions", account: "accounts", verification: "verifications", rateLimit: "rate_limits" }
 
+const ADMIN_PATHS = ["ban-user", "create-user", "get-user", "has-permission", "impersonate-user", "list-users", "list-user-sessions", "remove-user", "revoke-user-session", "revoke-user-sessions", "set-role", "set-user-password", "stop-impersonating", "unban-user", "update-user"]
+
+export const DISABLED_PATHS = [
+  "/sign-in/email",
+  "/sign-in/username",
+  "/sign-in/social",
+  "/sign-up/email",
+  "/update-user",
+  "/update-session",
+  "/change-email",
+  "/change-password",
+  "/delete-user",
+  "/delete-user/callback",
+  "/is-username-available",
+  "/request-password-reset",
+  "/reset-password",
+  "/verify-password",
+  "/send-verification-email",
+  "/verify-email",
+  "/link-social",
+  "/unlink-account",
+  "/list-accounts",
+  "/account-info",
+  "/get-access-token",
+  "/refresh-token",
+  "/list-sessions",
+  "/revoke-session",
+  "/revoke-sessions",
+  "/revoke-other-sessions",
+  ...ADMIN_PATHS.map((path) => `/admin/${path}`),
+]
+
 export const newUserId = () => `u-${newId().replaceAll("-", "").slice(0, 16)}`
 
 export const createAuth = ({ db, client, secret, baseURL, rateLimit = process.env.NODE_ENV === "production" }) =>
@@ -14,13 +46,14 @@ export const createAuth = ({ db, client, secret, baseURL, rateLimit = process.en
     appName: "Velora POS",
     secret,
     baseURL,
+    disabledPaths: DISABLED_PATHS,
     database: mongodbAdapter(db, { client }),
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 8, maxPasswordLength: 128 },
     user: {
       modelName: AUTH_COLLECTIONS.user,
       additionalFields: {
-        phone: { type: "string", required: false },
-        shopIds: { type: "string[]", required: false },
+        phone: { type: "string", required: false, input: false },
+        shopIds: { type: "string[]", required: false, input: false },
         removedAt: { type: "date", required: false, input: false },
         leaveFrom: { type: "string", required: false, input: false },
         leaveUntil: { type: "string", required: false, input: false },
@@ -32,7 +65,6 @@ export const createAuth = ({ db, client, secret, baseURL, rateLimit = process.en
       modelName: AUTH_COLLECTIONS.session,
       expiresIn: 60 * 60 * 12,
       updateAge: 60 * 60,
-      cookieCache: { enabled: true, maxAge: 60 },
     },
     account: { modelName: AUTH_COLLECTIONS.account },
     verification: { modelName: AUTH_COLLECTIONS.verification },

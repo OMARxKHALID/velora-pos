@@ -13,10 +13,12 @@ import { Segmented } from "@/shared/components/ui/segmented"
 import { Textarea } from "@/shared/components/ui/textarea"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { addReasons, adjustmentSchema, removeReasons } from "../schemas"
+import { newId } from "@/shared/lib/id"
 import { sizeLabel } from "@/features/catalog/lib/catalog"
 
 const AdjustForm = ({ row, size, onHand, onDone }) => {
   const adjustStock = useLedgerStore(({ adjustStock }) => adjustStock)
+  const [clientId] = useState(newId)
   const form = useForm({
     resolver: zodResolver(adjustmentSchema(onHand)),
     defaultValues: { direction: "remove", quantity: "1", reason: "", note: "" },
@@ -26,7 +28,7 @@ const AdjustForm = ({ row, size, onHand, onDone }) => {
 
   const handleSubmit = form.handleSubmit(async ({ direction: chosen, quantity, reason, note }) => {
     try {
-      await adjustStock({ variantId: size.variant.id, quantity: chosen === "remove" ? -quantity : quantity, reason, note })
+      await adjustStock({ clientId, variantId: size.variant.id, quantity: chosen === "remove" ? -quantity : quantity, reason, note })
       toast.success("Stock adjusted", {
         description: `${row.product.name} · ${sizeLabel(size.variant.attributes.size)}: ${chosen === "remove" ? "−" : "+"}${quantity} (${reasons[reason]})`,
       })

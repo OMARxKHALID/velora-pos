@@ -1,8 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { CaretUpDownIcon, CheckIcon, SignOutIcon, StorefrontIcon } from "@phosphor-icons/react"
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog"
+import { Button } from "@/shared/components/ui/button"
 import {
   Sidebar,
   SidebarContent,
@@ -87,7 +90,16 @@ export const AppSidebar = ({ user }) => {
   const items = navItems.filter(({ roles }) => roles.includes(user.role))
   const scope = useShopScope(user)
   const pendingRefunds = useLedgerStore(({ refunds }) => refunds.filter(({ status, shopId }) => status === "pending" && (scope === ALL_SHOPS || shopId === scope)).length)
+  const unsent = useLedgerStore(({ pending }) => pending.length)
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false)
   const badges = { "/refunds": pendingRefunds }
+
+  const signOutNow = () => forgetDevice().finally(() => signOut())
+
+  const handleSignOut = () => {
+    if (!unsent) return signOutNow()
+    setConfirmingSignOut(true)
+  }
 
   return (
     <Sidebar collapsible="icon">
@@ -148,12 +160,29 @@ export const AppSidebar = ({ user }) => {
                   <DropdownMenuLabel>Signed in as {roleLabels[user.role]}</DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={() => forgetDevice().finally(() => signOut())}>
+                <DropdownMenuItem variant="destructive" onClick={handleSignOut}>
                   <SignOutIcon />
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <AlertDialog open={confirmingSignOut} onOpenChange={setConfirmingSignOut}>
+              <AlertDialogContent className="sm:max-w-md">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Sign out with sales not uploaded?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {`${unsent} ${unsent === 1 ? "sale is" : "sales are"} saved on this till but not uploaded. ${unsent === 1 ? "It stays" : "They stay"} on this till until you sign in here again.`}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Stay signed in</AlertDialogCancel>
+                  <Button variant="destructive" onClick={signOutNow}>
+                    <SignOutIcon />
+                    Sign out anyway
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

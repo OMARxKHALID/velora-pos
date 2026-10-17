@@ -16,7 +16,7 @@ describe.skipIf(!hasTestDatabase)("sales and stock history on the server", () =>
 
   beforeAll(async () => {
     await loadDocuments(context.db, seedDocuments(now))
-    await context.db.collection(C.sales).updateOne({}, { $set: { payments: [{ method: "card", amount: 1, reference: "048291" }] } })
+    await context.db.collection(C.sales).updateOne({ cashierId: "u-cashier" }, { $set: { payments: [{ method: "card", amount: 1, reference: "048291" }] } })
     await context.db.collection(C.sales).insertOne({ _id: "someone-else", number: "SH1-R1-999999", shopId: SHOP, cashierId: "u-cashier-2", soldAt: new Date(now - 1000), items: [{ productName: "Other", unitCost: 1 }], payments: [] })
   })
 
@@ -71,6 +71,7 @@ describe.skipIf(!hasTestDatabase)("sales and stock history on the server", () =>
   test("card slip references match in any letter case", async () => {
     await context.db.collection(C.sales).updateOne({ _id: "someone-else" }, { $set: { payments: [{ method: "card", amount: 1, reference: "AB77X" }] } })
     expect(await findSale(context.db, { shopIds: [SHOP], viewer: owner, reference: " ab77x " })).toEqual({ id: "someone-else", number: "SH1-R1-999999" })
+    expect(await findSale(context.db, { shopIds: [SHOP], viewer: cashier, reference: "AB77X" })).toBeNull()
   })
 
   test("stock history searches products, people and receipts on the server", async () => {

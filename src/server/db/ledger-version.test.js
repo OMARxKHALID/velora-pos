@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { describe, expect, test } from "bun:test"
 import { hasTestDatabase, useTestDatabase } from "@/test/db"
 import { COLLECTIONS as C } from "./collections"
-import { bumpAllLedgers, bumpLedger, ledgerStamp } from "./ledger-version"
+import { bumpAllLedgers, bumpLedger, ledgerStamp, watchLedger } from "./ledger-version"
 
 const FEATURES = join(import.meta.dir, "../../features")
 const LEAVES_LEDGER_ALONE = { auth: "signing in and discount approvals change no ledger data", staff: "the staff list comes from the layout, not the ledger" }
@@ -54,4 +54,19 @@ describe.skipIf(!hasTestDatabase)("ledger version", () => {
   test("the stamp rolls over every ten minutes even with no change", async () => {
     expect(await ledgerStamp(context.db, cashier, now)).not.toBe(await ledgerStamp(context.db, cashier, now + 10 * 60 * 1000))
   })
+
+  test("live watchers hear a change in their own shop and the owner's, not other shops'", async () => {
+    const heard = { cashier: 0, other: 0, owner: 0 }
+    const stops = Object.entries({ cashier, other, owner }).map(([name, user]) =>
+      watchLedger(context.db, user, (kind) => {
+        if (kind === "change") heard[name] += 1
+      })
+    )
+    await Bun.sleep(1000)
+    await bumpLedger(context.db, "shop-a")
+    for (let tries = 0; tries < 50 && !(heard.cashier && heard.owner); tries += 1) await Bun.sleep(100)
+    await Bun.sleep(300)
+    stops.forEach((stop) => stop())
+    expect(heard).toEqual({ cashier: 1, other: 0, owner: 1 })
+  }, 15_000)
 })

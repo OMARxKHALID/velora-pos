@@ -39,18 +39,34 @@ export const openShift = async ({ db, client, user, shopId, at = new Date() }, i
   }
 }
 
+const shiftLedger = async (db, session, shift) => ({
+  shifts: [fromDoc(shift)],
+  sales: (await db.collection(C.sales).find({ shiftId: shift._id }, { session }).toArray()).map(fromDoc),
+  refunds: (await db.collection(C.refunds).find({ $or: [{ payoutShiftId: shift._id }, { approvedInShiftId: shift._id }] }, { session }).toArray()).map(fromDoc),
+  drawerEvents: (await db.collection(C.drawerEvents).find({ shiftId: shift._id }, { session }).toArray()).map(fromDoc),
+})
+
+export const recountClosedShift = async (db, session, shiftId) => {
+  const shift = await db.collection(C.shifts).findOne({ _id: shiftId, status: "closed" }, { session })
+  if (!shift) return null
+  const { record } = applyCloseShift(
+    await shiftLedger(db, session, { ...shift, status: "open" }),
+    { shiftId, countedCash: shift.countedCash, closedBy: shift.closedBy, note: shift.closeNote, at: shift.closedAt }
+  )
+  const { summary, expectedCash, difference } = record
+  await db.collection(C.shifts).updateOne({ _id: shiftId }, { $set: { summary, expectedCash, difference } }, { session })
+  return { ...fromDoc(shift), summary, expectedCash, difference }
+}
+
 export const closeShift = async ({ db, client, user, shopId, at = new Date() }, input) => {
   const { shiftId, countedCash, note } = parseInput(closeSchema, input)
   return withTransaction(client, async (session) => {
     const shift = await db.collection(C.shifts).findOne({ _id: shiftId, shopId }, { session })
     if (!shift || shift.status !== "open") throw new UserError("Shift is not open")
-    const sales = await db.collection(C.sales).find({ shiftId }, { session }).toArray()
-    const refunds = await db.collection(C.refunds).find({ $or: [{ payoutShiftId: shiftId }, { approvedInShiftId: shiftId }] }, { session }).toArray()
-    const drawerEvents = await db.collection(C.drawerEvents).find({ shiftId }, { session }).toArray()
     const { cashNoteAbove } = await shopSettings(db, session, shopId)
     let record
     try {
-      ;({ record } = applyCloseShift({ shifts: [fromDoc(shift)], sales: sales.map(fromDoc), refunds: refunds.map(fromDoc), drawerEvents: drawerEvents.map(fromDoc) }, { shiftId, countedCash, closedBy: user.id, note, noteAbove: cashNoteAbove ?? null, at }))
+      ;({ record } = applyCloseShift(await shiftLedger(db, session, shift), { shiftId, countedCash, closedBy: user.id, note, noteAbove: cashNoteAbove ?? null, at }))
     } catch (error) {
       throw new UserError(error.message)
     }

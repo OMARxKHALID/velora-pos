@@ -70,6 +70,18 @@ describe.skipIf(!hasTestDatabase)("products and stock on the server", () => {
     await expect(receiveDelivery({ ...deps(), shopId: "shop-other" }, { supplier: "Test", lines: [{ variantId: "p-01-BLACK-GOLD-39", quantity: 1 }] })).rejects.toThrow("Unknown item")
   })
 
+  test("a delivery or adjustment sent twice, even at once, is booked once", async () => {
+    const variantId = "p-02-BLACK-41"
+    const start = await stockOf(variantId)
+    const delivery = { clientId: "delivery-twice-1", supplier: "Velora Warehouse", lines: [{ variantId, quantity: 4 }] }
+    const [first, second] = await Promise.all([receiveDelivery(deps(), delivery), receiveDelivery(deps(), delivery)])
+    expect(second.id).toBe(first.id)
+    const adjustment = { clientId: "adjust-twice-1", variantId, quantity: -1, reason: "damaged" }
+    await adjustStock(deps(), adjustment)
+    await adjustStock(deps(), adjustment)
+    expect(await stockOf(variantId)).toBe(start + 3)
+  })
+
   test("deliveries and adjustments keep an exact running balance", async () => {
     const variantId = "p-02-BLACK-40"
     const start = await stockOf(variantId)

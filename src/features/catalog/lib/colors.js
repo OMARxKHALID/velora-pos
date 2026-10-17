@@ -49,7 +49,7 @@ export const colorValue = (name = "") => {
 
 export const swatchStyle = (name = "") => {
   const parts = name.split("/").map(colorValue)
-  if (parts.length === 2 && parts.every(Boolean)) return { background: `linear-gradient(135deg, ${parts[0]} 50%, ${parts[1]} 50%)` }
+  if (parts.length === 2 && parts.every(Boolean)) return { background: `linear-gradient(135deg, ${parts[0]} 48%, ${parts[1]} 52%) border-box` }
   const value = colorValue(name) ?? parts.find(Boolean)
   return value ? { backgroundColor: value } : null
 }

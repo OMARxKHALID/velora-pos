@@ -2,7 +2,7 @@ export const SHOP_TIME_ZONE = "Asia/Karachi"
 
 const formatters = new Map()
 
-const partsIn = (timeZone, at) => {
+export const partsIn = (timeZone, at) => {
   if (!formatters.has(timeZone)) {
     formatters.set(
       timeZone,

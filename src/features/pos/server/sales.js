@@ -5,10 +5,12 @@ import { CASHIER_DISCOUNT_LIMITS, PAYMENT_METHODS, applySale, cashierLimitOf } f
 import { moveStock } from "@/features/inventory/server/stock"
 import { cartTotals, effectiveRate, phoneLooksValid, phoneRequiredFor } from "@/features/pricing/lib/pricing"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/server/db/collections"
+import { writeAudit } from "@/server/db/audit"
 import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
 import { formatMoney } from "@/shared/lib/money"
 import { inBlocks, receiptNumber } from "../lib/receipts"
 import { fbrSeqOf, registerFor, saveFbrSeq, shopSettings } from "./register"
+import { recountClosedShift } from "./shifts"
 
 const CLOCK_SLACK = 5 * 60 * 1000
 const PRICE_HISTORY_SLACK = 24 * 60 * 60 * 1000
@@ -281,6 +283,7 @@ const syncInSession = async (db, session, { user, shopId, now, approvalSecret, c
     offline: true,
   }
   await db.collection(C.sales).insertOne(toDoc(stored), { session })
+  if (shift.status !== "open") await recountClosedShift(db, session, shift._id)
   return stored
 }
 
@@ -305,4 +308,29 @@ export const syncOfflineSale = async ({ db, client, user, shopId, approvalSecret
   const request = parseInput(offlineSaleSchema, input)
   const config = await shopConfig(db, shopId)
   return settle(client, db, request.clientId, (session) => syncInSession(db, session, { user, shopId, now, approvalSecret, config }, request))
+}
+
+const discardSchema = z.object({
+  clientId: z.string().min(8).max(64),
+  shiftId: z.string().min(1).max(64),
+  number: z.string().max(40),
+  total: z.number().int().min(0),
+  soldAt: z.number().int().positive(),
+  error: z.string().max(300).nullish(),
+})
+
+export const discardOfflineSale = async ({ db, user, shopId, at = new Date() }, input) => {
+  const entry = parseInput(discardSchema, input)
+  if (await existingSale(db, undefined, entry.clientId)) throw new UserError("This sale already reached the server. Refresh the till.")
+  const shift = await db.collection(C.shifts).findOne({ _id: entry.shiftId, shopId }, { projection: { cashierId: 1 } })
+  if (!shift || shift.cashierId !== user.id) throw new UserError("This sale was made on another cashier's shift")
+  await writeAudit(db, undefined, {
+    shopId,
+    userId: user.id,
+    kind: "offline_sale.discard",
+    target: entry.clientId,
+    changes: { number: { from: entry.number, to: null }, total: { from: entry.total, to: null }, shiftId: { from: entry.shiftId, to: null }, soldAt: { from: new Date(entry.soldAt), to: null }, error: { from: entry.error ?? null, to: null } },
+    at,
+  })
+  return { clientId: entry.clientId }
 }

@@ -1,5 +1,6 @@
 import { createAuth } from "@/features/auth/server/create-auth"
 import { dropCollections, loadDocuments, seedDocuments } from "@/features/sample-data/lib/seed-documents"
+import { DEMO_SEED } from "@/features/sample-data/lib/seed"
 import { seedSampleTeam } from "@/features/sample-data/server/sample-data"
 import { createMongoClient } from "@/server/db/connect"
 import { COLLECTIONS } from "@/server/db/collections"
@@ -12,7 +13,7 @@ const { SAMPLE_DATA } = appEnv()
 const { BETTER_AUTH_SECRET, SAMPLE_PASSWORD } = authEnv()
 
 if (!SAMPLE_DATA) {
-  console.error("Refusing to seed: set SAMPLE_DATA=true. Seeding writes 30 days of sample sales into the database.")
+  console.error("Refusing to seed: set SAMPLE_DATA=true. Seeding writes a week of sample sales into the database.")
   process.exit(1)
 }
 
@@ -27,7 +28,7 @@ try {
   } else {
     if (reset) await dropCollections(db)
     await ensureIndexes(db)
-    const inserted = await loadDocuments(db, seedDocuments())
+    const inserted = await loadDocuments(db, seedDocuments(Date.now(), DEMO_SEED))
     inserted.users = await seedSampleTeam({ auth: createAuth({ db, client, secret: BETTER_AUTH_SECRET }), db, password: SAMPLE_PASSWORD, pinSecret: pinSecret() })
     for (const [collection, count] of Object.entries(inserted)) console.log(`${collection}: ${count}`)
     console.log(`Sign in as asif (owner), bilal (supervisor, PIN 1234) or hamza (cashier) with the SAMPLE_PASSWORD.`)

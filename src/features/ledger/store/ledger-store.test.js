@@ -206,3 +206,34 @@ test("the till shows what it saved before the server answers", async () => {
   await pending
   expect(slow.getState().savedAt).toBeNull()
 })
+
+test("a refused offline sale leaves the till only after the server has recorded who discarded it", async () => {
+  const { IDBFactory, IDBKeyRange } = await import("fake-indexeddb")
+  const { createTillDb } = await import("@/features/offline/lib/till-db")
+  const till = createTillDb("till-discard-test", { indexedDB: new IDBFactory(), IDBKeyRange })
+  const discarded = []
+  let serverUp = false
+  const store = createLedgerStore({
+    user: { id: "u-cashier", role: "cashier" },
+    till,
+    actions: {
+      recordSale: async () => Promise.reject(new TypeError("Failed to fetch")),
+      discardOfflineSale: async (input) => (serverUp ? (discarded.push(input), { ok: true, record: {} }) : Promise.reject(new TypeError("Failed to fetch"))),
+    },
+    loadLedger: async () => offlineShop(),
+    sendSale: async () => ({ error: "The prices on this sale are not ones the shop used" }),
+  })
+  store.setState({ ...offlineShop(), serverStock: { v1: 3 }, hydrated: true })
+  await store.getState().recordSale({ clientId: "c-9", shiftId: "s1", lines: [{ variantId: "v1", quantity: 1 }], payments: [{ method: "cash", amount: 1300000 }] })
+  store.getState().setOffline(false)
+  await store.getState().syncOutbox()
+  expect(store.getState().pending).toMatchObject([{ clientId: "c-9", status: "failed" }])
+
+  await expect(store.getState().removeOffline("c-9")).rejects.toThrow("Could not reach the server")
+  expect(await till.outbox.count()).toBe(1)
+
+  serverUp = true
+  await store.getState().removeOffline("c-9")
+  expect(discarded).toEqual([expect.objectContaining({ clientId: "c-9", shiftId: "s1", number: "SH1-R1-X00001", total: 1250000, error: "The prices on this sale are not ones the shop used" })])
+  expect(await till.outbox.count()).toBe(0)
+})

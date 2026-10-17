@@ -32,6 +32,7 @@ export const StockCountScreen = ({ user }) => {
   const [code, setCode] = useState("")
   const [counts, setCounts] = useState({})
   const [productIds, setProductIds] = useState([])
+  const [scannedAt, setScannedAt] = useState({})
   const [lastScanned, setLastScanned] = useState(null)
   const [reviewing, setReviewing] = useState(false)
   const [saved, setSaved] = useState(null)
@@ -45,6 +46,7 @@ export const StockCountScreen = ({ user }) => {
     }
     beep(true, settings)
     setProductIds((ids) => (ids.includes(variant.productId) ? ids : [variant.productId, ...ids]))
+    setScannedAt((times) => (times[variant.productId] ? times : { ...times, [variant.productId]: Date.now() }))
     setCounts((current) => ({ ...current, [variant.id]: (current[variant.id] ?? 0) + 1 }))
     setLastScanned(variant.id)
   }
@@ -80,10 +82,12 @@ export const StockCountScreen = ({ user }) => {
 
   const handleSave = async () => {
     try {
-      const { changed } = await countStock({ counts: lines.map(({ variant, counted }) => ({ variantId: variant.id, counted })) })
+      const now = Date.now()
+      const { changed } = await countStock({ counts: lines.map(({ variant, counted }) => ({ variantId: variant.id, counted, countedAgo: now - (scannedAt[variant.productId] ?? now) })) })
       setSaved({ changed, shoes: groups.length, pairs: sumBy(lines, ({ counted }) => counted) })
       setCounts({})
       setProductIds([])
+      setScannedAt({})
       setReviewing(false)
     } catch (error) {
       toast.error(error.message)

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { applyOpenShift, applyRefundDecision, expectedCash, openShiftFor, shiftSummary } from "@/features/ledger/lib/rules"
-import { createSeed } from "./seed"
+import { DEMO_SEED, createSeed } from "./seed"
 
 const at = (hours, minutes = 0) => new Date(2026, 8, 16, hours, minutes).getTime()
 
@@ -54,5 +54,17 @@ describe("sample data", () => {
       expect(expectedCash(state, shift)).toBe(shift.expectedCash)
       expect(shiftSummary(state, shift).cashRefunds).toBe(state.refunds.filter(({ payoutShiftId, method }) => payoutShiftId === shift.id && method === "cash").reduce((sum, { total }) => sum + total, 0))
     }
+  })
+
+  test("the demo shop is small: eight products, one week, a few returns to approve", () => {
+    const state = createSeed(at(15), DEMO_SEED)
+    const days = new Set(state.sales.map(({ soldAt }) => startOfDay(soldAt)))
+    expect(state.products).toHaveLength(8)
+    expect(state.products.map(({ id }) => id)).toEqual(["p-01", "p-02", "p-03", "p-04", "p-05", "p-06", "p-07", "p-08"])
+    expect(state.productSeq).toBe(8)
+    expect(days.size).toBeLessThanOrEqual(7)
+    expect(state.sales.length).toBeLessThan(60)
+    expect(state.refunds.some(({ status }) => status === "pending")).toBe(true)
+    expect(state.shifts.every(({ status }) => status === "closed")).toBe(true)
   })
 })

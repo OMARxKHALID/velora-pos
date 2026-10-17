@@ -11,8 +11,8 @@ const withDates = (doc) =>
 
 const asDoc = (record) => withDates(toDoc(record))
 
-export const seedDocuments = (now = Date.now()) => {
-  const state = createSeed(now)
+export const seedDocuments = (now = Date.now(), options) => {
+  const state = createSeed(now, options)
   const shopOf = Object.fromEntries(state.products.map(({ id, shopId }) => [id, shopId]))
 
   const { shop, register, settings } = firstShopDocuments(new Date(now))

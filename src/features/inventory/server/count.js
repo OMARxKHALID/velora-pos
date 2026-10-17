@@ -6,9 +6,28 @@ import { UserError, parseInput } from "@/shared/lib/errors"
 import { newId } from "@/shared/lib/id"
 import { moveStockMany, shopVariants } from "./stock"
 
+const COUNT_LOOKBACK_MS = 24 * 60 * 60 * 1000
+
+const stockWhenCounted = async (db, session, { shopId, counts, rows, at }) => {
+  const stock = Object.fromEntries(rows.map(({ variantId, quantity }) => [variantId, quantity]))
+  const timeOf = Object.fromEntries(counts.filter(({ countedAgo }) => countedAgo).map(({ variantId, countedAgo }) => [variantId, new Date(at.getTime() - Math.min(countedAgo, COUNT_LOOKBACK_MS))]))
+  const ids = Object.keys(timeOf)
+  if (!ids.length) return stock
+  const since = new Date(Math.min(...Object.values(timeOf).map((date) => date.getTime())))
+  const later = await db.collection(C.movements).find({ shopId, variantId: { $in: ids }, createdAt: { $gt: since } }, { session, projection: { variantId: 1, quantity: 1, createdAt: 1 } }).toArray()
+  for (const { variantId, quantity, createdAt } of later) if (createdAt > timeOf[variantId]) stock[variantId] = (stock[variantId] ?? 0) - quantity
+  return stock
+}
+
 const countSchema = z.object({
   counts: z
-    .array(z.object({ variantId: z.string().min(1).max(80), counted: z.number().int({ error: "Counts must be whole numbers" }).min(0, { error: "Counts must be whole numbers" }).max(100000) }))
+    .array(
+      z.object({
+        variantId: z.string().min(1).max(80),
+        counted: z.number().int({ error: "Counts must be whole numbers" }).min(0, { error: "Counts must be whole numbers" }).max(100000),
+        countedAgo: z.number().int().min(0).optional(),
+      })
+    )
     .min(1, { error: "Scan at least one item" })
     .max(3000, { error: "Count at most 3,000 items at a time" }),
 })
@@ -24,8 +43,8 @@ export const countStock = async ({ db, client, user, shopId, at = new Date() }, 
     let record
     try {
       ;({ record } = applyStockCount(
-        { variants: Object.values(variants).map(fromDoc), products: [], stock: Object.fromEntries(rows.map(({ variantId, quantity }) => [variantId, quantity])), movements: [] },
-        { counts, userId: user.id, at, id }
+        { variants: Object.values(variants).map(fromDoc), products: [], stock: await stockWhenCounted(db, session, { shopId, counts, rows, at }), movements: [] },
+        { counts: counts.map(({ variantId, counted }) => ({ variantId, counted })), userId: user.id, at, id }
       ))
     } catch (error) {
       throw new UserError(error.message)

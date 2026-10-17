@@ -35,7 +35,7 @@ const Entry = ({ entry, onRetry, onRemove, onView }) => {
           <div className="flex flex-wrap justify-end gap-2">
             {confirming ? (
               <>
-                <span className="mr-auto self-center text-xs text-muted-foreground">Remove it from this till? Tell your supervisor about this sale first.</span>
+                <span className="mr-auto self-center text-xs text-muted-foreground">This deletes the sale from this till. It is recorded under your name for the owner.</span>
                 <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
                   Keep
                 </Button>

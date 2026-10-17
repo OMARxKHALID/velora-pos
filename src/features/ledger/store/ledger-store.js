@@ -190,6 +190,9 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
         await syncOutbox()
       },
       removeOffline: async (clientId) => {
+        const entry = await till.outbox.get(clientId)
+        if (!entry) return
+        await call("discardOfflineSale", { clientId, shiftId: entry.shiftId, number: entry.sale.number, total: entry.sale.total, soldAt: entry.payload.soldAt, error: entry.error })
         await removeEntry(till, clientId)
         await refreshOutbox()
       },

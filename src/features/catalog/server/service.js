@@ -200,6 +200,8 @@ export const importCatalog = async ({ db, client, user, shopId, at = new Date() 
   if (!Array.isArray(rows) || !rows.length) throw new UserError("The file has no rows to import")
   if (rows.length > 2000) throw new UserError("Import at most 2000 rows at a time")
   const valid = parseRows(rows)
+  const mixed = groupRows(valid).find((group) => group.some(({ price, cost }) => price !== group[0].price || cost !== group[0].cost))
+  if (mixed) throw new UserError(`${mixed[0].product} has different prices or costs on different rows. Use one price and cost per product.`)
   const type = productTypeFor("footwear")
   try {
     return await withTransaction(client, async (session) => {

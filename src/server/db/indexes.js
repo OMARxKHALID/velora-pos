@@ -20,6 +20,7 @@ export const INDEXES = {
     { key: { shopId: 1, createdAt: -1 }, name: "shop_time" },
     { key: { "ref.id": 1 }, name: "ref" },
     { key: { userId: 1, createdAt: -1 }, name: "user_time" },
+    { key: { clientId: 1 }, name: "client_unique", unique: true, partialFilterExpression: { clientId: { $type: "string" } } },
   ],
   [C.sales]: [
     { key: { clientId: 1 }, name: "client_unique", unique: true },
@@ -49,8 +50,12 @@ export const INDEXES = {
     { key: { clientId: 1 }, name: "client_unique", unique: true },
     { key: { registerId: 1 }, name: "one_open_shift_per_register", unique: true, partialFilterExpression: { status: "open" } },
     { key: { shopId: 1, openedAt: -1 }, name: "shop_time" },
+    { key: { shopId: 1, status: 1, closedAt: -1 }, name: "shop_status_closed_time" },
   ],
-  [C.purchases]: [{ key: { shopId: 1, receivedAt: -1 }, name: "shop_time" }],
+  [C.purchases]: [
+    { key: { shopId: 1, receivedAt: -1 }, name: "shop_time" },
+    { key: { clientId: 1 }, name: "client_unique", unique: true, partialFilterExpression: { clientId: { $type: "string" } } },
+  ],
   [C.heldCarts]: [{ key: { registerId: 1, parkedAt: -1 }, name: "register_time" }],
   [C.auditLog]: [{ key: { shopId: 1, at: -1 }, name: "shop_time" }],
   [C.pinFailures]: [

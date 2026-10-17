@@ -62,7 +62,7 @@ export const saleDetail = async (db, { saleId, shopIds, viewer }) => {
 export const findSale = async (db, { shopIds, viewer, number = null, reference = null }) => {
   const filter = {
     shopId: { $in: shopIds },
-    ...(viewer.role === "cashier" && number ? { cashierId: viewer.id } : {}),
+    ...(viewer.role === "cashier" ? { cashierId: viewer.id } : {}),
     ...(number ? receiptIs(String(number).trim().toUpperCase()) : {}),
     ...(reference ? { "payments.reference": String(reference).trim() } : {}),
   }

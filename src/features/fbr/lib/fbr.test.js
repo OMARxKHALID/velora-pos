@@ -7,7 +7,7 @@ import { FBR_INVOICE_TYPE, FBR_PAYMENT_MODE, creditNoteInvoice, exchangeInvoices
 const catalog = seedCatalog()
 const shoe = catalog.variants[0]
 const sibling = catalog.variants.find((variant) => variant.productId === shoe.productId && variant.id !== shoe.id)
-const at = new Date(2026, 8, 25, 14, 30, 12).getTime()
+const at = Date.UTC(2026, 8, 25, 9, 30, 12)
 const fbrSettings = { ...defaultPricingSettings(), taxEnabled: true, taxRate: 18, fbrEnabled: true }
 
 const sell = (settings, { offline = false, payments, fbrPosId = "110014" } = {}) => {

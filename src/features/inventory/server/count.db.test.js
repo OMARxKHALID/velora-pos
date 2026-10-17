@@ -6,6 +6,7 @@ import { openDrawer } from "@/features/pos/server/drawer"
 import { COLLECTIONS as C } from "@/server/db/collections"
 import { newId } from "@/shared/lib/id"
 import { countStock } from "./count"
+import { adjustStock } from "./service"
 
 const SHOP = "shop-shoes"
 
@@ -28,6 +29,16 @@ describe.skipIf(!hasTestDatabase)("stock counts and the drawer", () => {
     expect(await stockOf(b.variantId)).toBe(b.quantity)
     expect(await context.db.collection(C.movements).findOne({ "ref.id": record.id })).toMatchObject({ type: "adjustment", reason: "count", quantity: -2, variantId: a.variantId })
     expect(await context.db.collection(C.movements).countDocuments({ "ref.id": record.id })).toBe(1)
+  })
+
+  test("a pair sold after its shelf was counted is not booked as missing", async () => {
+    const [, b] = variants
+    const onShelf = await stockOf(b.variantId)
+    const scanned = Date.now()
+    await adjustStock(as("u-manager", "manager"), { variantId: b.variantId, quantity: -1, reason: "damaged" })
+    const record = await countStock(as("u-manager", "manager"), { counts: [{ variantId: b.variantId, counted: onShelf, countedAgo: Date.now() - scanned + 1 }] })
+    expect(record.changed).toBe(0)
+    expect(await stockOf(b.variantId)).toBe(onShelf - 1)
   })
 
   test("counts are checked before anything is booked", async () => {

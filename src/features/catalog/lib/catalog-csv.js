@@ -72,6 +72,14 @@ export const parseCatalogImport = (text) => {
     else errors.push({ line: index + 2, message: parsed.error.issues.map(({ message }) => message).join("; ") })
   })
 
+  const priced = new Map()
+  for (const row of rows) {
+    const key = `${row.product}|${row.brand}`.toLowerCase()
+    const first = priced.get(key)
+    if (!first) priced.set(key, row)
+    else if (first.price !== row.price || first.cost !== row.cost) errors.push({ line: 0, message: `${row.product} has different prices or costs on different rows. Use one price and cost per product` })
+  }
+
   const seen = new Map()
   for (const row of rows) {
     const key = `${row.product}|${row.brand}`.toLowerCase() + `|${colorCode(row.color)}|${row.size}`

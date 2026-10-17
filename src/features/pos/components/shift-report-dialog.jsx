@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { shiftSummary } from "@/features/ledger/lib/rules"
 import { useStaffName } from "@/features/staff/hooks/use-staff-name"
 import { downloadFrom } from "@/shared/lib/download"
-import { formatTime } from "@/shared/lib/dates"
+import { formatDateTime, formatTimeOrDate } from "@/shared/lib/dates"
 import { formatMoney } from "@/shared/lib/money"
 import { printNode } from "../lib/print-node"
 import { ZReportPrint } from "./z-report-print"
@@ -50,7 +50,7 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
             <span className="font-mono text-xs text-muted-foreground uppercase">#{shift.id.slice(0, 8)}</span>
           </div>
           <DialogDescription>
-            {nameOf(shift.cashierId)} · {formatTime(shift.openedAt)} to {formatTime(shift.closedAt)}
+            {nameOf(shift.cashierId)} · {formatDateTime(shift.openedAt)} to {formatTimeOrDate(shift.closedAt, shift.openedAt)}
           </DialogDescription>
         </DialogHeader>
 

@@ -71,6 +71,9 @@ export const saveRegister = async ({ db, client, user, at = new Date() }, input)
       if (request.registerId && !existing) throw new UserError("Counter not found")
       const shop = await db.collection(C.shops).findOne({ _id: existing?.shopId ?? request.shopId }, { session })
       if (!shop) throw new UserError("Shop not found")
+      if (!request.fbrPosId && (await db.collection(C.settings).findOne({ _id: shop._id, fbrEnabled: true }, { session, projection: { _id: 1 } }))) {
+        throw new UserError("FBR reporting is on for this shop, so every counter needs its 6-digit POSID")
+      }
       if (request.fbrPosId && (await registers.findOne({ fbrPosId: request.fbrPosId, _id: { $ne: request.registerId ?? "" } }, { session }))) throw new UserError("Another counter already uses that POSID")
 
       const settings = {

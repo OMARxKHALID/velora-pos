@@ -10,7 +10,7 @@ import { deleteCategoryAction, deleteProductAction, importCatalogAction, saveCat
 import { forgetDevice } from "@/features/offline/lib/forget-device"
 import { outboxFor } from "@/features/offline/lib/outbox"
 import { tillDb } from "@/features/offline/lib/till-db"
-import { closeShiftAction, discardHeldCartAction, holdCartAction, openDrawerAction, openShiftAction, recordSaleAction, reserveReceiptsAction, takeHeldCartAction } from "@/features/pos/actions"
+import { closeShiftAction, discardHeldCartAction, discardOfflineSaleAction, holdCartAction, openDrawerAction, openShiftAction, recordSaleAction, reserveReceiptsAction, takeHeldCartAction } from "@/features/pos/actions"
 import { decideRefundAction, requestRefundAction } from "@/features/refunds/actions"
 import { exchangeItemAction } from "@/features/sales/actions"
 import { updateSettingsAction } from "@/features/settings/actions"
@@ -24,6 +24,7 @@ const actions = {
   openShift: openShiftAction,
   closeShift: closeShiftAction,
   reserveReceipts: reserveReceiptsAction,
+  discardOfflineSale: discardOfflineSaleAction,
   holdCart: holdCartAction,
   takeHeldCart: takeHeldCartAction,
   discardHeldCart: discardHeldCartAction,
@@ -63,6 +64,12 @@ export const LedgerStoreProvider = ({ user, directory, children }) => {
   const [store] = useState(() => createLedgerStore({ user, till, directory, actions, onChanged: () => queryClient.invalidateQueries() }))
 
   useEffect(() => {
+    const storage = typeof navigator === "undefined" ? null : navigator.storage
+    if (!storage?.persist) return
+    storage.persisted().then((persisted) => persisted || storage.persist()).catch(() => {})
+  }, [])
+
+  useEffect(() => {
     store.getState().setDirectory(directory)
   }, [store, directory])
 
@@ -86,6 +93,24 @@ export const LedgerStoreProvider = ({ user, directory, children }) => {
     }
     sync()
     store.getState().setOffline(!navigator.onLine)
+    let catchingUp = null
+    let changedAgain = false
+    const handleLedgerChanged = () => {
+      if (catchingUp) {
+        changedAgain = true
+        return
+      }
+      catchingUp = (async () => {
+        do {
+          changedAgain = false
+          await refresh()
+        } while (changedAgain)
+      })().finally(() => {
+        catchingUp = null
+      })
+    }
+    const live = typeof EventSource === "undefined" ? null : new EventSource("/api/ledger/live")
+    live?.addEventListener("changed", handleLedgerChanged)
     const timer = setInterval(refresh, REFRESH_MS)
     window.addEventListener("focus", refresh)
     document.addEventListener("visibilitychange", refresh)
@@ -93,6 +118,7 @@ export const LedgerStoreProvider = ({ user, directory, children }) => {
     window.addEventListener("offline", syncOnline)
     return () => {
       clearInterval(timer)
+      live?.close()
       sessionEnded()
       window.removeEventListener("focus", refresh)
       document.removeEventListener("visibilitychange", refresh)
