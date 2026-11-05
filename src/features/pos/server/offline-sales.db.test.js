@@ -6,7 +6,7 @@ import { ledgerSnapshot } from "@/features/ledger/server/snapshot"
 import { writeAudit } from "@/server/db/audit"
 import { COLLECTIONS as C } from "@/server/db/collections"
 import { newId } from "@/shared/lib/id"
-import { OFFLINE_BLOCK, offlineNumbers } from "../lib/receipts"
+import { MAX_BLOCKS, OFFLINE_BLOCK, offlineNumbers } from "../lib/receipts"
 import { discardOfflineSale, recordSale, syncOfflineSale } from "./sales"
 import { closeShift, openShift, reserveReceipts } from "./shifts"
 
@@ -215,5 +215,13 @@ describe.skipIf(!hasTestDatabase)("sales made offline and uploaded later", () =>
     const after = await syncOfflineSale(as("u-cashier"), offlineSale(variant, { soldAt: closed.closedAt.getTime() + MINUTE }))
     expect(after.flags).toEqual(["after_close"])
     await expect(reserveReceipts(as("u-cashier"), { shiftId: shift.id })).rejects.toThrow("not open")
+  })
+
+  test("a shift that keeps topping up offline numbers eventually runs out of blocks", async () => {
+    const fresh = await openShift(as("u-cashier"), { openingCash: 0, clientId: newId() })
+    for (let i = 0; i < MAX_BLOCKS - 1; i++) await reserveReceipts(as("u-cashier"), { shiftId: fresh.id })
+    const grown = await context.db.collection(C.shifts).findOne({ _id: fresh.id })
+    expect(grown.receiptBlocks).toHaveLength(MAX_BLOCKS)
+    await expect(reserveReceipts(as("u-cashier"), { shiftId: fresh.id })).rejects.toThrow("used all its offline receipt numbers")
   })
 })

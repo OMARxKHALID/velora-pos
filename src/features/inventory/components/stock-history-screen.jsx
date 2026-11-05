@@ -30,6 +30,7 @@ const types = [
 const ranges = [
   { key: "today", label: "Today" },
   { key: "7d", label: "7 days" },
+  { key: "30d", label: "30 days" },
   { key: "all", label: "All" },
 ]
 

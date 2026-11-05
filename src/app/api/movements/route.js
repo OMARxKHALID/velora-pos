@@ -5,7 +5,7 @@ import { startOfDayIn } from "@/shared/lib/zoned"
 import { denied, noStore, readQuery } from "@/server/http"
 import { DAY } from "@/shared/lib/dates"
 
-const RANGE_DAYS = { today: 1, "7d": 7, all: null }
+const RANGE_DAYS = { today: 1, "7d": 7, "30d": 30, all: null }
 
 const querySchema = z.object({
   page: z.coerce.number().int().min(1).max(100000).default(1),

@@ -103,6 +103,13 @@ export const SalesScreen = ({ user }) => {
 
   const cashierOptions = [{ key: "all", label: "All cashiers" }, ...cashiers.map((id) => ({ key: id, label: nameOf(id).split(" ")[0] }))]
 
+  const handleClearFilters = () => {
+    setQuery("")
+    setRange("7d")
+    if (seesCashiers) setCashier("all")
+    setPage(1)
+  }
+
   const handleExportSalesCsv = () => {
     downloadFrom(`/api/sales?${queryString({ ...filters, format: "csv" })}`)
   }
@@ -184,6 +191,7 @@ export const SalesScreen = ({ user }) => {
           getRowId={({ id }) => id}
           onRowClick={({ id }) => setOpenId(id)}
           empty={error && !data ? <LoadError message={error.message} onRetry={refetch} className="text-left" /> : "No sales match these filters."}
+          emptyAction={search || range !== "7d" || (seesCashiers && cashier !== "all") ? { label: "Clear filters", onClick: handleClearFilters } : null}
           page={data?.page ?? page}
           pageSize={data?.pageSize}
           total={data?.total ?? 0}

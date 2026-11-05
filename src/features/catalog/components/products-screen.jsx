@@ -161,6 +161,12 @@ export const ProductsScreen = ({ user }) => {
   ]
 
 
+  const handleClearFilters = () => {
+    setQuery("")
+    setStatus("active")
+    setPage(1)
+  }
+
   const handleExport = () => {
     downloadFile(`velora-products-${new Date().toISOString().slice(0, 10)}.csv`, exportCatalogCsv({ products, variants, stock }))
     toast.success("Export ready", { description: `${variants.length} rows with stock, prices and barcodes.` })
@@ -221,7 +227,7 @@ export const ProductsScreen = ({ user }) => {
       </div>
 
       <Surface>
-        <DataTable columns={columns} data={visible} getRowId={({ id }) => id} onRowClick={setEditing} empty="No products here." page={page} onPageChange={setPage} />
+        <DataTable columns={columns} data={visible} getRowId={({ id }) => id} onRowClick={setEditing} empty="No products here." emptyAction={query || status !== "active" ? { label: "Clear filters", onClick: handleClearFilters } : null} page={page} onPageChange={setPage} />
       </Surface>
       <p className="text-xs text-muted-foreground">Products that were ever sold can be archived but not deleted, so old receipts stay correct.</p>
 

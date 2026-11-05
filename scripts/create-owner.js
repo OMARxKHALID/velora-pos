@@ -10,18 +10,23 @@ import { authEnv, databaseEnv } from "@/config/env"
 
 const { values } = parseArgs({ options: { username: { type: "string" }, name: { type: "string" }, email: { type: "string" }, update: { type: "boolean", default: false } } })
 
-const input = z
-  .object({
-    username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,30}$/, { error: "--username: 3 to 30 letters, digits, dots, dashes or underscores" }),
-    name: z.string().trim().min(2, { error: "--name is required" }),
-    email: z.email({ error: "--email must be a valid email" }),
-    password: z.string().min(8, { error: "OWNER_PASSWORD must be at least 8 characters" }).max(128),
-  })
-  .safeParse({ username: values.username, name: values.name, email: values.email, password: process.env.OWNER_PASSWORD })
+const fields = {
+  username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,30}$/, { error: "--username: 3 to 30 letters, digits, dots, dashes or underscores" }),
+  name: z.string().trim().min(2, { error: "--name is required" }),
+  email: z.email({ error: "--email must be a valid email" }),
+  password: z.string().min(8, { error: "OWNER_PASSWORD must be at least 8 characters" }).max(128),
+}
+
+const raw = { username: values.username, name: values.name, email: values.email, password: process.env.OWNER_PASSWORD }
+
+const input = values.update
+  ? z.object(fields).partial().refine((data) => Object.values(data).some(Boolean), { error: "Give at least one of --username, --name, --email or OWNER_PASSWORD" }).safeParse(raw)
+  : z.object(fields).safeParse(raw)
 
 if (!input.success) {
   console.error(z.prettifyError(input.error))
-  console.error('Usage: OWNER_PASSWORD=... bun run db:create-owner --username asif --name "ASIF" --email asif@example.com [--update]')
+  console.error('Create: OWNER_PASSWORD=... bun run db:create-owner --username asif --name "ASIF" --email asif@example.com')
+  console.error('Update: OWNER_PASSWORD=... bun run db:create-owner --update [--username admin] [--name "Owner"] [--email admin@gmail.com]')
   process.exit(1)
 }
 
@@ -34,16 +39,21 @@ try {
   const owner = await db.collection(C.users).findOne({ role: "admin" })
   if (owner && values.update) {
     const { username, name, email, password } = input.data
-    const taken = await db.collection(C.users).findOne({ _id: { $ne: owner._id }, $or: [{ username }, { email: email.toLowerCase() }] }, { projection: { _id: 1 } })
+    const changes = { ...(username && { username, displayUsername: username }), ...(name && { name }), ...(email && { email: email.toLowerCase() }) }
+    const clashes = [...(username ? [{ username }] : []), ...(email ? [{ email: email.toLowerCase() }] : [])]
+    const taken = clashes.length ? await db.collection(C.users).findOne({ _id: { $ne: owner._id }, $or: clashes }, { projection: { _id: 1 } }) : null
     if (taken) {
       console.error("Another account already uses that username or email.")
       process.exitCode = 1
     } else {
-      const ctx = await createAuth({ db, client, secret: authEnv().BETTER_AUTH_SECRET }).$context
-      await db.collection(C.users).updateOne({ _id: owner._id }, { $set: { username, displayUsername: username, name, email: email.toLowerCase(), updatedAt: new Date() } })
-      await ctx.internalAdapter.updatePassword(owner._id, await ctx.password.hash(password))
+      if (Object.keys(changes).length) await db.collection(C.users).updateOne({ _id: owner._id }, { $set: { ...changes, updatedAt: new Date() } })
+      if (password) {
+        const ctx = await createAuth({ db, client, secret: authEnv().BETTER_AUTH_SECRET }).$context
+        await ctx.internalAdapter.updatePassword(owner._id, await ctx.password.hash(password))
+      }
       await db.collection(C.sessions).deleteMany({ userId: owner._id })
-      console.log(`Owner updated. Sign in as ${username} or ${email.toLowerCase()}.`)
+      const now = await db.collection(C.users).findOne({ _id: owner._id }, { projection: { username: 1, email: 1 } })
+      console.log(`Owner updated. Sign in as ${now.username} or ${now.email}.`)
     }
   } else if (owner) {
     console.error("An owner account already exists. Run again with --update to change its username, email and password.")

@@ -78,6 +78,12 @@ export const StaffScreen = ({ user }) => {
 
   const activityOf = (id) => staff[id]?.activity ?? { sales: 0, shifts: 0, lastActive: null }
 
+  const handleClearFilters = () => {
+    setQuery("")
+    setRoleFilter("all")
+    setPage(1)
+  }
+
   const run = (action, onDone) =>
     new Promise((resolve) =>
       startTransition(async () => {
@@ -280,7 +286,7 @@ export const StaffScreen = ({ user }) => {
       </div>
 
       <Surface>
-        <DataTable columns={columns} data={visible} getRowId={({ id }) => id} onRowClick={({ id }) => setSelectedId(id)} rowClassName="hover:bg-accent/40" empty="No staff members match." page={page} onPageChange={setPage} />
+        <DataTable columns={columns} data={visible} getRowId={({ id }) => id} onRowClick={({ id }) => setSelectedId(id)} rowClassName="hover:bg-accent/40" empty="No staff members match." emptyAction={query || roleFilter !== "all" ? { label: "Clear filters", onClick: handleClearFilters } : null} page={page} onPageChange={setPage} />
       </Surface>
 
       <p className="text-xs text-muted-foreground">Tap a staff member to see their profile and activity, or to change their username, email or password. Everyone signs in with their own username or email.</p>

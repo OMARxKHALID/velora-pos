@@ -20,3 +20,25 @@ test("one product cannot carry two prices", () => {
   const { errors } = parseCatalogImport(csv)
   expect(errors.map(({ message }) => message).join()).toMatch("different prices")
 })
+
+test("a 5,000 row import parses cleanly and quickly, with no false duplicate flags", () => {
+  const rows = ["product,brand,category,audience,color,size,price,cost,barcode"]
+  for (let product = 0; product < 500; product += 1) {
+    for (let size = 40; size < 50; size += 1) {
+      rows.push(`Velora Style ${product},Velora,Sneakers,men,Black,${size},13500,6000,`)
+    }
+  }
+  const started = performance.now()
+  const { rows: parsed, errors, total } = parseCatalogImport(rows.join("\n"))
+  expect(performance.now() - started).toBeLessThan(2000)
+  expect(total).toBe(5000)
+  expect(parsed).toHaveLength(5000)
+  expect(errors).toEqual([])
+})
+
+test("a spreadsheet-formula product name imports as plain text, never as a formula", () => {
+  const csv = ["product,brand,category,audience,color,size,price,cost", '=HYPERLINK("http://x"),Velora,Sneakers,men,Black,42,13500,6000'].join("\n")
+  const { rows, errors } = parseCatalogImport(csv)
+  expect(errors).toEqual([])
+  expect(rows[0].product).toBe('=HYPERLINK("http://x")')
+})

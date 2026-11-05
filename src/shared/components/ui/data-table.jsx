@@ -2,6 +2,7 @@
 
 import { createPaginatedRowModel, rowPaginationFeature, tableFeatures, useTable } from "@tanstack/react-table"
 import { cn } from "cn"
+import { Button } from "@/shared/components/ui/button"
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table"
 import { PAGE_SIZE, TablePagination } from "@/shared/components/ui/table-pagination"
 
@@ -22,7 +23,7 @@ const rowProps = (onRowClick, original) => {
   return { tabIndex: 0, onClick: () => onRowClick(original), onKeyDown: handleKeyDown }
 }
 
-export const DataTable = ({ columns, data = NO_ROWS, getRowId, onRowClick, rowClassName, empty = "No results.", page = 1, pageSize = PAGE_SIZE, total, onPageChange, className }) => {
+export const DataTable = ({ columns, data = NO_ROWS, getRowId, onRowClick, rowClassName, empty = "No results.", emptyAction = null, page = 1, pageSize = PAGE_SIZE, total, onPageChange, className }) => {
   const server = total !== undefined
   const rowCount = server ? total : data.length
   const size = onPageChange ? pageSize : Math.max(data.length, 1)
@@ -73,6 +74,13 @@ export const DataTable = ({ columns, data = NO_ROWS, getRowId, onRowClick, rowCl
             <TableRow className="hover:bg-transparent">
               <TableCell colSpan={columns.length} className="h-24 text-center whitespace-normal text-muted-foreground">
                 {empty}
+                {emptyAction && (
+                  <div className="mt-2">
+                    <Button type="button" size="sm" variant="outline" onClick={emptyAction.onClick}>
+                      {emptyAction.label}
+                    </Button>
+                  </div>
+                )}
               </TableCell>
             </TableRow>
           )}
