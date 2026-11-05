@@ -74,7 +74,8 @@ const STALE_AFTER_MS = 2 * DASHBOARD_REVALIDATE_S * 1000
 
 const sharedDashboard = unstable_cache((shopIds, scope, range, from, to) => loadDashboard(getDb(), { shopIds, scope, range, from, to }), ["dashboard", "v4"], { revalidate: DASHBOARD_REVALIDATE_S })
 
-export const cachedDashboard = async (shopIds, scope, range, from, to) => {
+export const cachedDashboard = async (shopIds, scope, range, from, to, { fresh = false } = {}) => {
+  if (fresh) return loadDashboard(getDb(), { shopIds, scope, range, from, to })
   const view = await sharedDashboard(shopIds, scope, range, from, to)
   if (Date.now() - view.generatedAt < STALE_AFTER_MS) return view
   return loadDashboard(getDb(), { shopIds, scope, range, from, to })

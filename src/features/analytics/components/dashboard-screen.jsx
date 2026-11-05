@@ -1,8 +1,9 @@
 "use client"
 
+import { useRef } from "react"
 import Link from "next/link"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, CheckCircleIcon, WarningIcon } from "@phosphor-icons/react"
+import { ArrowDownRightIcon, ArrowRightIcon, ArrowUpRightIcon, ArrowsClockwiseIcon, CheckCircleIcon, WarningIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { LoadError } from "@/shared/components/ui/alert"
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/shared/components/ui/item"
@@ -19,6 +20,7 @@ import { formatMoney } from "@/shared/lib/money"
 import { DAY } from "@/shared/lib/dates"
 import { SHOP_TIME_ZONE, dayIn } from "@/shared/lib/zoned"
 import { useDashboardPeriod } from "../hooks/use-dashboard-period"
+import { Button } from "@/shared/components/ui/button"
 import { PeriodPicker } from "./period-picker"
 import { TrendChart } from "./trend-chart"
 import { Empty, EmptyDescription } from "@/shared/components/ui/empty"
@@ -94,9 +96,10 @@ export const DashboardScreen = ({ user }) => {
   const period = useDashboardPeriod()
   const { range, from, to } = period
   const custom = range === "custom"
-  const { data: view, error, isPending, isPlaceholderData, refetch } = useQuery({
+  const refreshing = useRef(false)
+  const { data: view, error, isPending, isPlaceholderData, isFetching, refetch } = useQuery({
     queryKey: custom ? ["dashboard", scope, range, from, to] : ["dashboard", scope, range],
-    queryFn: ({ signal }) => getJson(`/api/dashboard?${queryString(custom ? { range, from, to, shop: scope } : { range, shop: scope })}`, { signal }),
+    queryFn: ({ signal }) => getJson(`/api/dashboard?${queryString({ ...(custom ? { range, from, to, shop: scope } : { range, shop: scope }), fresh: refreshing.current ? "1" : undefined })}`, { signal }),
     enabled: !period.error,
     placeholderData: keepPreviousData,
     refetchInterval: 60_000,
@@ -104,10 +107,26 @@ export const DashboardScreen = ({ user }) => {
 
   const timeZone = view?.timeZone ?? SHOP_TIME_ZONE
 
+  const handleRefresh = async () => {
+    refreshing.current = true
+    try {
+      await refetch()
+    } finally {
+      refreshing.current = false
+    }
+  }
+
   const header = (
     <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
       <PeriodPicker range={range} from={from} to={to} error={period.error} today={view && dayIn(timeZone, view.generatedAt)} onRangeChange={period.selectRange} onDatesChange={period.selectDates} />
-      {view && <p className={cn("py-2.5 text-xs text-muted-foreground pointer-coarse:py-3.5", !error && "hidden @2xl:block")}>{error ? <span className="text-destructive">Could not refresh · showing {clock(timeZone, view.generatedAt)}</span> : `Updated ${clock(timeZone, view.generatedAt)}`}</p>}
+      {view && (
+        <div className="flex items-center gap-2">
+          <p className={cn("text-xs text-muted-foreground", !error && "hidden @2xl:block")}>{error ? <span className="text-destructive">Could not refresh · showing {clock(timeZone, view.generatedAt)}</span> : `Updated ${clock(timeZone, view.generatedAt)}`}</p>
+          <Button type="button" size="icon-sm" variant="outline" aria-label="Refresh figures" title="Refresh figures" disabled={isFetching} onClick={handleRefresh}>
+            <ArrowsClockwiseIcon className={cn(isFetching && "animate-spin")} />
+          </Button>
+        </div>
+      )}
     </div>
   )
 

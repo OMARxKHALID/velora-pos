@@ -8,7 +8,7 @@ import { getDb } from "@/server/db/client"
 import { denied, noStore, readQuery } from "@/server/http"
 
 const querySchema = z
-  .object({ range: z.enum(RANGES).default("7d"), shop: z.string().max(60).default(ALL_SHOPS), from: z.iso.date().optional(), to: z.iso.date().optional() })
+  .object({ range: z.enum(RANGES).default("7d"), shop: z.string().max(60).default(ALL_SHOPS), from: z.iso.date().optional(), to: z.iso.date().optional(), fresh: z.literal("1").optional() })
   .refine(({ range, from, to }) => range !== "custom" || !customRangeError(from, to))
 
 export const GET = async (request) => {
@@ -18,9 +18,9 @@ export const GET = async (request) => {
   const query = readQuery(request, querySchema)
   if (!query.success) return denied(400, "Bad query")
   const allShops = (await getDb().collection(C.shops).find({}, { projection: { _id: 1 } }).toArray()).map(({ _id }) => _id)
-  const { range, shop, from, to } = query.data
+  const { range, shop, from, to, fresh } = query.data
   if (shop !== ALL_SHOPS && !allShops.includes(shop)) return denied(400, "Unknown shop")
   const shopIds = shop === ALL_SHOPS ? allShops : [shop]
   const custom = range === "custom"
-  return Response.json(await cachedDashboard(shopIds, shop, range, custom ? from : null, custom ? to : null), { headers: noStore })
+  return Response.json(await cachedDashboard(shopIds, shop, range, custom ? from : null, custom ? to : null, { fresh: Boolean(fresh) }), { headers: noStore })
 }
