@@ -117,12 +117,14 @@ export const DashboardScreen = ({ user }) => {
   }
 
   const header = (
-    <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-      <PeriodPicker range={range} from={from} to={to} error={period.error} today={view && dayIn(timeZone, view.generatedAt)} onRangeChange={period.selectRange} onDatesChange={period.selectDates} />
+    <div className="flex items-start justify-between gap-2 @2xl:gap-4">
+      <div className="min-w-0 flex-1">
+        <PeriodPicker range={range} from={from} to={to} error={period.error} today={view && dayIn(timeZone, view.generatedAt)} onRangeChange={period.selectRange} onDatesChange={period.selectDates} />
+      </div>
       {view && (
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 self-start">
           <p className={cn("text-xs text-muted-foreground", !error && "hidden @2xl:block")}>{error ? <span className="text-destructive">Could not refresh · showing {clock(timeZone, view.generatedAt)}</span> : `Updated ${clock(timeZone, view.generatedAt)}`}</p>
-          <Button type="button" size="icon-sm" variant="outline" aria-label="Refresh figures" title="Refresh figures" disabled={isFetching} onClick={handleRefresh}>
+          <Button type="button" size="icon-sm" variant="outline" aria-label="Refresh figures" title="Refresh figures" aria-busy={isFetching} disabled={isFetching} className="h-9 w-9 disabled:opacity-100 pointer-coarse:h-11 pointer-coarse:w-11" onClick={handleRefresh}>
             <ArrowsClockwiseIcon className={cn(isFetching && "animate-spin")} />
           </Button>
         </div>
