@@ -3,13 +3,6 @@ import { VeloraLogo } from "@/shared/components/layout/velora-logo"
 import { SignInForm } from "@/features/auth/components/sign-in-form"
 import { homeFor } from "@/features/auth/lib/roles"
 import { getSession } from "@/features/auth/server/session"
-import { SAMPLE_TEAM } from "@/features/sample-data/lib/team"
-import { appEnv, authEnv } from "@/config/env"
-
-const sampleAccounts = () =>
-  appEnv().SAMPLE_DATA
-    ? { password: authEnv().SAMPLE_PASSWORD, accounts: Object.values(SAMPLE_TEAM).map(({ username, name, role }) => ({ username, name, role })) }
-    : null
 
 const LoginPage = async () => {
   const user = await getSession()
@@ -49,7 +42,7 @@ const LoginPage = async () => {
             <h1 className="font-heading text-2xl sm:text-3xl font-semibold tracking-display uppercase">Sign in</h1>
             <p className="text-xs sm:text-sm text-muted-foreground">Use the username or email and the password the owner gave you.</p>
           </div>
-          <SignInForm sampleAccounts={sampleAccounts()} />
+          <SignInForm />
           <p className="text-xs text-muted-foreground">Forgot your password? Ask the owner to set a new one in Staff.</p>
         </div>
       </section>
