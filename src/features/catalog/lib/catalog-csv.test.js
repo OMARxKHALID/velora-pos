@@ -36,9 +36,9 @@ test("a 5,000 row import parses cleanly and quickly, with no false duplicate fla
   expect(errors).toEqual([])
 })
 
-test("a spreadsheet-formula product name imports as plain text, never as a formula", () => {
-  const csv = ["product,brand,category,audience,color,size,price,cost", '=HYPERLINK("http://x"),Velora,Sneakers,men,Black,42,13500,6000'].join("\n")
+test("a product name starting with = or + imports as plain text, unescaped and uninterpreted", () => {
+  const csv = ["product,brand,category,audience,color,size,price,cost", "=SUM(A1:A2) Runner,Velora,Sneakers,men,Black,42,13500,6000"].join("\n")
   const { rows, errors } = parseCatalogImport(csv)
   expect(errors).toEqual([])
-  expect(rows[0].product).toBe('=HYPERLINK("http://x")')
+  expect(rows[0].product).toBe("=SUM(A1:A2) Runner")
 })

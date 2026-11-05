@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useRef } from "react"
+import { useActionState, useEffect, useRef } from "react"
 import { CashRegisterIcon, CrownIcon, SignInIcon, UserGearIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/shared/components/ui/item"
@@ -43,6 +43,10 @@ const SampleAccounts = ({ accounts, password, onPick }) => (
 export const SignInForm = ({ sampleAccounts }) => {
   const [state, action, pending] = useActionState(signIn, null)
   const usernameRef = useRef(null)
+
+  useEffect(() => {
+    if (hasFinePointer()) usernameRef.current?.focus()
+  }, [])
   const passwordRef = useRef(null)
 
   const handlePick = (username) => {
@@ -56,7 +60,7 @@ export const SignInForm = ({ sampleAccounts }) => {
       <form action={action} className="space-y-4">
         <Field data-invalid={Boolean(state?.error)}>
           <FieldLabel htmlFor="username">Username or email</FieldLabel>
-          <Input key={state?.username ?? ""} ref={usernameRef} id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} defaultValue={state?.username ?? ""} required autoFocus={hasFinePointer()} />
+          <Input key={state?.username ?? ""} ref={usernameRef} id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} defaultValue={state?.username ?? ""} required />
         </Field>
         <Field data-invalid={Boolean(state?.error)}>
           <FieldLabel htmlFor="password">Password</FieldLabel>
