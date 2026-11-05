@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { toast } from "sonner"
-import { PlusIcon } from "@phosphor-icons/react"
+import { EyeIcon, EyeSlashIcon, PlusIcon, WarningIcon } from "@phosphor-icons/react"
+import { Alert, AlertDescription } from "@/shared/components/ui/alert"
 import { Button } from "@/shared/components/ui/button"
 import { Input } from "@/shared/components/ui/input"
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/shared/components/ui/input-group"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldDescription, FieldLabel } from "@/shared/components/ui/field"
 import { Segmented } from "@/shared/components/ui/segmented"
@@ -33,6 +34,8 @@ export const CreateStaffDialog = ({ user, pending, onClose, onCreate }) => {
   const [profile, setProfile] = useState({ name: "" })
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState(null)
   const scope = useShopScope(user)
   const [shopId, setShopId] = useState(scope === ALL_SHOPS ? SHOP_ID : scope)
 
@@ -40,7 +43,8 @@ export const CreateStaffDialog = ({ user, pending, onClose, onCreate }) => {
     event.preventDefault()
     const input = { ...profile, role, shopId, username: username || suggestUsername(profile.name), password }
     const result = createStaffSchema.safeParse(input)
-    if (!result.success) return toast.error(result.error.issues[0].message)
+    if (!result.success) return setError(result.error.issues[0].message)
+    setError(null)
     onCreate(input)
   }
 
@@ -80,10 +84,24 @@ export const CreateStaffDialog = ({ user, pending, onClose, onCreate }) => {
             </Field>
             <Field>
               <FieldLabel htmlFor="staff-password">Password</FieldLabel>
-              <Input id="staff-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required />
+              <InputGroup>
+                <InputGroupInput id="staff-password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton size="icon-sm" aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} onClick={() => setShowPassword((shown) => !shown)}>
+                    {showPassword ? <EyeSlashIcon /> : <EyeIcon />}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
             </Field>
           </div>
           <FieldDescription>At least 8 characters. Share it with them in person; they cannot see it again here.</FieldDescription>
+
+          {error && (
+            <Alert variant="destructive" role="alert">
+              <WarningIcon />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
           <DialogFooter className="gap-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>

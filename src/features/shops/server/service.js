@@ -1,8 +1,9 @@
+import "server-only"
 import { z } from "zod"
 import { NTN_PATTERN, POSID_PATTERN, STRN_PATTERN } from "@/features/fbr/lib/fbr"
 import { changesBetween, writeAudit } from "@/server/db/audit"
 import { caseInsensitive } from "@/server/db/indexes"
-import { COLLECTIONS as C } from "@/server/db/collections"
+import { COLLECTIONS as C, fromDoc } from "@/server/db/collections"
 import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
 import { UserError, parseInput } from "@/shared/lib/errors"
 import { newId } from "@/shared/lib/id"
@@ -41,8 +42,6 @@ const nextCode = (codes, prefix) => {
   return `${prefix}${number}`
 }
 
-const toShop = ({ _id, ...rest }) => ({ id: _id, ...rest })
-
 export const saveShop = async ({ db, client, user, at = new Date() }, input) => {
   const request = parseInput(shopSchema, input)
   const name = request.name.replace(/\s+/g, " ")
@@ -58,7 +57,7 @@ export const saveShop = async ({ db, client, user, at = new Date() }, input) => 
     await shops.replaceOne({ _id: existing._id }, record, { session })
     const changes = changesBetween(existing, record, SHOP_AUDITED)
     if (Object.keys(changes).length) await writeAudit(db, session, { shopId: existing._id, userId: user.id, kind: "shop.update", target: existing._id, changes, at })
-    return toShop(record)
+    return fromDoc(record)
   })
 }
 
@@ -89,13 +88,13 @@ export const saveRegister = async ({ db, client, user, at = new Date() }, input)
         await registers.replaceOne({ _id: existing._id }, record, { session })
         const changes = changesBetween(existing, record, REGISTER_AUDITED)
         if (Object.keys(changes).length) await writeAudit(db, session, { shopId: shop._id, userId: user.id, kind: "register.update", target: existing._id, changes, at })
-        return toShop(record)
+        return fromDoc(record)
       }
       const codes = (await registers.find({ shopId: shop._id }, { session, projection: { code: 1 } }).toArray()).map((register) => register.code)
       const record = { _id: `reg-${newId().slice(0, 8)}`, shopId: shop._id, code: nextCode(codes, `${shop.code}-R`), ...settings, lastReceiptSeq: 0, lastOfflineSeq: 0, lastFbrSeq: 0 }
       await registers.insertOne(record, { session })
       await writeAudit(db, session, { shopId: shop._id, userId: user.id, kind: "register.create", target: record._id, at })
-      return toShop(record)
+      return fromDoc(record)
     })
   } catch (error) {
     if (isDuplicateKey(error)) throw new UserError("Another counter already has that code. Try again.")
@@ -110,8 +109,9 @@ export const deleteShop = async ({ db, client, user, at = new Date() }, { shopId
     if ((await db.collection(C.shops).countDocuments({}, { session })) <= 1) throw new UserError("The last shop cannot be deleted")
     const staff = await db.collection(C.users).countDocuments({ shopIds: shopId, removedAt: { $exists: false } }, { session })
     if (staff) throw new UserError(`Move its ${staff} staff to another shop first`)
-    const has = await Promise.all([C.products, C.sales, C.shifts, C.movements].map((name) => db.collection(name).findOne({ shopId }, { session, projection: { _id: 1 } })))
-    if (has.some(Boolean)) throw new UserError("This shop has products or history. Close it instead, so old receipts and reports stay correct.")
+    for (const name of [C.products, C.sales, C.shifts, C.movements]) {
+      if (await db.collection(name).findOne({ shopId }, { session, projection: { _id: 1 } })) throw new UserError("This shop has products or history. Close it instead, so old receipts and reports stay correct.")
+    }
     await db.collection(C.registers).deleteMany({ shopId }, { session })
     await db.collection(C.settings).deleteOne({ _id: shopId }, { session })
     await db.collection(C.categories).deleteMany({ shopId }, { session })

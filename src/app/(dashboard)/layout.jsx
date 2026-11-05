@@ -22,7 +22,7 @@ const DashboardLayout = async ({ children }) => {
   const directory = await loadDirectory(user)
 
   return (
-    <QueryProvider>
+    <QueryProvider userId={user.id}>
     <LedgerStoreProvider user={user} directory={directory}>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <a href="#page-content" className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-2 focus-visible:left-2 focus-visible:z-50 focus-visible:bg-primary focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:font-medium focus-visible:text-primary-foreground">

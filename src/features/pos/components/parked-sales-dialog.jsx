@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { ClockIcon, PauseCircleIcon, PlayIcon, TrashIcon, UserIcon, WarningIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { Button } from "@/shared/components/ui/button"
@@ -13,6 +14,7 @@ import { fitToStock } from "../lib/cart-fit"
 import { cartTotals } from "@/features/pricing/lib/pricing"
 
 const ParkedCard = ({ parked, catalog, settings, stock, onResume, onDiscard }) => {
+  const [confirming, setConfirming] = useState(false)
   const { count, total } = cartTotals(parked.lines, parked.discountPct, catalog, settings)
   const short = fitToStock(parked.lines, stock).adjusted.length
   const preview = parked.lines
@@ -55,15 +57,27 @@ const ParkedCard = ({ parked, catalog, settings, stock, onResume, onDiscard }) =
 
       <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
         <span className="font-sans text-lg font-bold text-gold tabular-nums">{formatMoney(total)}</span>
-        <div className="flex items-center gap-1.5">
-          <Button size="icon-sm" variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => onDiscard(parked.id)} aria-label="Discard held sale">
-            <TrashIcon />
-          </Button>
-          <Button size="sm" onClick={() => onResume(parked.id)}>
-            <PlayIcon weight="fill" />
-            Resume
-          </Button>
-        </div>
+        {confirming ? (
+          <div className="flex items-center gap-3">
+            <Button size="sm" variant="outline" onClick={() => setConfirming(false)}>
+              Keep
+            </Button>
+            <Button size="sm" variant="destructive" onClick={() => onDiscard(parked.id)}>
+              <TrashIcon />
+              Discard
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Button size="icon-sm" variant="ghost" className="text-muted-foreground hover:text-destructive" onClick={() => setConfirming(true)} aria-label="Discard held sale">
+              <TrashIcon />
+            </Button>
+            <Button size="sm" onClick={() => onResume(parked.id)}>
+              <PlayIcon weight="fill" />
+              Resume
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -94,7 +108,7 @@ export const ParkedSalesDialog = ({ shopId, heldCarts: parkedSales, onResume, on
             <p className="text-xs">Use Hold in the cart to pause a sale and serve another customer.</p>
           </div>
         ) : (
-          <div className="max-h-[60dvh] space-y-2 overflow-y-auto pr-1">
+          <div className="space-y-2">
             {parkedSales.map((parked) => (
               <ParkedCard key={parked.id} parked={parked} catalog={catalog} settings={settings} stock={stock} onResume={onResume} onDiscard={removeParkedSale} />
             ))}

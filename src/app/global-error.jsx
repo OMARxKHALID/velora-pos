@@ -16,7 +16,7 @@ const GlobalError = ({ error, retry }) => {
         <title>Something went wrong · Velora POS</title>
         <main className="flex min-h-dvh items-center justify-center p-6">
           <Surface role="alert" className="max-w-sm space-y-4 p-6 text-center">
-            <h1 className="text-lg font-bold tracking-wider uppercase">Something went wrong</h1>
+            <h1 className="text-lg font-bold tracking-display uppercase">Something went wrong</h1>
             <p className="text-sm text-muted-foreground">
               Velora could not start. Try again in a moment.
               {error.digest ? (

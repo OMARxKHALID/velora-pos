@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { LockKeyIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
+import { DialogIcon } from "@/shared/components/ui/dialog-icon"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/shared/components/ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/shared/components/ui/input-group"
@@ -36,9 +37,9 @@ export const CloseShiftDialog = ({ shift, onClosed, onCancel }) => {
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
-            <div className="mb-2 flex size-11 items-center justify-center border border-primary/40 text-gold">
-              <LockKeyIcon className="size-5" />
-            </div>
+            <DialogIcon>
+              <LockKeyIcon />
+            </DialogIcon>
             <DialogTitle>Close shift</DialogTitle>
             <DialogDescription>
               {`${nameOf(shift.cashierId)}'s shift. Count every note and coin in the drawer. The expected amount is shown only after you submit.`}

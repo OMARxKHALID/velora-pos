@@ -1,3 +1,4 @@
+import "server-only"
 import { newId } from "@/shared/lib/id"
 import { COLLECTIONS as C } from "./collections"
 

@@ -1,6 +1,6 @@
 import { indexCatalog } from "@/features/catalog/lib/catalog"
 import { applySale } from "@/features/ledger/lib/rules"
-import { cartTotals } from "@/features/pricing/lib/pricing"
+import { cartTotals, saleLinesOf } from "@/features/pricing/lib/pricing"
 import { settingsFor } from "@/features/shops/lib/shops"
 
 const NOT_READY = "This till has no offline receipt numbers yet. Reconnect once to keep selling offline."
@@ -29,7 +29,7 @@ export const buildOfflineSale = (state, { cashierId, at }, input) => {
   const { record } = applySale(
     { ...state, sales: [], movements: [], exchanges: [], fbrSeq: 0 },
     {
-      lines: rows.map(({ variantId, quantity, discount, productDiscount, entry }) => ({ variantId, quantity, discount, productDiscount, entry })),
+      lines: saleLinesOf(rows),
       payments: input.payments,
       cashierId,
       shiftId: shift.id,

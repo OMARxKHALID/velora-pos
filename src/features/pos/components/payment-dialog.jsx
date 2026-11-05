@@ -3,8 +3,9 @@
 import { useRef, useState } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { ArrowsSplitIcon, CreditCardIcon, DeviceMobileIcon, MoneyIcon, PhoneIcon, UserIcon } from "@phosphor-icons/react"
+import { ArrowsSplitIcon, CreditCardIcon, DeviceMobileIcon, MoneyIcon, PhoneIcon, UserIcon, WarningIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
+import { Alert, AlertDescription } from "@/shared/components/ui/alert"
 import { Button } from "@/shared/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldError, FieldLabel } from "@/shared/components/ui/field"
@@ -91,6 +92,11 @@ const CashForm = ({ total, rounding, busy, onPay }) => {
         <span className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Change to give</span>
         <span className="shrink-0 font-sans text-xl font-bold text-gold tabular-nums sm:text-2xl">{change >= 0 ? formatMoney(change) : "—"}</span>
       </div>
+      {change < 0 && tendered > 0 && (
+        <p role="alert" className="text-sm font-medium text-destructive">
+          Short by {formatMoney(-change)}
+        </p>
+      )}
       <DialogFooter sticky>
         <Button type="submit" size="lg" className={ctaClass} pending={busy}>
           Complete cash sale
@@ -355,6 +361,7 @@ const SplitForm = ({ total, methods, busy, onPay }) => {
 export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
   const [method, setMethod] = useState("cash")
   const [busy, setBusy] = useState(false)
+  const [payError, setPayError] = useState(null)
   const settings = useSettingsFor(shopId)
   const customerName = useCartStore(({ customerName }) => customerName)
   const customerPhone = useCartStore(({ customerPhone }) => customerPhone)
@@ -379,8 +386,9 @@ export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
       return
     }
     setBusy(true)
+    setPayError(null)
     try {
-      await onPay(payments)
+      setPayError(await onPay(payments))
     } finally {
       setBusy(false)
     }
@@ -388,7 +396,7 @@ export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
 
   return (
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
-      <DialogContent className="top-4 max-h-[calc(100dvh-2rem)] -translate-y-0 sm:top-[6dvh] sm:max-h-[calc(94dvh-1rem)] sm:max-w-lg">
+      <DialogContent instant initialFocus={hasFinePointer()} className="top-4 max-h-[calc(100dvh-2rem)] -translate-y-0 sm:top-[6dvh] sm:max-h-[calc(94dvh-1rem)] sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Take payment</DialogTitle>
           <DialogDescription>
@@ -439,8 +447,15 @@ export const PaymentDialog = ({ shopId, total, count, onPay, onClose }) => {
           </div>
         )}
 
+        {payError && (
+          <Alert variant="destructive" role="alert">
+            <WarningIcon />
+            <AlertDescription>{payError}</AlertDescription>
+          </Alert>
+        )}
+
         <Tabs value={method} onValueChange={setMethod}>
-          <TabsList className={cn("grid h-10 w-full min-w-0 pointer-coarse:h-12", tabColumns[tabs.length])}>
+          <TabsList className={cn("grid h-10 w-full min-w-0 pointer-coarse:h-14", tabColumns[tabs.length])}>
             {tabs.map(([value, label, Icon]) => (
               <TabsTrigger key={value} value={value} className="min-w-0 gap-1.5 px-2 text-xs pointer-coarse:h-full sm:px-3">
                 <Icon className="size-4 shrink-0 text-gold" />

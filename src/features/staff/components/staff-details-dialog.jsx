@@ -18,33 +18,47 @@ const Fact = ({ label, children }) => (
   </div>
 )
 
-const PasswordForm = ({ person, pending, onSetPassword }) => {
+const AccountForm = ({ person, pending, onSaveAccount }) => {
+  const [username, setUsername] = useState(person.username ?? "")
+  const [email, setEmail] = useState(person.email ?? "")
   const [password, setPassword] = useState("")
+  const changed = username !== (person.username ?? "") || email !== (person.email ?? "") || password
   const handleSubmit = async (event) => {
     event.preventDefault()
-    const result = await onSetPassword(person, password)
+    const result = await onSaveAccount(person, { username, email, password })
     if (!result?.error) setPassword("")
   }
   return (
-    <form onSubmit={handleSubmit} className="space-y-2 border-t pt-3">
-      <Label htmlFor="new-password" className="text-xs font-semibold tracking-label text-muted-foreground uppercase">
-        New password
-      </Label>
-      <div className="flex gap-2">
-        <Input id="new-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} />
-        <Button type="submit" size="sm" variant="outline" disabled={pending || password.length < 8}>
+    <form onSubmit={handleSubmit} className="space-y-3 border-t pt-3">
+      <p className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Sign-in details</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="account-username">Username</Label>
+          <Input id="account-username" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="off" autoCapitalize="none" spellCheck={false} required />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="account-email">Email</Label>
+          <Input id="account-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="off" placeholder="Optional" />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="account-password">New password</Label>
+        <Input id="account-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" minLength={8} placeholder="Leave empty to keep the current one" />
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">They can sign in with the username or the email. A new password signs them out on other devices.</p>
+        <Button type="submit" size="sm" variant="outline" disabled={pending || !changed || (password && password.length < 8)}>
           <KeyIcon />
-          Set
+          Save
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">At least 8 characters. They are signed out everywhere and use the new one next time.</p>
     </form>
   )
 }
 
 const ShopName = ({ person }) => useShopNameOf()(person)
 
-export const StaffDetailsDialog = ({ person, activity, pending, onEdit, onTransfer, onSetPassword, onRemove, onClose }) => (
+export const StaffDetailsDialog = ({ person, activity, pending, onEdit, onTransfer, onSaveAccount, onRemove, onClose }) => (
   <Dialog open onOpenChange={(open) => !open && onClose()}>
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
@@ -119,7 +133,7 @@ export const StaffDetailsDialog = ({ person, activity, pending, onEdit, onTransf
             </p>
           </div>
         )}
-        {person.role !== "admin" && <PasswordForm person={person} pending={pending} onSetPassword={onSetPassword} />}
+        <AccountForm key={person.id} person={person} pending={pending} onSaveAccount={onSaveAccount} />
       </div>
 
       <DialogFooter className="gap-2 sm:justify-between">

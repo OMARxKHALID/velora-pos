@@ -56,8 +56,8 @@ const ShopSwitcher = ({ user }) => {
   const scope = useShopScope(user)
   const setShopScope = useLedgerStore(({ setShopScope }) => setShopScope)
   const shops = useLedgerStore(({ shops }) => shops)
-  const canSwitch = user.role === "admin"
-  const options = [{ id: ALL_SHOPS, name: "All shops" }, ...shops.filter(({ active }) => active !== false)]
+  const options = shops.filter(({ active }) => active !== false)
+  const canSwitch = user.role === "admin" && options.length > 1
 
   return (
     <DropdownMenu>

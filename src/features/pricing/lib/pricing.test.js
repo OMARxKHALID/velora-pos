@@ -27,6 +27,15 @@ describe("pricing", () => {
     expect(withTax.total).toBe(variant.price + withTax.taxTotal)
   })
 
+  test("a cart discount never takes a line below zero on top of a product discount", () => {
+    const heavy = { ...index, productById: { ...index.productById, [product.id]: { ...product, discountPct: 90 } } }
+    const totals = cartTotals([{ variantId: variant.id, quantity: 1 }], 20, heavy, settings)
+    const [row] = totals.rows
+    expect(row.productDiscount + row.discount).toBeLessThanOrEqual(row.gross)
+    expect(row.total).toBeGreaterThanOrEqual(0)
+    expect(totals.total).toBe(row.total)
+  })
+
   test("tax is always a whole rupee so displayed totals match what is charged", () => {
     expect(taxFor(499900, 15)).toBe(75000)
     expect(taxFor(499900, 0)).toBe(0)

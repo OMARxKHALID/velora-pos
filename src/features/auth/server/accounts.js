@@ -1,3 +1,4 @@
+import "server-only"
 export const createAccount = async (auth, { id, password, ...fields }) => {
   const ctx = await auth.$context
   await ctx.internalAdapter.createUser({ id, ...fields })

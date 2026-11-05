@@ -1,3 +1,4 @@
+import "server-only"
 import { MongoClient } from "mongodb"
 
 const CLIENT_OPTIONS = {

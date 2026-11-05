@@ -4,6 +4,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { VaultIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
+import { DialogIcon } from "@/shared/components/ui/dialog-icon"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldLabel } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
@@ -13,15 +14,19 @@ import { hasFinePointer } from "@/shared/lib/pointer"
 export const DrawerDialog = ({ register, shift, onClose }) => {
   const openDrawer = useLedgerStore(({ openDrawer }) => openDrawer)
   const [note, setNote] = useState("")
+  const [saving, setSaving] = useState(false)
 
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (saving) return
+    setSaving(true)
     try {
       await openDrawer({ registerId: register.id, shiftId: shift.id, reason: "no-sale", note })
       toast.success("Drawer opened", { description: "Logged on this shift's Z-report. No drawer hardware is connected yet." })
       onClose()
     } catch (error) {
       toast.error(error.message)
+      setSaving(false)
     }
   }
 
@@ -30,6 +35,9 @@ export const DrawerDialog = ({ register, shift, onClose }) => {
       <DialogContent className="sm:max-w-sm">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
+            <DialogIcon>
+              <VaultIcon />
+            </DialogIcon>
             <DialogTitle>Open the drawer</DialogTitle>
             <DialogDescription>Opening the drawer without a sale is recorded with your name and the reason.</DialogDescription>
           </DialogHeader>
@@ -41,7 +49,7 @@ export const DrawerDialog = ({ register, shift, onClose }) => {
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!note.trim()}>
+            <Button type="submit" disabled={!note.trim()} pending={saving}>
               <VaultIcon />
               Open drawer
             </Button>

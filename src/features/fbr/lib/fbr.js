@@ -11,11 +11,6 @@ export const NTN_PATTERN = /^\d{7}-?\d$/
 
 export const STRN_PATTERN = /^\d{13}$/
 
-export const FBR_ENDPOINTS = {
-  sandbox: "https://esp.fbr.gov.pk:8244/FBR/v1/api/Live/PostData",
-  production: "https://gw.fbr.gov.pk/imsp/v1/api/Live/PostData",
-}
-
 const pad = (value, size = 2) => String(value).padStart(size, "0")
 
 const rupees = (paisa) => paisa / 100

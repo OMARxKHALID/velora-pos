@@ -9,7 +9,7 @@ export const ProgressTrack = ({ className, ...props }) => (
 
 export const ProgressIndicator = ({ className, ...props }) => <ProgressPrimitive.Indicator data-slot="progress-indicator" className={cn("h-full bg-primary transition-[width] duration-300 ease-out", className)} {...props} />
 
-export const ProgressLabel = ({ className, ...props }) => <ProgressPrimitive.Label data-slot="progress-label" className={cn("text-xs font-semibold tracking-wide uppercase", className)} {...props} />
+export const ProgressLabel = ({ className, ...props }) => <ProgressPrimitive.Label data-slot="progress-label" className={cn("text-xs font-semibold tracking-label uppercase", className)} {...props} />
 
 export const ProgressValue = ({ className, ...props }) => <ProgressPrimitive.Value data-slot="progress-value" className={cn("ml-auto text-sm text-muted-foreground tabular-nums", className)} {...props} />
 

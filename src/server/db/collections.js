@@ -1,3 +1,4 @@
+import "server-only"
 export const COLLECTIONS = {
   shops: "shops",
   registers: "registers",

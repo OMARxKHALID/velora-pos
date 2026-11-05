@@ -1,3 +1,4 @@
+import "server-only"
 import { SHOP_ID } from "@/features/catalog/lib/catalog"
 import { createAccount } from "@/features/auth/server/accounts"
 import { hashPin } from "@/features/auth/server/pins"

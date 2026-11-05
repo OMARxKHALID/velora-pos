@@ -1,3 +1,4 @@
+import "server-only"
 import { z } from "zod"
 import { UserError, parseInput } from "@/shared/lib/errors"
 import { COLLECTIONS as C, fromDoc } from "@/server/db/collections"

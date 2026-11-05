@@ -16,14 +16,19 @@ export const EditStaffDialog = ({ person, onClose, onSave }) => {
     shopId: staffShopId(person),
   }))
 
-  const handleSubmit = (event) => {
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (event) => {
     event.preventDefault()
+    if (saving) return
+    setSaving(true)
     const { photo, ...rest } = profile
-    onSave(person.id, photo === (person.photo ?? "") ? rest : profile)
+    await onSave(person.id, photo === (person.photo ?? "") ? rest : profile)
+    setSaving(false)
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && !saving && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit profile</DialogTitle>
@@ -33,10 +38,10 @@ export const EditStaffDialog = ({ person, onClose, onSave }) => {
           {person.role !== "admin" && <ShopSelect id="edit-shop" value={profile.shopId} onChange={(shopId) => setProfile((current) => ({ ...current, shopId }))} label="Works at" />}
           <StaffProfileFields values={profile} onChange={(patch) => setProfile((current) => ({ ...current, ...patch }))} />
           <DialogFooter className="gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" disabled={saving} onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" pending={saving}>
               <FloppyDiskIcon />
               Save profile
             </Button>

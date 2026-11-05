@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from "bun:test"
 import { hasTestDatabase, useTestDatabase } from "@/test/db"
 import { COLLECTIONS as C } from "@/server/db/collections"
 import { seedSampleTeam } from "@/features/sample-data/server/sample-data"
-import { changeRole, createStaff, directoryFor, listPeople, removeStaff, setAccess, setLeave, setPassword, setSupervisorPin, updateProfile } from "@/features/staff/server/staff"
+import { changeRole, createStaff, directoryFor, listPeople, removeStaff, setAccess, setLeave, setSupervisorPin, updateAccount, updateProfile } from "@/features/staff/server/staff"
 import { readApproval } from "./approval-token"
 import { approveDiscount } from "./approvals"
 import { ensureFirstShop } from "@/features/shops/server/first-shop"
@@ -102,7 +102,7 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     const owner = await as("asif")
     const { id } = await createStaff(owner, { name: "Leaving Soon", role: "cashier", username: "leaving", password: "leave-pass-1" })
     const oldSession = await signIn("leaving", "leave-pass-1")
-    await setPassword(owner, id, "brand-new-pass")
+    await updateAccount(owner, id, { username: "leaving", email: "", password: "brand-new-pass" })
     expect(await deps.auth.api.getSession({ headers: oldSession })).toBeNull()
     expect(await signIn("leaving", "leave-pass-1")).toBeNull()
     expect(await signIn("leaving", "brand-new-pass")).not.toBeNull()
@@ -114,6 +114,23 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     expect(directory[id]).toMatchObject({ name: "Leaving Soon", removed: true })
   })
 
+  test("the owner can change anyone's username, email and password, their own included", async () => {
+    const owner = await as("asif")
+    const ownerId = (await context.db.collection(C.users).findOne({ username: "asif" }))._id
+    const { id } = await createStaff(owner, { name: "Renamed Later", role: "cashier", username: "renameme", password: "rename-pass-1" })
+    await updateAccount(owner, id, { username: "Renamed", email: "Renamed@Velora.pk", password: "" })
+    expect(await context.db.collection(C.users).findOne({ _id: id })).toMatchObject({ username: "renamed", email: "renamed@velora.pk" })
+    expect(await signIn("renamed", "rename-pass-1")).not.toBeNull()
+    await expect(updateAccount(owner, id, { username: "asif", email: "", password: "" })).rejects.toThrow("taken")
+    await expect(updateAccount(owner, id, { username: "renamed", email: "", password: "short" })).rejects.toThrow("8 characters")
+
+    const self = { ...owner, ownerId }
+    await updateAccount(self, ownerId, { username: "asif", email: "owner@velora.pk", password: "owner-new-pass" })
+    expect(await deps.auth.api.getSession({ headers: owner.headers })).not.toBeNull()
+    const byEmail = await deps.auth.api.signInEmail({ body: { email: "owner@velora.pk", password: "owner-new-pass" }, asResponse: true })
+    expect(byEmail.status).toBe(200)
+  })
+
   test("other roles only see names and roles in the staff directory", async () => {
     const directory = directoryFor({ role: "cashier" }, await listPeople(context.db))
     expect(Object.keys(directory["u-manager"]).toSorted()).toEqual(["disabled", "id", "leave", "name", "removed", "role", "shopId"])
@@ -121,13 +138,14 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
   })
 
   test("a supervisor PIN is checked on the server and returns a token tied to the cashier and discount", async () => {
-    const approve = (input) => approveDiscount({ db: context.db, pinSecret: SECRET, approvalSecret: SECRET }, { cashierId: "u-cashier", discountPct: 10, ...input })
+    const approve = (input) => approveDiscount({ db: context.db, pinSecret: SECRET, approvalSecret: SECRET }, { cashierId: "u-cashier", discountPct: 10, subtotal: 50000, ...input })
     const { approvedBy, approvalToken } = await approve({ supervisorId: "u-manager", pin: "1234" })
     expect(approvedBy).toBe("u-manager")
-    expect(readApproval(SECRET, approvalToken, { cashierId: "u-cashier", discountPct: 10 })).toMatchObject({ supervisorId: "u-manager" })
-    expect(readApproval(SECRET, approvalToken, { cashierId: "u-cashier", discountPct: 15 })).toBeNull()
-    expect(readApproval(SECRET, approvalToken, { cashierId: "u-other", discountPct: 10 })).toBeNull()
-    expect(readApproval("another-secret-that-is-long-enough", approvalToken, { cashierId: "u-cashier", discountPct: 10 })).toBeNull()
+    expect(readApproval(SECRET, approvalToken, { kind: "discount", cashierId: "u-cashier" })).toMatchObject({ supervisorId: "u-manager", scope: { pct: 10, subtotal: 50000 } })
+    expect(readApproval(SECRET, approvalToken, { kind: "discard", cashierId: "u-cashier" })).toBeNull()
+    expect(readApproval(SECRET, approvalToken, { kind: "discount", cashierId: "u-other" })).toBeNull()
+    expect(readApproval("another-secret-that-is-long-enough", approvalToken, { kind: "discount", cashierId: "u-cashier" })).toBeNull()
+    await expect(approve({ supervisorId: "u-manager", pin: "1234", subtotal: 0 })).rejects.toThrow("Add items")
 
     await expect(approve({ supervisorId: "u-cashier", pin: "1234" })).rejects.toThrow("active supervisor")
     await expect(approve({ supervisorId: "u-manager", pin: "12a4" })).rejects.toThrow("4-digit")
@@ -138,13 +156,27 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
   })
 
   test("wrong PINs sent at the same moment still stop after five", async () => {
-    const approve = (pin) => approveDiscount({ db: context.db, pinSecret: SECRET, approvalSecret: SECRET }, { cashierId: "u-cashier", discountPct: 10, supervisorId: "u-manager", pin })
+    const approve = (pin) => approveDiscount({ db: context.db, pinSecret: SECRET, approvalSecret: SECRET }, { cashierId: "u-cashier", discountPct: 10, subtotal: 50000, supervisorId: "u-manager", pin })
     const results = await Promise.allSettled(Array.from({ length: 20 }, (_, index) => approve(String(index).padStart(4, "0"))))
     const messages = results.map(({ reason }) => reason.message)
     expect(messages.filter((message) => message === "Wrong PIN").length).toBeLessThanOrEqual(5)
     expect(messages.filter((message) => message === "Wrong PIN" || message.startsWith("Too many wrong PINs"))).toHaveLength(20)
     expect(await context.db.collection(C.pinFailures).countDocuments({ supervisorId: "u-manager" })).toBeLessThanOrEqual(5)
     await context.db.collection(C.pinFailures).deleteMany({ supervisorId: "u-manager" })
+  })
+
+  test("twenty wrong PINs in a day lock the supervisor until the owner sets a new PIN", async () => {
+    const start = new Date()
+    const approve = (pin, at) => approveDiscount({ db: context.db, pinSecret: SECRET, approvalSecret: SECRET }, { cashierId: "u-cashier", discountPct: 10, subtotal: 50000, supervisorId: "u-manager", pin, now: at })
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const at = new Date(start.getTime() + Math.floor(attempt / 5) * 6 * 60 * 1000)
+      await expect(approve("0000", at)).rejects.toThrow(attempt === 19 ? "locked" : "Wrong PIN")
+    }
+    const later = new Date(start.getTime() + 60 * 60 * 1000)
+    await expect(approve("1234", later)).rejects.toThrow("locked")
+    expect(await context.db.collection(C.auditLog).countDocuments({ kind: "supervisor.pin_locked", target: "u-manager" })).toBe(1)
+    await setSupervisorPin({ db: context.db, pinSecret: SECRET }, "u-manager", "1234")
+    expect((await approve("1234", later)).approvedBy).toBe("u-manager")
   })
 
   test("profiles are checked and saved, and a person can move to another shop", async () => {
@@ -179,7 +211,7 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
 
     await setLeave(owner, id, { from: "2020-01-01", until: "2099-12-31", note: "Hajj" })
     expect(await blockedReason(context.db, await doc())).toMatch("on leave until 2099-12-31")
-    const approve = (supervisorId, shopId = "shop-shoes") => approveDiscount({ db: context.db, pinSecret: SECRET, approvalSecret: SECRET }, { cashierId: "u-cashier", shopId, discountPct: 10, supervisorId, pin: "2468" })
+    const approve = (supervisorId, shopId = "shop-shoes") => approveDiscount({ db: context.db, pinSecret: SECRET, approvalSecret: SECRET }, { cashierId: "u-cashier", shopId, discountPct: 10, subtotal: 50000, supervisorId, pin: "2468" })
     await expect(approve(id)).rejects.toThrow("on leave")
     await expect(setLeave(owner, id, { from: "2026-02-01", until: "2026-01-01" })).rejects.toThrow("on or after")
     await expect(setLeave(owner, id, { from: "soon" })).rejects.toThrow("first day")

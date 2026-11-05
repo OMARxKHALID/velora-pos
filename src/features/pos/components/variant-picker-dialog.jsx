@@ -33,7 +33,7 @@ const SizeGrid = ({ product, color, availableFor, onChoose }) => {
               className="h-16 flex-col gap-0.5 px-0 hover:border-primary hover:bg-transparent disabled:opacity-35"
             >
               <span className={cn("font-semibold tabular-nums", /^\d+$/.test(variant.attributes.size) ? "text-lg" : "text-sm")}>{variant.attributes.size}</span>
-              <span className={cn("text-2xs tracking-label uppercase", left <= 2 ? "text-warning" : "text-muted-foreground")}>{left < 1 ? "None" : `${left} left`}</span>
+              <span className={cn("text-xs font-medium", left <= 2 ? "text-warning" : "text-muted-foreground")}>{left < 1 ? "None" : `${left} left`}</span>
             </Button>
           )
         })}
@@ -51,7 +51,7 @@ export const VariantPickerDialog = ({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent instant className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{product.name}</DialogTitle>
           <DialogDescription>

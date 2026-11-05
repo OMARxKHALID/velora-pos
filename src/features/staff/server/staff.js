@@ -1,14 +1,15 @@
 import "server-only"
 import { unstable_cache } from "next/cache"
+import { createPinAttempts } from "@/features/auth/server/pin-attempts"
 import { hashPin } from "@/features/auth/server/pins"
-import { UserError, parseInput } from "@/shared/lib/errors"
+import { UserError, parseInput, userFacing } from "@/shared/lib/errors"
 import { newId } from "@/shared/lib/id"
 import { COLLECTIONS as C } from "@/server/db/collections"
 import { getDb } from "@/server/db/client"
 import { cloudinary } from "@/server/cloudinary"
 import { cleanLeave, cleanProfile } from "../lib/people"
 import { checkStaffChange, initialsOf } from "../lib/rules"
-import { createStaffSchema, passwordSchema, pinSchema, profileSchema } from "../schemas"
+import { accountSchema, createStaffSchema, pinSchema, profileSchema } from "../schemas"
 
 const PLACEHOLDER_EMAIL_DOMAIN = "staff.invalid"
 
@@ -113,14 +114,6 @@ const guard = async (db, id, change) => {
   if (reason) throw new UserError(reason)
 }
 
-const profileOf = (input) => {
-  try {
-    return cleanProfile(input)
-  } catch (error) {
-    throw new UserError(error.message)
-  }
-}
-
 const workplaceFor = async (db, requested) => {
   const shop = await db.collection(C.shops).findOne(requested ? { _id: requested } : {}, { sort: { createdAt: 1, _id: 1 }, projection: { active: 1 } })
   if (!shop) throw new UserError("Choose the shop this person works at.")
@@ -139,7 +132,7 @@ const editable = async (db, id) => {
 
 export const createStaff = async ({ auth, db, headers, photos }, input) => {
   const data = parseInput(createStaffSchema, input)
-  const profile = profileOf(data)
+  const profile = userFacing(() => cleanProfile(data))
   const shopId = await workplaceFor(db, data.shopId)
   if (await db.collection(C.users).findOne({ username: data.username })) throw new UserError(`The username ${data.username} is taken.`)
   const email = profile.email || `${data.username}@${PLACEHOLDER_EMAIL_DOMAIN}`
@@ -167,7 +160,7 @@ export const createStaff = async ({ auth, db, headers, photos }, input) => {
 export const updateProfile = async ({ db, photos }, id, input) => {
   const person = await editable(db, id)
   const data = parseInput(profileSchema, input)
-  const profile = profileOf(data)
+  const profile = userFacing(() => cleanProfile(data))
   const email = profile.email || person.email || `${person.username}@${PLACEHOLDER_EMAIL_DOMAIN}`
   if (email !== person.email && (await db.collection(C.users).findOne({ email, _id: { $ne: id } }))) throw new UserError("Another person already uses that email.")
   const shopIds = data.shopId && data.shopId !== person.shopIds[0] ? [await workplaceFor(db, data.shopId)] : person.shopIds
@@ -186,12 +179,7 @@ export const updateProfile = async ({ db, photos }, id, input) => {
 
 export const setLeave = async ({ db }, id, input) => {
   await editable(db, id)
-  let leave
-  try {
-    leave = cleanLeave(input)
-  } catch (error) {
-    throw new UserError(error.message)
-  }
+  const leave = userFacing(() => cleanLeave(input))
   await db.collection(C.users).updateOne(
     { _id: id },
     leave ? { $set: { leaveFrom: leave.from, leaveUntil: leave.until, leaveNote: leave.note } } : { $unset: { leaveFrom: "", leaveUntil: "", leaveNote: "" } }
@@ -225,11 +213,22 @@ export const removeStaff = async ({ auth, db, headers }, id) => {
   return {}
 }
 
-export const setPassword = async ({ auth, db, headers }, id, password) => {
-  const newPassword = parseInput(passwordSchema, password)
-  await guard(db, id, { role: (await personById(db, id))?.role })
-  await auth.api.setUserPassword({ headers, body: { userId: id, newPassword } })
-  await auth.api.revokeUserSessions({ headers, body: { userId: id } })
+export const updateAccount = async ({ auth, db, headers, ownerId }, id, input) => {
+  const { username, email: requested, password } = parseInput(accountSchema, input)
+  const person = await personById(db, id)
+  if (!person || person.removedAt) throw new UserError("This person is not on the team.")
+  const email = requested || `${username}@${PLACEHOLDER_EMAIL_DOMAIN}`
+  if (await db.collection(C.users).findOne({ username, _id: { $ne: id } }, { projection: { _id: 1 } })) throw new UserError(`The username ${username} is taken.`)
+  if (await db.collection(C.users).findOne({ email, _id: { $ne: id } }, { projection: { _id: 1 } })) throw new UserError("Another person already uses that email.")
+  await db.collection(C.users).updateOne({ _id: id }, { $set: { username, displayUsername: username, email, updatedAt: new Date() } })
+  if (!password) return {}
+  await auth.api.setUserPassword({ headers, body: { userId: id, newPassword: password } })
+  if (id !== ownerId) {
+    await auth.api.revokeUserSessions({ headers, body: { userId: id } })
+    return {}
+  }
+  const current = await auth.api.getSession({ headers })
+  await db.collection(C.sessions).deleteMany({ userId: id, token: { $ne: current?.session?.token } })
   return {}
 }
 
@@ -238,5 +237,6 @@ export const setSupervisorPin = async ({ db, pinSecret }, id, pin) => {
   const person = await personById(db, id)
   if (!person || person.removedAt || person.role !== "manager") throw new UserError("Only a supervisor on the team can have a PIN.")
   await db.collection(C.users).updateOne({ _id: id }, { $set: { pinHash: hashPin(pinSecret, id, value) } })
+  await createPinAttempts(db).clear(id)
   return {}
 }

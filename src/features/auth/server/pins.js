@@ -1,3 +1,4 @@
+import "server-only"
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto"
 
 export const PIN_PATTERN = /^\d{4}$/

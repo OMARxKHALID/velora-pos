@@ -1,4 +1,5 @@
 import { createStore } from "zustand/vanilla"
+import { parseDatedJson as parseLedger } from "@/shared/lib/dated-json"
 import { buildOfflineSale, overlayStock } from "@/features/offline/lib/offline-sale"
 import { SessionEnded, countersFor, flushOutbox, outboxFor, queueOfflineSale, readSnapshot, retryEntry, removeEntry, saveSnapshot, sendOfflineSale } from "@/features/offline/lib/outbox"
 import { TOP_UP_BELOW, numbersLeft } from "@/features/pos/lib/receipts"
@@ -10,11 +11,9 @@ const APP_UPDATED = "Velora was updated. Reload the page, then try again."
 
 const LEDGER_TIMEOUT_MS = 30_000
 
-const ACTION_TIMEOUTS = { recordSale: 15_000 }
+const ACTION_TIMEOUTS = { recordSale: 15_000, importCatalog: 120_000, countStock: 60_000 }
 
-const DATE_FIELDS = new Set(["soldAt", "syncedAt", "createdAt", "updatedAt", "decidedAt", "openedAt", "closedAt", "receivedAt", "parkedAt", "reportedAt", "at"])
-
-export const parseLedger = (text) => JSON.parse(text, (key, value) => (DATE_FIELDS.has(key) && typeof value === "string" ? Date.parse(value) : value))
+const DEFAULT_ACTION_TIMEOUT_MS = 30_000
 
 const unreachable = () => Object.assign(new Error(UNREACHABLE), { unreachable: true })
 
@@ -48,8 +47,15 @@ const withLock = (name, work) => (typeof navigator !== "undefined" && navigator.
 
 export const createLedgerStore = ({ directory = {}, user = null, till = null, actions = {}, loadLedger = fetchLedger, sendSale = sendOfflineSale, onChanged = () => {}, timeouts = ACTION_TIMEOUTS } = {}) =>
   createStore()((set, get) => {
+    let queue = Promise.resolve()
+    const dispatch = (name, args) => {
+      const turn = queue.then(() => withinTime(actions[name](...args), timeouts[name] ?? DEFAULT_ACTION_TIMEOUT_MS))
+      queue = turn.catch(() => {})
+      return turn
+    }
+
     const call = async (name, ...args) => {
-      const result = await withinTime(actions[name](...args), timeouts[name]).catch((error) => {
+      const result = await dispatch(name, args).catch((error) => {
         if (error?.name === "UnrecognizedActionError") throw new Error(APP_UPDATED)
         set({ offline: true })
         throw unreachable()
@@ -57,6 +63,11 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
       if (result?.error) throw new Error(result.error)
       onChanged(name)
       return result?.record
+    }
+
+    const scopeFor = (shops) => {
+      const open = shops.filter(({ active }) => active !== false)
+      return open.some(({ id }) => id === get().shopScope) ? get().shopScope : (open[0]?.id ?? get().shopScope)
     }
 
     const withStock = (patch) => ({ ...patch, stock: overlayStock(patch.serverStock ?? get().serverStock, patch.pending ?? get().pending) })
@@ -69,7 +80,7 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
       if (!saved || get().hydrated) return
       const data = parseLedger(saved.text)
       lastEtag = data.etag ?? null
-      set(withStock({ ...data, serverStock: data.stock, hydrated: true, savedAt: saved.savedAt }))
+      set(withStock({ ...data, serverStock: data.stock, hydrated: true, shopScope: scopeFor(data.shops ?? []), savedAt: saved.savedAt }))
     }
 
     const onlineNow = () => ({ loadError: null, savedAt: null, offline: typeof navigator !== "undefined" && navigator.onLine === false })
@@ -81,7 +92,7 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
         .then((data) => {
           if (data === NOT_MODIFIED) return set(onlineNow())
           lastEtag = data.etag ?? null
-          set(withStock({ ...data, serverStock: data.stock, hydrated: true, ...onlineNow() }))
+          set(withStock({ ...data, serverStock: data.stock, hydrated: true, shopScope: scopeFor(data.shops ?? []), ...onlineNow() }))
           if (till && user) saveSnapshot(till, user.id, JSON.stringify(data)).catch(() => {})
         })
         .catch(async (error) => {
@@ -189,10 +200,10 @@ export const createLedgerStore = ({ directory = {}, user = null, till = null, ac
         await refreshOutbox()
         await syncOutbox()
       },
-      removeOffline: async (clientId) => {
+      removeOffline: async (clientId, approvalToken) => {
         const entry = await till.outbox.get(clientId)
         if (!entry) return
-        await call("discardOfflineSale", { clientId, shiftId: entry.shiftId, number: entry.sale.number, total: entry.sale.total, soldAt: entry.payload.soldAt, error: entry.error })
+        await call("discardOfflineSale", { clientId, shiftId: entry.shiftId, number: entry.sale.number, total: entry.sale.total, soldAt: entry.payload.soldAt, error: entry.error, approvalToken })
         await removeEntry(till, clientId)
         await refreshOutbox()
       },

@@ -1,6 +1,9 @@
+import "server-only"
 import { UserError } from "@/shared/lib/errors"
 import { COLLECTIONS as C } from "@/server/db/collections"
 import { newId } from "@/shared/lib/id"
+
+export class NotEnoughStock extends UserError {}
 
 const stockId = (shopId, variantId) => `${shopId}:${variantId}`
 
@@ -11,7 +14,7 @@ export const moveStock = async (db, session, { shopId, variantId, quantity, type
   const stock = await db
     .collection(C.stock)
     .findOneAndUpdate(filter, { $inc: { quantity }, $setOnInsert: { shopId, variantId } }, { upsert: !taking || allowNegative, returnDocument: "after", session })
-  if (!stock) throw new UserError("Not enough stock")
+  if (!stock) throw new NotEnoughStock("Not enough stock")
 
   const movement = { _id: newId(), shopId, variantId, type, quantity, balanceAfter: stock.quantity, unitCost, reason, note, ref, userId, createdAt: at, ...(clientId ? { clientId } : {}) }
   await db.collection(C.movements).insertOne(movement, { session })

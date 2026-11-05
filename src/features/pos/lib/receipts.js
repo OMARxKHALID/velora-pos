@@ -4,7 +4,7 @@ export const MAX_BLOCKS = 10
 
 export const receiptNumber = (registerCode, seq) => `${registerCode}-${String(seq).padStart(6, "0")}`
 
-export const offlineNumber = (registerCode, seq) => `${registerCode}-X${String(seq).padStart(5, "0")}`
+const offlineNumber = (registerCode, seq) => `${registerCode}-X${String(seq).padStart(5, "0")}`
 
 const blockSeqs = (blocks = []) => blocks.flatMap(({ from, to }) => Array.from({ length: to - from + 1 }, (_, index) => from + index))
 

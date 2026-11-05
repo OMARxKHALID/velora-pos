@@ -1,10 +1,11 @@
+import "server-only"
 import { z } from "zod"
 import { applyExchange } from "@/features/ledger/lib/rules"
 import { moveStock } from "@/features/inventory/server/stock"
 import { fbrSeqOf, registerFor, saveFbrSeq, shopSettings } from "@/features/pos/server/register"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/server/db/collections"
-import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
-import { UserError, parseInput } from "@/shared/lib/errors"
+import { findByClientId, findDocs, lockSale, replayOnDuplicate, withTransaction } from "@/server/db/transaction"
+import { UserError, parseInput, userFacing } from "@/shared/lib/errors"
 
 const requestSchema = z.object({
   clientId: z.string().min(8).max(64),
@@ -14,48 +15,36 @@ const requestSchema = z.object({
   quantity: z.number().int({ error: "Quantity must be a whole number" }).min(1, { error: "Quantity must be at least 1" }).max(99),
 })
 
-const docsOf = async (db, session, collection, filter) => (await db.collection(collection).find(filter, { session }).toArray()).map(fromDoc)
-
 const exchangeInSession = async (db, session, { user, shopId, at }, request) => {
-  const existing = await db.collection(C.exchanges).findOne({ clientId: request.clientId }, { session })
-  if (existing) return fromDoc(existing)
+  const existing = await findByClientId(db, session, C.exchanges, request.clientId)
+  if (existing) return existing
 
   const sale = await db.collection(C.sales).findOne({ _id: request.saleId, shopId }, { session })
   if (!sale) throw new UserError("Sale not found")
   if (user.role === "cashier" && sale.cashierId !== user.id) throw new UserError("You can only swap your own sales. Ask a supervisor.")
-  await db.collection(C.sales).updateOne({ _id: sale._id }, { $inc: { claimSeq: 1 } }, { session })
+  await lockSale(db, session, sale._id)
 
-  const variants = await docsOf(db, session, C.variants, { _id: { $in: [request.fromVariantId, request.toVariantId] }, shopId })
-  const products = await docsOf(db, session, C.products, { _id: { $in: [...new Set(variants.map(({ productId }) => productId))] }, shopId })
+  const variants = await findDocs(db, session, C.variants, { _id: { $in: [request.fromVariantId, request.toVariantId] }, shopId })
+  const products = await findDocs(db, session, C.products, { _id: { $in: [...new Set(variants.map(({ productId }) => productId))] }, shopId })
   const stock = await db.collection(C.stock).findOne({ shopId, variantId: request.toVariantId }, { session })
   const register = await registerFor(db, session, shopId, sale.registerId)
   const { returnWindowDays } = await shopSettings(db, session, shopId)
+  const refunds = await findDocs(db, session, C.refunds, { saleId: sale._id })
+  const exchanges = await findDocs(db, session, C.exchanges, { saleId: sale._id })
 
-  let result
-  try {
-    result = applyExchange(
-      {
-        sales: [fromDoc(sale)],
-        refunds: await docsOf(db, session, C.refunds, { saleId: sale._id }),
-        exchanges: await docsOf(db, session, C.exchanges, { saleId: sale._id }),
-        variants,
-        products,
-        stock: { [request.toVariantId]: stock?.quantity ?? 0 },
-        movements: [],
-        fbrSeq: fbrSeqOf(register),
-      },
+  const result = userFacing(() =>
+    applyExchange(
+      { sales: [fromDoc(sale)], refunds, exchanges, variants, products, stock: { [request.toVariantId]: stock?.quantity ?? 0 }, movements: [], fbrSeq: fbrSeqOf(register) },
       { ...request, userId: user.id, at, returnWindowDays }
     )
-  } catch (error) {
-    throw new UserError(error.message)
-  }
+  )
 
   const exchange = { ...result.record, syncedAt: at }
   await db.collection(C.exchanges).insertOne(toDoc(exchange), { session })
   const ref = { kind: "Exchange", id: exchange.id, number: sale.number }
-  const soldAt = fromDoc(sale).items.find(({ variantId }) => variantId === request.fromVariantId).unitCost
+  const soldCost = sale.items.find(({ variantId }) => variantId === request.fromVariantId).unitCost
   const toCost = variants.find(({ id }) => id === request.toVariantId).cost
-  await moveStock(db, session, { shopId, variantId: request.fromVariantId, quantity: request.quantity, type: "exchange", unitCost: soldAt, ref, userId: user.id, at })
+  await moveStock(db, session, { shopId, variantId: request.fromVariantId, quantity: request.quantity, type: "exchange", unitCost: soldCost, ref, userId: user.id, at })
   await moveStock(db, session, { shopId, variantId: request.toVariantId, quantity: -request.quantity, type: "exchange", unitCost: toCost, ref, userId: user.id, at })
   if (exchange.fbr) await saveFbrSeq(db, session, register._id, result.state.fbrSeq)
   return exchange
@@ -63,12 +52,8 @@ const exchangeInSession = async (db, session, { user, shopId, at }, request) => 
 
 export const exchangeItem = async ({ db, client, user, shopId, at = new Date() }, input) => {
   const request = parseInput(requestSchema, input)
-  try {
-    return await withTransaction(client, (session) => exchangeInSession(db, session, { user, shopId, at }, request))
-  } catch (error) {
-    if (!isDuplicateKey(error)) throw error
-    const existing = await db.collection(C.exchanges).findOne({ clientId: request.clientId })
-    if (existing) return fromDoc(existing)
-    throw error
-  }
+  return replayOnDuplicate(
+    () => withTransaction(client, (session) => exchangeInSession(db, session, { user, shopId, at }, request)),
+    () => findByClientId(db, undefined, C.exchanges, request.clientId)
+  )
 }

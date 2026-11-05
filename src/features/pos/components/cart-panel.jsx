@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { BarcodeIcon, CaretDownIcon, PauseIcon, ShoppingBagIcon, TrashIcon, XIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { cn } from "cn"
@@ -17,6 +17,9 @@ import { formatMoney } from "@/shared/lib/money"
 import { useCartStore } from "../store/cart-store-provider"
 import { HeldCartsButton } from "./held-carts-button"
 import { heldAt } from "../lib/held-carts"
+import { stripSpaces } from "../lib/barcode-input"
+import { notifyDiscountDropped } from "../lib/cart-notices"
+import { approveDiscountAction } from "@/features/auth/actions"
 import { ManagerApprovalDialog } from "./manager-approval-dialog"
 import { sizeLabel } from "@/features/catalog/lib/catalog"
 import { useSettingsFor } from "@/features/shops/hooks/use-shop-scope"
@@ -39,9 +42,11 @@ const ScanField = ({ onScan, autoFocus }) => {
       <InputGroupInput
         value={code}
         autoFocus={autoFocus}
-        onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
+        onChange={(event) => setCode(stripSpaces(event.target.value))}
         onKeyDown={handleKeyDown}
-        inputMode="numeric"
+        inputMode="text"
+        autoCapitalize="none"
+        autoComplete="off"
         enterKeyHint="done"
         aria-label="Barcode"
         placeholder="Scan or type barcode…"
@@ -50,8 +55,16 @@ const ScanField = ({ onScan, autoFocus }) => {
   )
 }
 
-const CartLine = ({ row, highlight, canAdd, onQuantity }) => (
-  <li className={cn("space-y-1.5 border-b px-4 py-2.5 transition-colors", highlight && "bg-accent/50")}>
+const CartLine = ({ row, highlight, tick, canAdd, onQuantity, onRemove }) => {
+  const line = useRef(null)
+
+  useEffect(() => {
+    if (highlight) line.current?.scrollIntoView({ block: "nearest" })
+  }, [highlight, tick])
+
+  return (
+  <li ref={line} className="relative space-y-1.5 border-b px-4 py-2.5">
+    {highlight && <span key={tick} aria-hidden="true" className="pointer-events-none absolute inset-0 animate-out bg-accent/60 duration-700 ease-out fade-out-0 fill-mode-forwards" />}
     <div className="flex items-baseline justify-between gap-3">
       <p className="min-w-0 truncate text-sm font-medium">{row.product.name}</p>
       <p className="shrink-0 text-sm tabular-nums">
@@ -68,16 +81,24 @@ const CartLine = ({ row, highlight, canAdd, onQuantity }) => (
           {row.entry === "manual" && " · added by hand"}
         </span>
       </p>
-      <QuantityStepper value={row.quantity} max={canAdd ? Infinity : row.quantity} onChange={(quantity) => onQuantity(row.variantId, quantity)} onRemove={() => onQuantity(row.variantId, 0)} lessLabel="Remove one" moreLabel="Add one" />
+      <div className="flex shrink-0 items-center gap-3">
+        <Button type="button" size="icon-sm" variant="ghost" className="text-muted-foreground hover:text-destructive" aria-label={`Remove ${row.product.name} from the sale`} onClick={() => onRemove(row.variantId)}>
+          <TrashIcon />
+        </Button>
+        <QuantityStepper value={row.quantity} min={1} max={canAdd ? Infinity : row.quantity} onChange={(quantity) => onQuantity(row.variantId, quantity)} lessLabel="Remove one" moreLabel="Add one" />
+      </div>
     </div>
   </li>
-)
+  )
+}
 
-export const CartPanel = ({ shopId, lastAdded, availableFor, onScan, onCharge, onHold, onOpenHeld, onClose, focusScan = false, className }) => {
+export const CartPanel = ({ shopId, lastAdded, addTick, availableFor, onScan, onCharge, onHold, onOpenHeld, onClose, focusScan = false, className }) => {
   const lines = useCartStore(({ lines }) => lines)
   const discountPct = useCartStore(({ discountPct }) => discountPct)
   const approvedBy = useCartStore(({ approvedBy }) => approvedBy)
   const setQuantity = useCartStore(({ setQuantity }) => setQuantity)
+  const removeLine = useCartStore(({ removeLine }) => removeLine)
+  const putBack = useCartStore(({ putBack }) => putBack)
   const setDiscount = useCartStore(({ setDiscount }) => setDiscount)
   const clear = useCartStore(({ clear }) => clear)
   const restore = useCartStore(({ restore }) => restore)
@@ -96,9 +117,19 @@ export const CartPanel = ({ shopId, lastAdded, availableFor, onScan, onCharge, o
     else setPendingDiscount(pct)
   }
 
+  const handleQuantity = (variantId, quantity) => notifyDiscountDropped(setQuantity(variantId, quantity))
+
+  const handleRemoveLine = (variantId) => {
+    const name = catalog.productById[catalog.variantById[variantId]?.productId]?.name ?? "Item"
+    const removed = removeLine(variantId)
+    if (!removed) return
+    toast(`${name} removed`, { duration: 8000, action: { label: "Undo", onClick: () => putBack(removed) } })
+  }
+
   const handleClear = () => {
     const removed = clear()
     toast("Sale cleared", {
+      duration: 8000,
       description: `${count} ${count === 1 ? "item" : "items"} removed.`,
       action: {
         label: "Undo",
@@ -151,7 +182,7 @@ export const CartPanel = ({ shopId, lastAdded, availableFor, onScan, onCharge, o
       {rows.length ? (
         <ul className="min-h-0 flex-1 overflow-y-auto">
           {rows.map((row) => (
-            <CartLine key={row.variantId} row={row} highlight={row.variantId === lastAdded} canAdd={availableFor(row.variantId) > 0} onQuantity={setQuantity} />
+            <CartLine key={row.variantId} row={row} highlight={row.variantId === lastAdded} tick={addTick} canAdd={availableFor(row.variantId) > 0} onQuantity={handleQuantity} onRemove={handleRemoveLine} />
           ))}
         </ul>
       ) : (
@@ -246,7 +277,7 @@ export const CartPanel = ({ shopId, lastAdded, availableFor, onScan, onCharge, o
         <ManagerApprovalDialog
           shopId={shopId}
           reason={`${pendingDiscount}% discount is above the ${cashierLimitPct}% cashier limit.`}
-          discountPct={pendingDiscount}
+          onCheck={(supervisorId, pin) => approveDiscountAction(supervisorId, pin, pendingDiscount, subtotal)}
           onClose={() => setPendingDiscount(null)}
           onApprove={(approverId, token) => {
             setDiscount(pendingDiscount, approverId, token)

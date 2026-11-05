@@ -1,9 +1,10 @@
 "use client"
 
 import { memo, useCallback, useDeferredValue, useLayoutEffect, useMemo, useRef, useState } from "react"
-import { MagnifyingGlassIcon } from "@phosphor-icons/react"
+import { isBarcodeLike } from "../lib/barcode-input"
+import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/shared/components/ui/input-group"
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
 import { CategoryIcon } from "@/features/catalog/components/category-icon"
@@ -27,13 +28,13 @@ const FilterChips = ({ label, options, value, onChange }) => (
   <ToggleGroup
     aria-label={label}
     variant="solid"
-    spacing={1.5}
+    spacing={2}
     value={[value]}
     onValueChange={([next]) => next && onChange(next)}
-    className="-mx-1 w-auto flex-nowrap self-stretch overflow-x-auto px-1 [scrollbar-width:none] max-lg:pr-8 max-lg:mask-r-from-90% lg:flex-wrap lg:overflow-visible [&::-webkit-scrollbar]:hidden"
+    className="-mx-1 w-auto flex-nowrap self-stretch overflow-x-auto px-1 [scrollbar-width:none] max-lg:pr-8 max-lg:mask-r-from-90% lg:pointer-fine:flex-wrap lg:pointer-fine:overflow-visible [&::-webkit-scrollbar]:hidden"
   >
     {options.map(([key, text]) => (
-      <ToggleGroupItem key={key} value={key} className="h-7 px-2.5 font-medium text-muted-foreground hover:text-foreground pointer-coarse:h-10 pointer-coarse:px-3.5">
+      <ToggleGroupItem key={key} value={key} className="h-7 px-2.5 font-medium text-muted-foreground hover:text-foreground pointer-coarse:h-11 pointer-coarse:px-4">
         {text}
       </ToggleGroupItem>
     ))}
@@ -61,7 +62,7 @@ const ProductCardView = ({ product, sizes, lowLimit, onPick }) => {
       type="button"
       onClick={() => onPick(product)}
       disabled={!available}
-      className="flex flex-col border bg-card text-left transition-colors hover:border-primary/70 disabled:pointer-events-none disabled:opacity-40"
+      className="flex flex-col border bg-card text-left transition-[scale,border-color,background-color] duration-100 ease-snappy hover:border-primary/70 active:scale-[0.98] active:border-primary active:bg-accent/40 disabled:pointer-events-none disabled:opacity-40"
     >
       <div className="relative flex h-12 items-center justify-center bg-muted">
         <CategoryIcon category={product.category} className="size-8 text-gold" />
@@ -114,8 +115,13 @@ export const CatalogPanel = ({ shopId, availableFor, onPick, onScan }) => {
   const handlePickProduct = useCallback((product) => pickRef.current(product), [])
 
   const handleSearchKeyDown = (event) => {
+    if (event.key === "Escape" && query) {
+      event.preventDefault()
+      setQuery("")
+      return
+    }
     const code = query.trim()
-    if (event.key !== "Enter" || !/^\d{6,}$/.test(code)) return
+    if (event.key !== "Enter" || !isBarcodeLike(code)) return
     event.preventDefault()
     onScan(code)
     setQuery("")
@@ -138,7 +144,14 @@ export const CatalogPanel = ({ shopId, availableFor, onPick, onScan }) => {
         <InputGroupAddon>
           <MagnifyingGlassIcon />
         </InputGroupAddon>
-        <InputGroupInput value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleSearchKeyDown} aria-label="Search products" placeholder="Search products, brands, categories…" />
+        <InputGroupInput type="search" enterKeyHint="search" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={handleSearchKeyDown} aria-label="Search products" placeholder="Search products, brands, categories…" />
+        {query && (
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton size="icon-sm" aria-label="Clear search" onClick={() => setQuery("")}>
+              <XIcon />
+            </InputGroupButton>
+          </InputGroupAddon>
+        )}
       </InputGroup>
       <FilterChips label="Brand" options={brands.map((name) => [name, name])} value={brand} onChange={setBrand} />
       <FilterChips label="For" options={audiences.map((name) => [name, audienceLabels[name]])} value={audience} onChange={setAudience} />

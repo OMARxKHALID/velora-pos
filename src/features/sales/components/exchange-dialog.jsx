@@ -123,7 +123,7 @@ export const ExchangeDialog = ({ sale, onClose }) => {
                       return (
                         <ToggleGroupItem key={variant.id} value={variant.id} disabled={left < quantity} className="h-16 px-0 hover:border-primary disabled:opacity-35">
                           <span className={cn("font-semibold tabular-nums", /^\d+$/.test(variant.attributes.size) ? "text-lg" : "text-sm")}>{variant.attributes.size}</span>
-                          <span className={cn("text-2xs", left <= 2 ? "text-warning" : "text-muted-foreground")}>{left < 1 ? "None" : `${left} left`}</span>
+                          <span className={cn("text-xs", left <= 2 ? "text-warning" : "text-muted-foreground")}>{left < 1 ? "None" : `${left} left`}</span>
                         </ToggleGroupItem>
                       )
                     })}
@@ -134,7 +134,7 @@ export const ExchangeDialog = ({ sale, onClose }) => {
             </>
           )}
 
-          <DialogFooter>
+          <DialogFooter sticky>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>

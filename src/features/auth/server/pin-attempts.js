@@ -1,19 +1,32 @@
+import "server-only"
 import { COLLECTIONS as C } from "@/server/db/collections"
+import { DAY } from "@/shared/lib/dates"
 
-const PIN_ATTEMPT_LIMIT = 5
-const PIN_LOCK_MS = 5 * 60 * 1000
+const PIN_LIMITS = [
+  { limit: 5, window: 5 * 60 * 1000 },
+  { limit: 20, window: DAY },
+]
 
-export const createPinAttempts = (db, { limit = PIN_ATTEMPT_LIMIT, window = PIN_LOCK_MS } = {}) => {
+export const createPinAttempts = (db, { limits = PIN_LIMITS } = {}) => {
   const failures = db.collection(C.pinFailures)
-  const recent = (supervisorId, now) => failures.countDocuments({ supervisorId, at: { $gt: new Date(now.getTime() - window) } })
+  const recent = (supervisorId, now, window) => failures.countDocuments({ supervisorId, at: { $gt: new Date(now.getTime() - window) } })
+  const over = async (supervisorId, now, allowed) => {
+    for (const { limit, window } of limits) if ((await recent(supervisorId, now, window)) > limit - allowed) return true
+    return false
+  }
   return {
-    blocked: async (supervisorId, now = new Date()) => (await recent(supervisorId, now)) >= limit,
+    blocked: (supervisorId, now = new Date()) => over(supervisorId, now, 1),
+    lockedForDay: async (supervisorId, now = new Date()) => {
+      const { limit, window } = limits.at(-1)
+      return (await recent(supervisorId, now, window)) >= limit
+    },
     claim: async (supervisorId, now = new Date()) => {
       const { insertedId } = await failures.insertOne({ supervisorId, at: now })
-      if ((await recent(supervisorId, now)) <= limit) return true
+      if (!(await over(supervisorId, now, 0))) return insertedId
       await failures.deleteOne({ _id: insertedId })
-      return false
+      return null
     },
+    release: (id) => failures.deleteOne({ _id: id }),
     clear: (supervisorId) => failures.deleteMany({ supervisorId }),
   }
 }

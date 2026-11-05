@@ -1,5 +1,6 @@
+import "server-only"
 import { z } from "zod"
-import { UserError, parseInput } from "@/shared/lib/errors"
+import { UserError, parseInput, userFacing } from "@/shared/lib/errors"
 import { moveStockMany } from "@/features/inventory/server/stock"
 import { changesBetween, writeAudit } from "@/server/db/audit"
 import { caseInsensitive } from "@/server/db/indexes"
@@ -83,9 +84,8 @@ const saveInSession = async (db, session, { shopId, user, at }, { productId = nu
     for (let index = needed - 1; index >= 0; index -= 1) serials.push(last - index)
   }
 
-  let plan
-  try {
-    plan = planProductSave({
+  const plan = userFacing(() =>
+    planProductSave({
       type,
       product,
       current,
@@ -94,9 +94,7 @@ const saveInSession = async (db, session, { shopId, user, at }, { productId = nu
       barcodeOwner: (barcode, id) => (owners[barcode] && owners[barcode]._id !== id ? owners[barcode].sku : null),
       nextSerial: () => serials.shift(),
     })
-  } catch (error) {
-    throw new UserError(error.message)
-  }
+  )
 
   const stored = { ...product, updatedAt: at }
   await products.replaceOne({ _id: product.id }, toDoc(stored), { upsert: true, session })

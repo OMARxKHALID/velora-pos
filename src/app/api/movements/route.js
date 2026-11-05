@@ -2,7 +2,7 @@ import { z } from "zod"
 import { movementsPage } from "@/features/catalog/server/queries"
 import { viewerScope } from "@/features/sales/server/request"
 import { startOfDayIn } from "@/shared/lib/zoned"
-import { denied, noStore } from "@/server/http"
+import { denied, noStore, readQuery } from "@/server/http"
 import { DAY } from "@/shared/lib/dates"
 
 const RANGE_DAYS = { today: 1, "7d": 7, all: null }
@@ -16,7 +16,7 @@ const querySchema = z.object({
 })
 
 export const GET = async (request) => {
-  const query = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams))
+  const query = readQuery(request, querySchema)
   if (!query.success) return denied(400, "Bad query")
   const scope = await viewerScope(query.data.shop)
   if (scope.error) return scope.error

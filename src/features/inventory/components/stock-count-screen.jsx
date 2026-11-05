@@ -3,11 +3,12 @@
 import { useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { hasFinePointer } from "@/shared/lib/pointer"
 import { BarcodeIcon, CheckCircleIcon } from "@phosphor-icons/react"
 import { cn } from "cn"
 import { Button, buttonVariants } from "@/shared/components/ui/button"
 import { QuantityStepper } from "@/shared/components/ui/quantity-stepper"
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/shared/components/ui/input-group"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
 import { StatStrip } from "@/shared/components/ui/stat-strip"
 import { ColorDot } from "@/features/catalog/components/color-dot"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
@@ -25,10 +26,9 @@ export const StockCountScreen = ({ user }) => {
   const stock = useLedgerStore(({ stock }) => stock)
   const countStock = useLedgerStore(({ countStock }) => countStock)
   const categories = useLedgerStore(({ categories }) => categories)
-  const { productById, variantByBarcode, variantsByProduct, variants: allVariants } = useCatalog()
+  const { productById, variantByBarcode, variantsByProduct } = useCatalog()
   const shopId = useShopScope(user)
   const settings = useSettingsFor(shopId)
-  const variants = allVariants.filter(({ productId }) => productById[productId]?.shopId === shopId)
   const [code, setCode] = useState("")
   const [counts, setCounts] = useState({})
   const [productIds, setProductIds] = useState([])
@@ -59,11 +59,6 @@ export const StockCountScreen = ({ user }) => {
     setCode("")
   }
 
-  const handleTestScan = () => {
-    const onShelf = variants.filter(({ id, active }) => active && (stock[id] ?? 0) > 0)
-    if (onShelf.length) handleScan(onShelf[Math.floor(Math.random() * onShelf.length)].barcode)
-  }
-
   const handleSetCount = (variantId, value) => setCounts((current) => ({ ...current, [variantId]: Math.max(0, value) }))
 
   const groups = productIds.map((productId) => ({
@@ -76,11 +71,14 @@ export const StockCountScreen = ({ user }) => {
   const lines = groups.flatMap(({ sizes }) => sizes)
   const differing = lines.filter(({ counted, expected }) => counted !== expected)
 
+  const [saving, setSaving] = useState(false)
   const handleDiscard = (event) => {
     if (lines.length && !window.confirm("Throw away this count?")) event.preventDefault()
   }
 
   const handleSave = async () => {
+    if (saving) return
+    setSaving(true)
     try {
       const now = Date.now()
       const { changed } = await countStock({ counts: lines.map(({ variant, counted }) => ({ variantId: variant.id, counted, countedAgo: now - (scannedAt[variant.productId] ?? now) })) })
@@ -91,6 +89,8 @@ export const StockCountScreen = ({ user }) => {
       setReviewing(false)
     } catch (error) {
       toast.error(error.message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -123,7 +123,7 @@ export const StockCountScreen = ({ user }) => {
           </InputGroupAddon>
           <InputGroupInput
             value={code}
-            autoFocus
+            autoFocus={hasFinePointer()}
             inputMode="numeric"
             disabled={reviewing}
             onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
@@ -131,11 +131,6 @@ export const StockCountScreen = ({ user }) => {
             aria-label="Item barcode"
             placeholder="Scan each item, then Enter"
           />
-          <InputGroupAddon align="inline-end">
-            <InputGroupButton size="xs" variant="ghost" disabled={reviewing} onClick={handleTestScan}>
-              Test scan
-            </InputGroupButton>
-          </InputGroupAddon>
         </InputGroup>
         <div className="flex w-full gap-2 @2xl:ml-auto @2xl:w-auto">
           <Link href="/stock" onClick={handleDiscard} className={buttonVariants({ size: "sm", variant: "outline", className: "flex-1 @2xl:flex-none" })}>
@@ -146,7 +141,7 @@ export const StockCountScreen = ({ user }) => {
               <Button size="sm" variant="outline" className="flex-1 @2xl:flex-none" onClick={() => setReviewing(false)}>
                 Keep counting
               </Button>
-              <Button size="sm" className="flex-1 @2xl:flex-none" onClick={handleSave}>
+              <Button size="sm" className="flex-1 @2xl:flex-none" pending={saving} onClick={handleSave}>
                 Save count
               </Button>
             </>

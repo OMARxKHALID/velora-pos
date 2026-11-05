@@ -3,6 +3,7 @@
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/shared/components/ui/chart"
 import { Empty, EmptyDescription } from "@/shared/components/ui/empty"
+import { formatMoney } from "@/shared/lib/money"
 import { hourIn } from "@/shared/lib/zoned"
 import { splitLiveTail } from "../lib/analytics"
 
@@ -12,7 +13,6 @@ const config = {
 }
 
 const metrics = Object.keys(config)
-const rupees = new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 })
 const compact = new Intl.NumberFormat("en-PK", { notation: "compact", maximumFractionDigits: 1 })
 const hourLabel = (hour) => `${hour % 12 || 12}${hour < 12 ? "am" : "pm"}`
 
@@ -30,7 +30,7 @@ export const TrendChart = ({ data, byHour, timeZone, now, live = true }) => {
 
   return (
     <div className="space-y-2">
-      <ChartContainer config={config} className="aspect-auto h-56 w-full @2xl:h-72">
+      <ChartContainer config={config} role="img" aria-label={`Revenue and profit, ${points.length} ${byHour ? "hours" : "days"}`} className="aspect-auto h-56 w-full @2xl:h-72">
         <ComposedChart data={points} margin={{ top: 12, right: 12, left: 4, bottom: 0 }}>
           <defs>
             <linearGradient id="trend-revenue-fill" x1="0" y1="0" x2="0" y2="1">
@@ -52,7 +52,7 @@ export const TrendChart = ({ data, byHour, timeZone, now, live = true }) => {
                       <span className="size-2 rounded-full" style={{ backgroundColor: config[name].color }} />
                       {config[name].label}
                     </span>
-                    <span className="font-medium text-foreground tabular-nums">Rs {rupees.format(value)}</span>
+                    <span className="font-medium text-foreground tabular-nums">{formatMoney(value * 100)}</span>
                   </div>
                 )}
               />

@@ -9,10 +9,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { timeAgo } from "@/shared/lib/dates"
 import { formatMoney } from "@/shared/lib/money"
+import { approveDiscardAction } from "@/features/auth/actions"
 import { ReceiptDialog } from "@/features/pos/components/lazy-receipt-dialog"
+import { ManagerApprovalDialog } from "@/features/pos/components/manager-approval-dialog"
 
-const Entry = ({ entry, onRetry, onRemove, onView }) => {
-  const [confirming, setConfirming] = useState(false)
+const Entry = ({ entry, busy, onRetry, onRemove, onView }) => {
   const { sale } = entry
   const count = sale.items.reduce((sum, { quantity }) => sum + quantity, 0)
   return (
@@ -33,28 +34,14 @@ const Entry = ({ entry, onRetry, onRemove, onView }) => {
             {entry.error}
           </p>
           <div className="flex flex-wrap justify-end gap-2">
-            {confirming ? (
-              <>
-                <span className="mr-auto self-center text-xs text-muted-foreground">This deletes the sale from this till. It is recorded under your name for the owner.</span>
-                <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
-                  Keep
-                </Button>
-                <Button size="sm" variant="destructive" onClick={onRemove}>
-                  Remove
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setConfirming(true)}>
-                  <TrashIcon />
-                  Remove
-                </Button>
-                <Button size="sm" variant="outline" onClick={onRetry}>
-                  <ArrowsClockwiseIcon />
-                  Try again
-                </Button>
-              </>
-            )}
+            <Button size="sm" variant="ghost" className="text-muted-foreground" pending={busy} disabled={busy} onClick={onRemove}>
+              <TrashIcon />
+              Remove
+            </Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={onRetry}>
+              <ArrowsClockwiseIcon />
+              Try again
+            </Button>
           </div>
         </ItemFooter>
       )}
@@ -70,6 +57,8 @@ export const OfflineQueueDialog = ({ onClose }) => {
   const retryOffline = useLedgerStore(({ retryOffline }) => retryOffline)
   const removeOffline = useLedgerStore(({ removeOffline }) => removeOffline)
   const [viewing, setViewing] = useState(null)
+  const [removing, setRemoving] = useState(null)
+  const [busyId, setBusyId] = useState(null)
 
   const handle = (work) => async () => {
     try {
@@ -79,7 +68,30 @@ export const OfflineQueueDialog = ({ onClose }) => {
     }
   }
 
-  if (viewing) return <ReceiptDialog sale={viewing} onClose={() => setViewing(null)} />
+  const handleRemoved = async (_approvedBy, approvalToken) => {
+    const entry = removing
+    setRemoving(null)
+    setBusyId(entry.clientId)
+    await handle(async () => {
+      await removeOffline(entry.clientId, approvalToken)
+      toast.success("Sale removed", { description: `${entry.sale.number} was deleted from this till.` })
+    })()
+    setBusyId(null)
+  }
+
+  if (viewing) return <ReceiptDialog sale={viewing} viewOnly onClose={() => setViewing(null)} />
+
+  if (removing) {
+    return (
+      <ManagerApprovalDialog
+        shopId={removing.sale.shopId}
+        reason={`Removing ${removing.sale.number} (${formatMoney(removing.sale.total)}) deletes it from this till for good. It never reaches the shop's records or stock. The owner sees the cashier and the approving supervisor in the log.`}
+        onCheck={(supervisorId, pin) => approveDiscardAction(supervisorId, pin, removing.clientId)}
+        onApprove={handleRemoved}
+        onClose={() => setRemoving(null)}
+      />
+    )
+  }
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -93,14 +105,15 @@ export const OfflineQueueDialog = ({ onClose }) => {
           </DialogDescription>
         </DialogHeader>
         {pending.length > 0 && (
-          <ItemGroup className="max-h-[50dvh] gap-2 overflow-y-auto">
+          <ItemGroup className="gap-2">
             {pending.map((entry) => (
               <Entry
                 key={entry.clientId}
                 entry={entry}
+                busy={busyId === entry.clientId}
                 onView={() => setViewing(entry.sale)}
                 onRetry={handle(() => retryOffline(entry.clientId))}
-                onRemove={handle(() => removeOffline(entry.clientId))}
+                onRemove={() => setRemoving(entry)}
               />
             ))}
           </ItemGroup>

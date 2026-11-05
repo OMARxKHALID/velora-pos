@@ -1,3 +1,4 @@
+import "server-only"
 import { betterAuth } from "better-auth"
 import { mongodbAdapter } from "better-auth/adapters/mongodb"
 import { nextCookies } from "better-auth/next-js"
@@ -9,7 +10,7 @@ const AUTH_COLLECTIONS = { user: "users", session: "sessions", account: "account
 
 const ADMIN_PATHS = ["ban-user", "create-user", "get-user", "has-permission", "impersonate-user", "list-users", "list-user-sessions", "remove-user", "revoke-user-session", "revoke-user-sessions", "set-role", "set-user-password", "stop-impersonating", "unban-user", "update-user"]
 
-export const DISABLED_PATHS = [
+const DISABLED_PATHS = [
   "/sign-in/email",
   "/sign-in/username",
   "/sign-in/social",
@@ -41,7 +42,7 @@ export const DISABLED_PATHS = [
 
 export const newUserId = () => `u-${newId().replaceAll("-", "").slice(0, 16)}`
 
-export const createAuth = ({ db, client, secret, baseURL, rateLimit = process.env.NODE_ENV === "production" }) =>
+export const createAuth = ({ db, client, secret, baseURL, ipHeader = null, rateLimit = process.env.NODE_ENV === "production" }) =>
   betterAuth({
     appName: "Velora POS",
     secret,
@@ -70,6 +71,7 @@ export const createAuth = ({ db, client, secret, baseURL, rateLimit = process.en
     verification: { modelName: AUTH_COLLECTIONS.verification },
     rateLimit: { enabled: rateLimit, storage: "database", modelName: AUTH_COLLECTIONS.rateLimit },
     advanced: {
+      ...(ipHeader && { ipAddress: { ipAddressHeaders: [ipHeader] } }),
       database: { generateId: ({ model }) => (model === "user" || model === AUTH_COLLECTIONS.user ? newUserId() : newId()) },
     },
     plugins: [

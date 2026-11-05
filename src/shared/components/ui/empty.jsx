@@ -21,7 +21,7 @@ const emptyMediaVariants = cva("mb-2 flex shrink-0 items-center justify-center [
 
 export const EmptyMedia = ({ className, variant = "default", ...props }) => <div data-slot="empty-icon" data-variant={variant} className={cn(emptyMediaVariants({ variant, className }))} {...props} />
 
-export const EmptyTitle = ({ className, ...props }) => <div data-slot="empty-title" className={cn("font-heading text-lg font-semibold tracking-wider uppercase", className)} {...props} />
+export const EmptyTitle = ({ className, ...props }) => <div data-slot="empty-title" className={cn("font-heading text-lg font-semibold tracking-display uppercase", className)} {...props} />
 
 export const EmptyDescription = ({ className, ...props }) => (
   <div data-slot="empty-description" className={cn("text-sm/relaxed text-muted-foreground [&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-primary", className)} {...props} />

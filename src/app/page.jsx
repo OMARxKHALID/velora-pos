@@ -18,7 +18,7 @@ const LoginPage = async () => {
   return (
     <main className="grid min-h-svh w-full overflow-x-hidden lg:grid-cols-2">
       <section className="dark relative hidden flex-col justify-between overflow-hidden border-r border-primary/30 bg-background bg-[radial-gradient(ellipse_at_85%_10%,color-mix(in_oklab,var(--primary)_20%,transparent),transparent_55%)] p-12 text-foreground lg:flex">
-        <span className="pointer-events-none absolute -right-16 -bottom-32 font-heading text-[34rem] leading-none font-bold text-primary/[0.06] select-none">
+        <span aria-hidden="true" className="pointer-events-none absolute -right-16 -bottom-32 font-heading text-[34rem] leading-none font-bold text-primary/[0.06] select-none">
           V
         </span>
         <div className="pointer-events-none absolute inset-6 border border-primary/15" />
@@ -46,8 +46,8 @@ const LoginPage = async () => {
             <VeloraLogo />
           </div>
           <div className="space-y-2">
-            <h1 className="font-heading text-2xl sm:text-3xl font-semibold tracking-wider uppercase">Sign in</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">Use the username and password the owner gave you.</p>
+            <h1 className="font-heading text-2xl sm:text-3xl font-semibold tracking-display uppercase">Sign in</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">Use the username or email and the password the owner gave you.</p>
           </div>
           <SignInForm sampleAccounts={sampleAccounts()} />
           <p className="text-xs text-muted-foreground">Forgot your password? Ask the owner to set a new one in Staff.</p>

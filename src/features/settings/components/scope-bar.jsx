@@ -6,6 +6,9 @@ import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 
 export const ScopeBar = ({ shopId }) => {
   const shop = useLedgerStore(({ shops }) => shops.find(({ id }) => id === shopId))
+  const several = useLedgerStore(({ shops }) => shops.filter(({ active }) => active !== false).length > 1)
+
+  if (!several) return null
 
   if (!shopId) {
     return (

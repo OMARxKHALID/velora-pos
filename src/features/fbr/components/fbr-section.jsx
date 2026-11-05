@@ -15,7 +15,7 @@ const FbrDocument = ({ title, fbr, payload }) => (
     </div>
     <details className="text-xs text-muted-foreground">
       <summary className="cursor-pointer py-1 hover:text-foreground pointer-coarse:py-2">Data sent to FBR</summary>
-      <pre className="mt-1 max-h-64 overflow-auto bg-muted/50 p-2 font-mono text-[11px] leading-snug">{JSON.stringify(payload, null, 2)}</pre>
+      <pre className="mt-1 max-h-64 overflow-auto bg-muted/50 p-2 font-mono text-2xs leading-snug">{JSON.stringify(payload, null, 2)}</pre>
     </details>
   </li>
 )

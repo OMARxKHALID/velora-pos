@@ -32,7 +32,7 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
 
   const handleExportCsv = () => {
     downloadFrom(`/api/reports/z/${encodeURIComponent(shift.id)}`)
-    toast.success("Z-Report exported", { description: "Downloaded CSV report for Excel and accounting." })
+    toast.success("Z-report download started", { description: "A CSV file for Excel and accounting." })
   }
 
   const handlePrint = () => {
@@ -46,7 +46,7 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <DialogTitle>End-of-Day Z-Report</DialogTitle>
+            <DialogTitle>End-of-day Z-report</DialogTitle>
             <span className="font-mono text-xs text-muted-foreground uppercase">#{shift.id.slice(0, 8)}</span>
           </div>
           <DialogDescription>
@@ -106,11 +106,11 @@ export const ShiftReportDialog = ({ shift, onClose }) => {
 
         <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
           <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Button type="button" variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={handlePrint}>
+            <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={handlePrint}>
               <PrinterIcon />
-              Print Z-Report
+              Print Z-report
             </Button>
-            <Button type="button" variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={handleExportCsv}>
+            <Button type="button" variant="outline" className="flex-1 sm:flex-none" onClick={handleExportCsv}>
               <FileCsvIcon />
               Export CSV
             </Button>

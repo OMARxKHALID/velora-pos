@@ -3,9 +3,11 @@ import { staffName } from "@/features/staff/lib/people"
 import { SALE_RANGES, salesForExport, salesPage } from "@/features/sales/server/queries"
 import { viewerScope } from "@/features/sales/server/request"
 import { COLLECTIONS as C } from "@/server/db/collections"
+import { paymentsText } from "@/features/pos/lib/z-report"
 import { toCsv } from "@/shared/lib/csv"
+import { rupeesText as rupees } from "@/shared/lib/money"
 import { formatFullDateTime } from "@/shared/lib/dates"
-import { denied, noStore } from "@/server/http"
+import { denied, noStore, readQuery } from "@/server/http"
 
 const querySchema = z.object({
   range: z.enum(Object.keys(SALE_RANGES)).default("7d"),
@@ -16,10 +18,8 @@ const querySchema = z.object({
   format: z.enum(["json", "csv"]).default("json"),
 })
 
-const rupees = (paisa) => (paisa / 100).toFixed(2)
-
 export const GET = async (request) => {
-  const query = querySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams))
+  const query = readQuery(request, querySchema)
   if (!query.success) return denied(400, "Bad query")
   const scope = await viewerScope(query.data.shop)
   if (scope.error) return scope.error
@@ -43,7 +43,7 @@ export const GET = async (request) => {
       rupees(sale.discountTotal),
       rupees(sale.taxTotal ?? 0),
       rupees(sale.total),
-      sale.payments.map((payment) => `${payment.method.toUpperCase()} (${rupees(payment.amount)})`).join("; "),
+      paymentsText(sale.payments),
     ]),
   ])
   return new Response(`﻿${csv}`, {

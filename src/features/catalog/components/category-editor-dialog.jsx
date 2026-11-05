@@ -27,8 +27,12 @@ export const CategoryEditorDialog = ({ category = null, inUse = false, onClose, 
   const [draft, setDraft] = useState({ name: category?.name ?? "", sizeType: category?.sizeType ?? "one", icon: category?.icon ?? "tag", pctCode: category?.pctCode ?? "", lowStockAt: category?.lowStockAt ?? "" })
   const change = (patch) => setDraft((current) => ({ ...current, ...patch }))
 
+  const [saving, setSaving] = useState(false)
+
   const handleSubmit = async (event) => {
     event.preventDefault()
+    if (saving) return
+    setSaving(true)
     try {
       const saved = await saveCategory({ categoryId: category?.id ?? null, ...draft })
       toast.success(category ? "Category updated" : "Category added", { description: saved.name })
@@ -36,11 +40,12 @@ export const CategoryEditorDialog = ({ category = null, inUse = false, onClose, 
       onClose()
     } catch (error) {
       toast.error(error.message)
+      setSaving(false)
     }
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && !saving && onClose()}>
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
@@ -87,7 +92,9 @@ export const CategoryEditorDialog = ({ category = null, inUse = false, onClose, 
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">{category ? "Save category" : "Add category"}</Button>
+            <Button type="submit" pending={saving}>
+              {category ? "Save category" : "Add category"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

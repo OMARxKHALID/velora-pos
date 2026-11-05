@@ -11,6 +11,7 @@ const databaseSchema = z.object({
 const appSchema = z.object({
   SAMPLE_DATA: z.stringbool().default(false),
   PIN_SECRET: z.string().min(32, { error: "PIN_SECRET must be at least 32 characters" }).optional(),
+  CLIENT_IP_HEADER: z.string().regex(/^[A-Za-z0-9-]{1,64}$/, { error: "CLIENT_IP_HEADER must be a header name, like x-real-ip" }).optional(),
 })
 
 const authSchema = z.object({
@@ -25,8 +26,10 @@ const cloudinarySchema = z.object({
   CLOUDINARY_API_SECRET: z.string().min(16, { error: "CLOUDINARY_API_SECRET looks too short" }).optional(),
 })
 
+const setValues = () => Object.fromEntries(Object.entries(process.env).filter(([, value]) => value !== ""))
+
 const read = (schema, name) => {
-  const result = schema.safeParse(process.env)
+  const result = schema.safeParse(setValues())
   if (!result.success) throw new Error(`Invalid ${name} environment variables:\n${z.prettifyError(result.error)}`)
   return result.data
 }

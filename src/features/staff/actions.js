@@ -8,13 +8,13 @@ import { writeAudit } from "@/server/db/audit"
 import { getDb } from "@/server/db/client"
 import { cloudinary } from "@/server/cloudinary"
 import { pinSecret } from "@/config/env"
-import { changeRole, createStaff, removeStaff, setAccess, setLeave, setPassword, setSupervisorPin, updateProfile } from "./server/staff"
+import { changeRole, createStaff, removeStaff, setAccess, setLeave, setSupervisorPin, updateAccount, updateProfile } from "./server/staff"
 
 const asOwner = (kind, target, changes, work) =>
   actionResult(async () => {
     const owner = await authorize("admin")
     const db = getDb()
-    const result = await work({ auth: getAuth(), db, headers: await headers(), pinSecret: pinSecret(), photos: cloudinary() })
+    const result = await work({ auth: getAuth(), db, headers: await headers(), pinSecret: pinSecret(), photos: cloudinary(), ownerId: owner.id })
     await writeAudit(db, undefined, { shopId: null, userId: owner.id, kind, target: target ?? result?.id ?? null, changes }).catch((error) => console.error(error))
     refresh()
     return result
@@ -28,7 +28,8 @@ export const setAccessAction = async (id, enabled) => asOwner("staff.access", id
 
 export const removeStaffAction = async (id) => asOwner("staff.remove", id, null, (deps) => removeStaff(deps, id))
 
-export const setPasswordAction = async (id, password) => asOwner("staff.password", id, null, (deps) => setPassword(deps, id, password))
+export const updateAccountAction = async (id, input) =>
+  asOwner("staff.account", id, { username: { from: null, to: input?.username ?? null }, email: { from: null, to: input?.email ?? null }, password: { from: null, to: input?.password ? "changed" : "unchanged" } }, (deps) => updateAccount(deps, id, input))
 
 export const setSupervisorPinAction = async (id, pin) => asOwner("staff.pin", id, null, (deps) => setSupervisorPin(deps, id, pin))
 

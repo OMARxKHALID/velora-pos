@@ -9,12 +9,14 @@ const makeQueryClient = () =>
     },
   })
 
-let browserQueryClient
+let browser = null
 
-const getQueryClient = () => {
+const getQueryClient = (userId) => {
   if (environmentManager.isServer()) return makeQueryClient()
-  browserQueryClient ??= makeQueryClient()
-  return browserQueryClient
+  if (browser?.userId === userId) return browser.client
+  browser?.client.clear()
+  browser = { userId, client: makeQueryClient() }
+  return browser.client
 }
 
-export const QueryProvider = ({ children }) => <QueryClientProvider client={getQueryClient()}>{children}</QueryClientProvider>
+export const QueryProvider = ({ userId, children }) => <QueryClientProvider client={getQueryClient(userId)}>{children}</QueryClientProvider>

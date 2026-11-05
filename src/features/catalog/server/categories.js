@@ -1,3 +1,4 @@
+import "server-only"
 import { z } from "zod"
 import { changesBetween, writeAudit } from "@/server/db/audit"
 import { caseInsensitive } from "@/server/db/indexes"

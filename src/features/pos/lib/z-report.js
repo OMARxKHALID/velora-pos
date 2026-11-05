@@ -2,9 +2,10 @@ import { shiftSummary } from "@/features/ledger/lib/rules"
 import { staffName } from "@/features/staff/lib/people"
 import { formatFullDateTime } from "@/shared/lib/dates"
 import { toCsv } from "@/shared/lib/csv"
+import { rupeesText as rupees } from "@/shared/lib/money"
 import { methodLabel } from "./payment-methods"
 
-const rupees = (paisa) => (paisa / 100).toFixed(2)
+export const paymentsText = (payments) => payments.map((payment) => `${payment.method.toUpperCase()} (${rupees(payment.amount)})`).join("; ")
 
 export const generateZReportCsv = (state, shift, staff, { timeZone } = {}) => {
   const summary = shiftSummary(state, shift)
@@ -64,7 +65,7 @@ export const generateZReportCsv = (state, shift, staff, { timeZone } = {}) => {
       rupees(sale.discountTotal),
       rupees(sale.taxTotal ?? 0),
       rupees(sale.total),
-      sale.payments.map((payment) => `${payment.method.toUpperCase()} (${rupees(payment.amount)})`).join("; "),
+      paymentsText(sale.payments),
       sale.fbr ? (sale.fbr.invoiceNumber ?? "PENDING") : "",
     ]),
   ]

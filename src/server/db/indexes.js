@@ -1,3 +1,4 @@
+import "server-only"
 import { COLLECTIONS as C } from "./collections"
 
 export const caseInsensitive = { locale: "en", strength: 2 }
@@ -59,7 +60,7 @@ export const INDEXES = {
   [C.heldCarts]: [{ key: { registerId: 1, parkedAt: -1 }, name: "register_time" }],
   [C.auditLog]: [{ key: { shopId: 1, at: -1 }, name: "shop_time" }],
   [C.pinFailures]: [
-    { key: { at: 1 }, name: "expire", expireAfterSeconds: 300 },
+    { key: { at: 1 }, name: "expire_day", expireAfterSeconds: 86400 },
     { key: { supervisorId: 1, at: -1 }, name: "supervisor_time" },
   ],
   [C.signInFailures]: [
@@ -88,7 +89,21 @@ export const INDEXES = {
   [C.rateLimits]: [{ key: { key: 1 }, name: "key_unique", unique: true }],
 }
 
+const OBSOLETE = { [C.pinFailures]: ["expire"] }
+
+const INDEX_NOT_FOUND = [26, 27]
+
 export const ensureIndexes = async (db) => {
+  for (const [collection, names] of Object.entries(OBSOLETE)) {
+    for (const name of names) {
+      await db
+        .collection(collection)
+        .dropIndex(name)
+        .catch((error) => {
+          if (!INDEX_NOT_FOUND.includes(error.code)) throw error
+        })
+    }
+  }
   const created = {}
   for (const [collection, indexes] of Object.entries(INDEXES)) {
     created[collection] = await db.collection(collection).createIndexes(indexes)

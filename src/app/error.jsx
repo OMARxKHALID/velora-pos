@@ -12,7 +12,7 @@ const AppError = ({ error, retry }) => {
     <main className="flex min-h-dvh items-center justify-center p-6">
       <Surface role="alert" className="max-w-sm space-y-4 p-6 text-center">
         <WarningIcon className="mx-auto size-10 text-destructive" />
-        <h1 className="font-heading text-lg font-bold tracking-wider uppercase">Something went wrong</h1>
+        <h1 className="font-heading text-lg font-bold tracking-display uppercase">Something went wrong</h1>
         <p className="text-sm text-muted-foreground">
           Velora could not load this screen. Try again in a moment.
           {error.digest ? (

@@ -1,7 +1,8 @@
+import "server-only"
 import { COLLECTIONS as C, fromDoc } from "@/server/db/collections"
 import { escapeRegExp } from "@/shared/lib/escape-regexp"
 
-export const PAGE_SIZE = 10
+const PAGE_SIZE = 10
 
 const searchFilter = async (db, shopIds, q) => {
   const pattern = new RegExp(escapeRegExp(q.trim()), "i")

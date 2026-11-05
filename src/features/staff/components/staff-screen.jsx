@@ -25,7 +25,7 @@ import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { useShopNameOf, useShopScope } from "@/features/shops/hooks/use-shop-scope"
 import { ALL_SHOPS, staffShopId } from "@/features/shops/lib/shops"
 import { timeAgo } from "@/shared/lib/dates"
-import { changeRoleAction, createStaffAction, removeStaffAction, setAccessAction, setLeaveAction, setPasswordAction, updateProfileAction } from "../actions"
+import { changeRoleAction, createStaffAction, removeStaffAction, setAccessAction, setLeaveAction, updateAccountAction, updateProfileAction } from "../actions"
 import { CreateStaffDialog } from "./create-staff-dialog"
 import { EditStaffDialog } from "./edit-staff-dialog"
 import { LeaveDialog } from "./leave-dialog"
@@ -124,10 +124,10 @@ export const StaffScreen = ({ user }) => {
       }
     )
 
-  const handleSetPassword = (person, password) =>
+  const handleSaveAccount = (person, account) =>
     run(
-      () => setPasswordAction(person.id, password),
-      () => toast.success("Password changed", { description: `${person.name} was signed out and can sign in with the new password.` })
+      () => updateAccountAction(person.id, account),
+      () => toast.success("Sign-in details saved", { description: account.password ? `${person.name} uses the new password from now on.` : `${person.name} can sign in with the new details.` })
     )
 
   const handleLeave = (person, leave) =>
@@ -205,7 +205,7 @@ export const StaffScreen = ({ user }) => {
             <div className="flex items-center justify-end gap-2">
               <span className={cn("inline-flex items-center gap-1.5 text-xs font-semibold tracking-label uppercase", statusTones[status])}>
                 <span className="size-1.5 rounded-full bg-current" />
-                <span className="hidden @lg:inline">{status}</span>
+                <span>{status}</span>
               </span>
 
               {isOwner ? (
@@ -216,7 +216,7 @@ export const StaffScreen = ({ user }) => {
                     {off ? "Turn on" : "Turn off"}
                   </Button>
                   <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button size="icon-xs" variant="ghost" aria-label={`Options for ${person.name}`} />}>
+                    <DropdownMenuTrigger render={<Button size="icon-sm" variant="ghost" aria-label={`Options for ${person.name}`} />}>
                       <DotsThreeVerticalIcon />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-52">
@@ -283,7 +283,7 @@ export const StaffScreen = ({ user }) => {
         <DataTable columns={columns} data={visible} getRowId={({ id }) => id} onRowClick={({ id }) => setSelectedId(id)} rowClassName="hover:bg-accent/40" empty="No staff members match." page={page} onPageChange={setPage} />
       </Surface>
 
-      <p className="text-xs text-muted-foreground">Tap a staff member to see their profile and activity, or to set a new password. Everyone on this list signs in with their own username.</p>
+      <p className="text-xs text-muted-foreground">Tap a staff member to see their profile and activity, or to change their username, email or password. Everyone signs in with their own username or email.</p>
 
       {creating && <CreateStaffDialog user={user} pending={pending} onClose={() => setCreating(false)} onCreate={handleCreate} />}
       {selected && (
@@ -296,7 +296,7 @@ export const StaffScreen = ({ user }) => {
             setEditing(person)
           }}
           onTransfer={handleTransfer}
-          onSetPassword={handleSetPassword}
+          onSaveAccount={handleSaveAccount}
           onRemove={(person) => {
             setSelectedId(null)
             setRemoving(person)

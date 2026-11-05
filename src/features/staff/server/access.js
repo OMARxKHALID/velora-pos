@@ -1,3 +1,4 @@
+import "server-only"
 import { COLLECTIONS as C } from "@/server/db/collections"
 import { SHOP_TIME_ZONE, dayIn } from "@/shared/lib/zoned"
 

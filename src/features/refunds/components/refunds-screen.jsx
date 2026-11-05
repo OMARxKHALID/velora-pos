@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { CheckIcon, XIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/shared/components/ui/alert-dialog"
+import { useUrlState } from "@/shared/hooks/use-url-state"
 import { Segmented } from "@/shared/components/ui/segmented"
 import { TablePagination, paginate } from "@/shared/components/ui/table-pagination"
 import { useCatalog } from "@/features/catalog/hooks/use-catalog"
@@ -132,7 +133,7 @@ export const RefundsScreen = ({ user }) => {
   const refunds = scope === ALL_SHOPS ? allRefunds : allRefunds.filter(({ shopId }) => shopId === scope)
   const decideRefund = useLedgerStore(({ decideRefund }) => decideRefund)
   const drawerOpen = useLedgerStore(({ shifts }) => Boolean(openShiftFor({ shifts })))
-  const [tab, setTab] = useState("pending")
+  const [tab, setTab] = useUrlState("tab", "pending", tabs.map(({ key }) => key))
   const [page, setPage] = useState(1)
   const [openSaleId, setOpenSaleId] = useState(null)
   const [deciding, setDeciding] = useState(null)
@@ -162,6 +163,7 @@ export const RefundsScreen = ({ user }) => {
   return (
     <>
       <Segmented
+        label="Return status"
         options={tabs.map(({ key, label }) => ({ key, label: `${label} · ${counts[key]?.length ?? 0}` }))}
         value={tab}
         onChange={(key) => {

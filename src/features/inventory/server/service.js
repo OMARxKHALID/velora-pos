@@ -1,7 +1,8 @@
+import "server-only"
 import { z } from "zod"
 import { parseInput } from "@/shared/lib/errors"
 import { COLLECTIONS as C } from "@/server/db/collections"
-import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
+import { replayOnDuplicate, withTransaction } from "@/server/db/transaction"
 import { newId } from "@/shared/lib/id"
 import { addReasons, removeReasons } from "../schemas"
 import { moveStock, moveStockMany, shopVariants } from "./stock"
@@ -37,24 +38,13 @@ const deliveryResult = (purchase) => ({ id: purchase._id, pairs: purchase.items.
 
 const adjustmentResult = (movement) => ({ id: movement._id, balanceAfter: movement.balanceAfter })
 
-const once = async (work, replay) => {
-  try {
-    return await work()
-  } catch (error) {
-    if (!isDuplicateKey(error)) throw error
-    const existing = await replay()
-    if (existing) return existing
-    throw error
-  }
-}
-
 export const receiveDelivery = async ({ db, client, user, shopId, at = new Date() }, input) => {
   const { clientId: key, supplier, lines } = parseInput(deliverySchema, input)
   const replay = async (session) => {
     const existing = await db.collection(C.purchases).findOne({ clientId: key, shopId }, { session })
     return existing && deliveryResult(existing)
   }
-  return once(
+  return replayOnDuplicate(
     () =>
       withTransaction(client, async (session) => {
         const existing = await replay(session)
@@ -85,7 +75,7 @@ export const adjustStock = async ({ db, client, user, shopId, at = new Date() },
     const existing = await db.collection(C.movements).findOne({ clientId: key, shopId }, { session })
     return existing && adjustmentResult(existing)
   }
-  return once(
+  return replayOnDuplicate(
     () =>
       withTransaction(client, async (session) => {
         const existing = await replay(session)

@@ -1,3 +1,4 @@
+import "server-only"
 import { COLLECTIONS as C, fromDoc } from "@/server/db/collections"
 import { caseInsensitive } from "@/server/db/indexes"
 import { saleForViewer } from "../lib/for-viewer"
@@ -18,7 +19,7 @@ const searchFilter = (search) => {
   return { $or: [{ number: pattern }, { offlineNumber: pattern }, { customerName: pattern }, { customerPhone: pattern }, { "items.productName": pattern }] }
 }
 
-export const PAGE_SIZE = 10
+const PAGE_SIZE = 10
 
 const saleFilter = ({ shopIds, viewer, range = "7d", cashierId = null, q = "", timeZone = SHOP_TIME_ZONE, now = Date.now() }) => {
   const days = SALE_RANGES[range]

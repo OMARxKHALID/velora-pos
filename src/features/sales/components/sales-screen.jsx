@@ -1,5 +1,6 @@
 "use client"
 
+import { toast } from "sonner"
 import { useDeferredValue, useState } from "react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { cn } from "cn"
@@ -8,6 +9,7 @@ import { Button } from "@/shared/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/shared/components/ui/dropdown-menu"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
 import { Segmented } from "@/shared/components/ui/segmented"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select"
 import { useUrlState } from "@/shared/hooks/use-url-state"
 import { DataTable } from "@/shared/components/ui/data-table"
 import { TablePageSkeleton } from "@/shared/components/ui/table-skeleton"
@@ -99,13 +101,16 @@ export const SalesScreen = ({ user }) => {
 
   const withReset = resetsPage(setPage)
 
+  const cashierOptions = [{ key: "all", label: "All cashiers" }, ...cashiers.map((id) => ({ key: id, label: nameOf(id).split(" ")[0] }))]
+
   const handleExportSalesCsv = () => {
     downloadFrom(`/api/sales?${queryString({ ...filters, format: "csv" })}`)
   }
 
   const handleScan = async (code) => {
     const { sale } = await getJson(`/api/sales/lookup?${queryString({ number: code })}`).catch(() => ({ sale: null }))
-    if (sale) setOpenId(sale.id)
+    if (sale) return setOpenId(sale.id)
+    toast.error("Receipt not found", { description: code })
   }
 
   useBarcodeScanner(handleScan)
@@ -123,7 +128,21 @@ export const SalesScreen = ({ user }) => {
         </InputGroup>
         <Segmented label="Date range" options={ranges} value={range} onChange={withReset(setRange)} />
         {seesCashiers && (
-          <Segmented label="Cashier" options={[{ key: "all", label: "All cashiers" }, ...cashiers.map((id) => ({ key: id, label: nameOf(id).split(" ")[0] }))]} value={cashier} onChange={withReset(setCashier)} />
+          <>
+            <Segmented label="Cashier" className="max-@xl:hidden" options={cashierOptions} value={cashier} onChange={withReset(setCashier)} />
+            <Select value={cashier} onValueChange={withReset(setCashier)} items={cashierOptions.map(({ key, label }) => ({ value: key, label }))}>
+              <SelectTrigger aria-label="Cashier" className="w-full @xl:hidden">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {cashierOptions.map(({ key, label }) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
         )}
         <div className="flex w-full items-center gap-2 @2xl:ml-auto @2xl:w-auto">
           {closedShifts.length > 0 && (

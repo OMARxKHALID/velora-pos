@@ -24,6 +24,7 @@ import { formatTimeOrDate } from "@/shared/lib/dates"
 import { formatMoney } from "@/shared/lib/money"
 import { useBarcodeScanner } from "../hooks/use-barcode-scanner"
 import { beep } from "../lib/beep"
+import { notifyDiscountDropped } from "../lib/cart-notices"
 import { CartStoreProvider, useCartStore } from "../store/cart-store-provider"
 import { CartPanel } from "./cart-panel"
 import { CatalogPanel } from "./catalog-panel"
@@ -73,6 +74,8 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
   const [paying, setPaying] = useState(false)
   const [completed, setCompleted] = useState(null)
   const [lastAdded, setLastAdded] = useState(null)
+  const [addTick, setAddTick] = useState(0)
+  const [announcement, setAnnouncement] = useState("")
   const [cartOpen, setCartOpen] = useState(true)
   const [cartSheetOpen, setCartSheetOpen] = useState(false)
   const [scanFocus, setScanFocus] = useState(false)
@@ -99,8 +102,10 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
       toast.error("No more in stock", { description: `${productById[variant.productId].name} · ${sizeLabel(variant.attributes.size)}` })
       return
     }
-    add(variant.id, entry)
+    notifyDiscountDropped(add(variant.id, entry))
+    setAnnouncement(`Added ${productById[variant.productId].name}, ${sizeLabel(variant.attributes.size)}.`)
     setLastAdded(variant.id)
+    setAddTick((tick) => tick + 1)
     beep(true, settings)
   }
 
@@ -111,6 +116,7 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
   }
 
   const handleScan = (code) => {
+    setCompleted(null)
     const variant = variantByBarcode[code]
     if (!variant || !variant.active || productById[variant.productId].status !== "active" || productById[variant.productId].shopId !== shopId) {
       beep(false, settings)
@@ -138,8 +144,9 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
       setLastAdded(null)
       setPaying(false)
       setCompleted(sale)
+      return null
     } catch (error) {
-      toast.error(error.message)
+      return error.message
     }
   }
 
@@ -179,7 +186,10 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
   const handleResume = async (heldId) => {
     setParkedOpen(false)
     try {
-      if (lines.length) await holdCart({ cart, registerId: shift.registerId })
+      if (lines.length) {
+        const parked = await holdCart({ cart, registerId: shift.registerId })
+        toast.info("Current sale held", { description: `Saved as ${parked?.label ?? "a held sale"} so you can come back to it.` })
+      }
       const held = await takeHeldCart(heldId)
       const { lines: fitted, adjusted } = fitToStock(held.lines, stock)
       load({ ...held, lines: fitted })
@@ -196,9 +206,21 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
   const overlayOpen = Boolean(picking || paying || completed || closing || parkedOpen || holdOpen || queueOpen || drawerOpen)
 
   const handleShortcut = useEffectEvent((event) => {
-    if (event.key !== "F2") return
-    event.preventDefault()
-    if (!overlayOpen) handleCharge()
+    if (event.key === "F2") {
+      event.preventDefault()
+      if (!overlayOpen) handleCharge()
+      return
+    }
+    if (overlayOpen) return
+    if (event.key === "F4" && lines.length) {
+      event.preventDefault()
+      setHoldOpen(true)
+      return
+    }
+    if (event.key === "/" && !event.target.closest?.("input, textarea, select, [contenteditable]")) {
+      event.preventDefault()
+      document.querySelector('[aria-label="Search products"]')?.focus()
+    }
   })
 
   useEffect(() => {
@@ -206,13 +228,19 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
     return () => window.removeEventListener("keydown", handleShortcut)
   }, [])
 
-  useBarcodeScanner(handleScan)
+  const handleScanBlocked = () => {
+    beep(false, settings)
+    toast.error("Close this window to scan", { description: "Scans are ignored while another window is open." })
+  }
+
+  useBarcodeScanner(handleScan, { onBlocked: handleScanBlocked })
 
   const cartPanel = (className, onClose) => (
     <CartPanel
       shopId={shopId}
       focusScan={scanFocus}
       lastAdded={lastAdded}
+      addTick={addTick}
       availableFor={availableFor}
       onScan={handleScan}
       onCharge={handleCharge}
@@ -303,25 +331,27 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
 
       <div className="flex min-h-0 flex-1 gap-3">
         <CatalogPanel shopId={shopId} availableFor={availableFor} onPick={handlePick} onScan={handleScan} />
-        {wide && cartOpen && cartPanel("w-[340px] shrink-0 border")}
+        {wide && cartOpen && cartPanel("w-[clamp(300px,30vw,380px)] shrink-0 border")}
       </div>
 
       {!wide && (
-        <div className="flex shrink-0 items-center gap-2 border bg-card p-2">
+        <div className="flex shrink-0 items-center gap-2 border bg-card p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {heldCarts.length > 0 && <HeldCartsButton variant="mobile" count={heldCarts.length} onClick={() => setParkedOpen(true)} />}
           <Button type="button" variant="outline" size="icon-lg" className="shrink-0" aria-label="Scan or type a barcode" onClick={handleOpenScan}>
             <BarcodeIcon className="size-5 text-gold" />
           </Button>
-          <button type="button" onClick={() => setCartSheetOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 px-2 py-1 text-left">
+          <button type="button" aria-label={`Open cart, ${count} ${count === 1 ? "item" : "items"}, ${formatMoney(total)}`} onClick={() => setCartSheetOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 px-2 py-1 text-left">
             <span className="relative flex size-10 shrink-0 items-center justify-center border border-primary/40 text-gold">
               <ShoppingBagIcon className="size-5" />
               {count > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center bg-primary text-2xs font-bold text-primary-foreground tabular-nums">{count}</span>
+                <span key={count} className="absolute -top-1.5 -right-1.5 flex size-5 animate-in items-center justify-center bg-primary text-2xs font-bold text-primary-foreground tabular-nums duration-150 ease-snappy zoom-in-125">
+                  {count}
+                </span>
               )}
             </span>
             <span className="min-w-0">
               <span className="block text-xs text-muted-foreground">{count ? `${count} ${count === 1 ? "item" : "items"}` : "Cart is empty"}</span>
-              <span className="block font-sans text-lg font-bold text-gold tabular-nums">{formatMoney(total)}</span>
+              <span className="block truncate font-sans text-lg font-bold text-gold tabular-nums">{formatMoney(total)}</span>
             </span>
           </button>
           <Button size="lg" className="h-12 shrink-0 px-6" disabled={!count} onClick={handleCharge}>
@@ -332,7 +362,7 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
 
       {!wide && (
         <Sheet open={cartSheetOpen} onOpenChange={handleCartSheet}>
-          <SheetContent side="right" showCloseButton={false} className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md">
+          <SheetContent data-scan-through="" side="right" showCloseButton={false} className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md">
             <SheetHeader className="sr-only">
               <SheetTitle>Cart</SheetTitle>
               <SheetDescription>Items in the current sale</SheetDescription>
@@ -354,9 +384,12 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
         />
       )}
       {paying && <PaymentDialog shopId={shopId} total={total} count={count} onPay={handlePay} onClose={() => setPaying(false)} />}
+      <p className="sr-only" aria-live="polite">
+        {announcement}
+      </p>
       {completed && <ReceiptDialog sale={completed} register={register} onClose={() => setCompleted(null)} />}
       {closing && <CloseShiftDialog shift={shift} user={user} onCancel={() => setClosing(false)} onClosed={onShiftClosed} />}
-      {parkedOpen && <ParkedSalesDialog heldCarts={heldCarts} onResume={handleResume} onClose={() => setParkedOpen(false)} />}
+      {parkedOpen && <ParkedSalesDialog shopId={shopId} heldCarts={heldCarts} onResume={handleResume} onClose={() => setParkedOpen(false)} />}
       {queueOpen && <OfflineQueueDialog onClose={() => setQueueOpen(false)} />}
       {drawerOpen && <DrawerDialog register={register} shift={shift} onClose={() => setDrawerOpen(false)} />}
       {holdOpen && <HoldSaleDialog suggestion={customerName || `Order #${heldCarts.length + 1}`} onHold={handleHold} onClose={() => setHoldOpen(false)} />}

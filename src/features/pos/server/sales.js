@@ -1,12 +1,13 @@
+import "server-only"
 import { z } from "zod"
-import { readApproval } from "@/features/auth/server/approval-token"
-import { UserError, parseInput } from "@/shared/lib/errors"
+import { consumeApproval } from "@/features/auth/server/approvals"
+import { UserError, parseInput, userFacing } from "@/shared/lib/errors"
 import { CASHIER_DISCOUNT_LIMITS, PAYMENT_METHODS, applySale, cashierLimitOf } from "@/features/ledger/lib/rules"
-import { moveStock } from "@/features/inventory/server/stock"
-import { cartTotals, effectiveRate, phoneLooksValid, phoneRequiredFor } from "@/features/pricing/lib/pricing"
+import { NotEnoughStock, moveStock } from "@/features/inventory/server/stock"
+import { cartTotals, effectiveRate, phoneLooksValid, phoneRequiredFor, saleLinesOf } from "@/features/pricing/lib/pricing"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/server/db/collections"
 import { writeAudit } from "@/server/db/audit"
-import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
+import { findByClientId, lockShift, replayOnDuplicate, withTransaction } from "@/server/db/transaction"
 import { formatMoney } from "@/shared/lib/money"
 import { inBlocks, receiptNumber } from "../lib/receipts"
 import { fbrSeqOf, registerFor, saveFbrSeq, shopSettings } from "./register"
@@ -57,16 +58,11 @@ const offlineSaleSchema = saleSchema.extend({
   }),
 })
 
-const approverFor = async (db, session, { approvalSecret, cashierId, discountPct, token, at }) => {
+const approverFor = async (db, session, { approvalSecret, cashierId, discountPct, subtotal, token, at }) => {
   if (!token) return null
-  const approval = readApproval(approvalSecret, token, { cashierId, discountPct, now: at.getTime() })
-  if (!approval) throw new UserError("The supervisor approval has expired or does not match this discount. Ask for it again.")
-  const supervisor = await db.collection(C.users).findOne({ _id: approval.supervisorId }, { session, projection: { role: 1, banned: 1, removedAt: 1 } })
-  if (!supervisor || supervisor.role !== "manager" || supervisor.banned || supervisor.removedAt) throw new UserError("The approving supervisor is no longer active. Ask another supervisor.")
-  const uses = db.collection(C.approvalUses)
-  if (await uses.findOne({ _id: approval.id }, { session, projection: { _id: 1 } })) throw new UserError("This supervisor approval was already used on another sale. Ask for it again.")
-  await uses.insertOne({ _id: approval.id, supervisorId: approval.supervisorId, cashierId, usedAt: new Date() }, { session })
-  return approval.supervisorId
+  const approvedBy = await consumeApproval(db, session, { approvalSecret, kind: "discount", cashierId, token, at, matches: (scope) => scope.pct === discountPct && subtotal <= scope.subtotal })
+  if (!approvedBy) throw new UserError("The supervisor approval has expired, or the cart changed since it was given. Ask for it again.")
+  return approvedBy
 }
 
 const merge = (lines) => Object.values(lines.reduce((all, line) => ({ ...all, [line.variantId]: all[line.variantId] ? { ...all[line.variantId], quantity: all[line.variantId].quantity + line.quantity } : line }), {}))
@@ -92,12 +88,12 @@ const buildSale = async (db, session, { user, shift, register, shop, categories,
   const { rows, subtotal } = cartTotals(lines, input.discountPct, indexOf(catalog), settings)
   const cartDiscount = rows.reduce((sum, { discount }) => sum + discount, 0)
   const needsApproval = cartDiscount > subtotal * cashierLimitOf(settings)
-  const approvedBy = needsApproval ? await approverFor(db, session, { approvalSecret, cashierId: user.id, discountPct: input.discountPct, token: input.approvalToken, at }) : null
-  try {
-    const { record, state } = applySale(
+  const approvedBy = needsApproval ? await approverFor(db, session, { approvalSecret, cashierId: user.id, discountPct: input.discountPct, subtotal, token: input.approvalToken, at }) : null
+  const { record, state } = userFacing(() =>
+    applySale(
       { ...catalog, categories, sales: [], stock: {}, movements: [], shifts: [{ ...fromDoc(shift), status: "open" }], receiptSeq: register.lastReceiptSeq, fbrSeq: fbrSeqOf(register) },
       {
-        lines: rows.map(({ variantId, quantity, discount, productDiscount, entry }) => ({ variantId, quantity, discount, productDiscount, entry })),
+        lines: saleLinesOf(rows),
         payments: input.payments,
         cashierId: user.id,
         shiftId: shift._id,
@@ -116,11 +112,9 @@ const buildSale = async (db, session, { user, shift, register, shop, categories,
         strn: shop.strn ?? null,
       }
     )
-    if (record.fbr) await saveFbrSeq(db, session, register._id, state.fbrSeq)
-    return record
-  } catch (error) {
-    throw new UserError(error.message)
-  }
+  )
+  if (record.fbr) await saveFbrSeq(db, session, register._id, state.fbrSeq)
+  return record
 }
 
 const nextReceiptNumber = async (db, session, register) => {
@@ -145,15 +139,13 @@ const takeStock = async (db, session, { sale, number, user, at, allowNegative })
       })
       negative ||= movement.balanceAfter < 0
     } catch (error) {
-      if (error.message !== "Not enough stock") throw error
+      if (!(error instanceof NotEnoughStock)) throw error
       const left = (await db.collection(C.stock).findOne({ shopId: sale.shopId, variantId: item.variantId }, { session }))?.quantity ?? 0
       throw new UserError(`Only ${Math.max(left, 0)} left of ${item.productName} (${item.attributes.color} · EU ${item.attributes.size})`)
     }
   }
   return negative
 }
-
-const lockShift = (db, session, shiftId) => db.collection(C.shifts).updateOne({ _id: shiftId }, { $inc: { writeSeq: 1 } }, { session })
 
 const existingSale = (db, session, clientId) => db.collection(C.sales).findOne({ clientId }, { session })
 
@@ -287,16 +279,11 @@ const syncInSession = async (db, session, { user, shopId, now, approvalSecret, c
   return stored
 }
 
-const settle = async (client, db, clientId, work) => {
-  try {
-    return await withTransaction(client, work)
-  } catch (error) {
-    if (!isDuplicateKey(error)) throw error
-    const existing = await db.collection(C.sales).findOne({ clientId })
-    if (existing) return fromDoc(existing)
-    throw error
-  }
-}
+const settle = (client, db, clientId, work) =>
+  replayOnDuplicate(
+    () => withTransaction(client, work),
+    () => findByClientId(db, undefined, C.sales, clientId)
+  )
 
 export const recordSale = async ({ db, client, user, shopId, approvalSecret, at = new Date() }, input) => {
   const request = parseInput(saleSchema, input)
@@ -317,20 +304,32 @@ const discardSchema = z.object({
   total: z.number().int().min(0),
   soldAt: z.number().int().positive(),
   error: z.string().max(300).nullish(),
+  approvalToken: z.string().max(1000),
 })
 
-export const discardOfflineSale = async ({ db, user, shopId, at = new Date() }, input) => {
+export const discardOfflineSale = async ({ db, client, user, shopId, approvalSecret, at = new Date() }, input) => {
   const entry = parseInput(discardSchema, input)
-  if (await existingSale(db, undefined, entry.clientId)) throw new UserError("This sale already reached the server. Refresh the till.")
-  const shift = await db.collection(C.shifts).findOne({ _id: entry.shiftId, shopId }, { projection: { cashierId: 1 } })
-  if (!shift || shift.cashierId !== user.id) throw new UserError("This sale was made on another cashier's shift")
-  await writeAudit(db, undefined, {
-    shopId,
-    userId: user.id,
-    kind: "offline_sale.discard",
-    target: entry.clientId,
-    changes: { number: { from: entry.number, to: null }, total: { from: entry.total, to: null }, shiftId: { from: entry.shiftId, to: null }, soldAt: { from: new Date(entry.soldAt), to: null }, error: { from: entry.error ?? null, to: null } },
-    at,
+  return withTransaction(client, async (session) => {
+    if (await existingSale(db, session, entry.clientId)) throw new UserError("This sale already reached the server. Refresh the till.")
+    const shift = await db.collection(C.shifts).findOne({ _id: entry.shiftId, shopId }, { session, projection: { cashierId: 1 } })
+    if (!shift || shift.cashierId !== user.id) throw new UserError("This sale was made on another cashier's shift")
+    const approvedBy = await consumeApproval(db, session, { approvalSecret, kind: "discard", cashierId: user.id, token: entry.approvalToken, at, matches: (scope) => scope.clientId === entry.clientId })
+    if (!approvedBy) throw new UserError("A supervisor must approve removing this sale. Ask for it again.")
+    await writeAudit(db, session, {
+      shopId,
+      userId: user.id,
+      kind: "offline_sale.discard",
+      target: entry.clientId,
+      changes: {
+        number: { from: entry.number, to: null },
+        total: { from: entry.total, to: null },
+        shiftId: { from: entry.shiftId, to: null },
+        soldAt: { from: new Date(entry.soldAt), to: null },
+        error: { from: entry.error ?? null, to: null },
+        approvedBy: { from: null, to: approvedBy },
+      },
+      at,
+    })
+    return { clientId: entry.clientId }
   })
-  return { clientId: entry.clientId }
 }

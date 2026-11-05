@@ -45,7 +45,10 @@ const SizeChips = ({ sizes, threshold }) => (
       return (
         <div key={variant.id} title={`${sizeLabel(variant.attributes.size)}: ${quantity} in stock`} className="flex min-w-8 flex-col items-center gap-1 px-0.5">
           <span className="text-2xs leading-none text-muted-foreground tabular-nums">{variant.attributes.size}</span>
-          <span className={cn("text-sm leading-none tabular-nums", out && "text-destructive", low && "font-semibold text-warning")}>{out ? "–" : quantity}</span>
+          <span className={cn("text-sm leading-none tabular-nums", out && "text-destructive", low && "font-semibold text-warning")}>
+            {out ? "–" : quantity}
+            {(out || low) && <span className="sr-only">{out ? " out of stock" : " low"}</span>}
+          </span>
           <span className={cn("h-0.5 w-5", out ? "bg-destructive" : low ? "bg-warning" : "bg-border")} />
         </div>
       )

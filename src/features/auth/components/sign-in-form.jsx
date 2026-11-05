@@ -6,6 +6,7 @@ import { Button } from "@/shared/components/ui/button"
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/shared/components/ui/item"
 import { Field, FieldError, FieldLabel } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
+import { hasFinePointer } from "@/shared/lib/pointer"
 import { signIn } from "../actions"
 import { roleBlurbs, roleLabels } from "../lib/roles"
 
@@ -54,8 +55,8 @@ export const SignInForm = ({ sampleAccounts }) => {
     <div className="space-y-5">
       <form action={action} className="space-y-4">
         <Field data-invalid={Boolean(state?.error)}>
-          <FieldLabel htmlFor="username">Username</FieldLabel>
-          <Input key={state?.username ?? ""} ref={usernameRef} id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} defaultValue={state?.username ?? ""} required autoFocus />
+          <FieldLabel htmlFor="username">Username or email</FieldLabel>
+          <Input key={state?.username ?? ""} ref={usernameRef} id="username" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} defaultValue={state?.username ?? ""} required autoFocus={hasFinePointer()} />
         </Field>
         <Field data-invalid={Boolean(state?.error)}>
           <FieldLabel htmlFor="password">Password</FieldLabel>

@@ -4,7 +4,7 @@ import { cn } from "cn"
 import { Spinner } from "@/shared/components/ui/spinner"
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-none border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98] active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
+  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-none border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow,scale] duration-150 ease-snappy outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:not-aria-[haspopup]:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
   {
     variants: {
       variant: {
@@ -23,14 +23,14 @@ const buttonVariants = cva(
       size: {
         default:
           "h-10 gap-1.5 px-6 has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4 pointer-coarse:h-11",
-        xs: "h-7 gap-1 px-3 text-xs pointer-coarse:h-10 pointer-coarse:px-4 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3",
+        xs: "h-7 gap-1 px-3 text-xs pointer-coarse:h-11 pointer-coarse:px-4 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2 [&_svg:not([class*='size-'])]:size-3",
         sm: "h-9 gap-1 px-4 pointer-coarse:h-11 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
         lg: "h-11 gap-1.5 px-8 pointer-coarse:h-12 has-data-[icon=inline-end]:pr-5 has-data-[icon=inline-start]:pl-5",
         icon: "size-10 pointer-coarse:size-11",
-        "icon-xs": "size-7 pointer-coarse:size-10 [&_svg:not([class*='size-'])]:size-3",
+        "icon-xs": "size-7 pointer-coarse:size-11 [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-9 pointer-coarse:size-11",
         "icon-lg": "size-11 pointer-coarse:size-12",
-        inline: "h-auto gap-1 px-0 py-0.5 text-xs active:scale-100 active:not-aria-[haspopup]:translate-y-0 pointer-coarse:py-2",
+        inline: "h-auto gap-1 px-0 py-0.5 text-xs active:not-aria-[haspopup]:scale-100 pointer-coarse:min-h-11 pointer-coarse:px-2 pointer-coarse:py-2",
       },
     },
     defaultVariants: {

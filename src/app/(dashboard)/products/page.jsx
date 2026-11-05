@@ -6,13 +6,13 @@ import { LedgerReady } from "@/features/ledger/components/ledger-ready"
 export const metadata = { title: "Products" }
 
 const ProductsPage = async () => {
-  await requireRole("manager")
+  const user = await requireRole("manager")
 
   return (
     <>
       <PageHeader title="Products" description="What the shop sells, with prices, colours and sizes." />
       <LedgerReady>
-        <ProductsScreen />
+        <ProductsScreen user={user} />
       </LedgerReady>
     </>
   )

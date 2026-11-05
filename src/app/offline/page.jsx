@@ -9,7 +9,7 @@ const OfflinePage = () => (
   <main className="flex min-h-dvh items-center justify-center p-6">
     <Surface className="max-w-sm space-y-4 p-6 text-center">
       <CloudSlashIcon className="mx-auto size-10 text-warning" />
-      <h1 className="font-heading text-lg font-bold tracking-wider uppercase">No connection</h1>
+      <h1 className="font-heading text-lg font-bold tracking-display uppercase">No connection</h1>
       <p className="text-sm text-muted-foreground">This page was not saved on this device. The sell screen keeps working offline once it has been opened here while online.</p>
       <Link href="/pos" className={buttonVariants({ variant: "outline" })}>
         Go to the sell screen

@@ -7,21 +7,23 @@ import { TooltipProvider } from "@/shared/components/ui/tooltip"
 import { Toaster } from "@/shared/components/ui/sonner"
 import { ServiceWorkerProvider } from "@/features/offline/components/service-worker-provider"
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
-const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-display" })
-const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" })
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
+const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" })
+const fontMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
 
 export const metadata = {
   title: { default: "Velora POS", template: "%s · Velora POS" },
   description: "Point of sale for Velora Group",
   applicationName: "Velora POS",
   appleWebApp: { capable: true, title: "Velora POS", statusBarStyle: "black-translucent" },
+  robots: { index: false, follow: false },
 }
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
   interactiveWidget: "resizes-content",
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fafaf7" },
     { media: "(prefers-color-scheme: dark)", color: "#0c0b09" },

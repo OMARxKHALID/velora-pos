@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/components/ui/dropdown-menu"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/components/ui/input-group"
+import { useUrlState } from "@/shared/hooks/use-url-state"
 import { Segmented } from "@/shared/components/ui/segmented"
 import { DataTable } from "@/shared/components/ui/data-table"
 import { resetsPage } from "@/shared/components/ui/table-pagination"
@@ -50,16 +51,16 @@ const statuses = [
 
 const sizeRange = (sizes) => (sizes.length > 1 ? `${sizes[0]}–${sizes.at(-1)}` : sizes[0])
 
-const DeleteDialog = ({ product, onConfirm, onClose }) => (
-  <AlertDialog open onOpenChange={(open) => !open && onClose()}>
+const DeleteDialog = ({ product, busy, onConfirm, onClose }) => (
+  <AlertDialog open onOpenChange={(open) => !open && !busy && onClose()}>
     <AlertDialogContent>
       <AlertDialogHeader>
         <AlertDialogTitle>Delete product?</AlertDialogTitle>
         <AlertDialogDescription>{product.name} has never been stocked or sold, so it can be removed completely. This cannot be undone.</AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <AlertDialogCancel>Keep it</AlertDialogCancel>
-        <Button variant="destructive" onClick={onConfirm}>
+        <AlertDialogCancel disabled={busy}>Keep it</AlertDialogCancel>
+        <Button variant="destructive" pending={busy} onClick={onConfirm}>
           Delete
         </Button>
       </AlertDialogFooter>
@@ -75,7 +76,7 @@ export const ProductsScreen = ({ user }) => {
   const { products: allProducts, variants, variantsByProduct } = useCatalog()
   const scope = useShopScope(user)
   const products = allProducts.filter((product) => scope === ALL_SHOPS || product.shopId === scope)
-  const [status, setStatus] = useState("active")
+  const [status, setStatus] = useUrlState("status", "active", statuses.map(({ key }) => key))
   const [query, setQuery] = useState("")
   const [page, setPage] = useState(1)
   const [editing, setEditing] = useState(null)
@@ -83,6 +84,7 @@ export const ProductsScreen = ({ user }) => {
   const [managingCategories, setManagingCategories] = useState(false)
   const [labelling, setLabelling] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [deletingBusy, setDeletingBusy] = useState(false)
   const search = useDeferredValue(query.trim().toLowerCase())
   const usedVariants = useMemo(() => new Set(usedVariantIds ?? []), [usedVariantIds])
   const canDelete = (product) => !(variantsByProduct[product.id] ?? []).some(({ id }) => usedVariants.has(id))
@@ -176,12 +178,15 @@ export const ProductsScreen = ({ user }) => {
   }
 
   const handleDelete = async () => {
+    if (deletingBusy) return
+    setDeletingBusy(true)
     try {
       await deleteProduct({ productId: deleting.id })
       toast.success("Deleted", { description: deleting.name })
     } catch (error) {
       toast.error(error.message)
     }
+    setDeletingBusy(false)
     setDeleting(null)
   }
 
@@ -224,7 +229,7 @@ export const ProductsScreen = ({ user }) => {
       {managingCategories && <CategoriesDialog onClose={() => setManagingCategories(false)} />}
       {importing && <ImportCatalogDialog onClose={() => setImporting(false)} />}
       {labelling && <LabelsDialog product={labelling} onClose={() => setLabelling(null)} />}
-      {deleting && <DeleteDialog product={deleting} onConfirm={handleDelete} onClose={() => setDeleting(null)} />}
+      {deleting && <DeleteDialog product={deleting} busy={deletingBusy} onConfirm={handleDelete} onClose={() => setDeleting(null)} />}
     </>
   )
 }

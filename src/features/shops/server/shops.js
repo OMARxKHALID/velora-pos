@@ -1,3 +1,4 @@
+import "server-only"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 import { COLLECTIONS as C } from "@/server/db/collections"
 

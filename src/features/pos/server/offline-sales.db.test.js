@@ -7,7 +7,7 @@ import { writeAudit } from "@/server/db/audit"
 import { COLLECTIONS as C } from "@/server/db/collections"
 import { newId } from "@/shared/lib/id"
 import { OFFLINE_BLOCK, offlineNumbers } from "../lib/receipts"
-import { recordSale, syncOfflineSale } from "./sales"
+import { discardOfflineSale, recordSale, syncOfflineSale } from "./sales"
 import { closeShift, openShift, reserveReceipts } from "./shifts"
 
 const SHOP = "shop-shoes"
@@ -175,11 +175,25 @@ describe.skipIf(!hasTestDatabase)("sales made offline and uploaded later", () =>
     const discounted = variant.price - Math.floor((variant.price * 20) / 10000) * 100
     const input = offlineSale(variant, { soldAt, discountPct: 20, payments: [{ method: "card", amount: discounted }], total: discounted })
     await expect(syncOfflineSale(as("u-cashier"), input)).rejects.toThrow("Supervisor approval needed")
-    const stale = issueApproval(SECRET, { cashierId: "u-cashier", supervisorId: "u-manager", discountPct: 20, now: soldAt - 10 * MINUTE })
+    const scope = { pct: 20, subtotal: variant.price }
+    const stale = issueApproval(SECRET, { kind: "discount", cashierId: "u-cashier", supervisorId: "u-manager", scope, now: soldAt - 10 * MINUTE })
     await expect(syncOfflineSale(as("u-cashier"), { ...input, approvalToken: stale })).rejects.toThrow("expired")
-    const approvalToken = issueApproval(SECRET, { cashierId: "u-cashier", supervisorId: "u-manager", discountPct: 20, now: soldAt - MINUTE })
+    const approvalToken = issueApproval(SECRET, { kind: "discount", cashierId: "u-cashier", supervisorId: "u-manager", scope, now: soldAt - MINUTE })
     const sale = await syncOfflineSale(as("u-cashier"), { ...input, approvalToken })
     expect(sale).toMatchObject({ manualDiscountBy: "u-manager", total: discounted, flags: ["big_discount"] })
+  })
+
+  test("removing an unsent sale needs a supervisor approval for that sale, used once", async () => {
+    const clientId = newId()
+    const entry = { clientId, shiftId: shift.id, number: "SH1-R1-X09999", total: 5000, soldAt: Date.now() - MINUTE }
+    const token = (scope) => issueApproval(SECRET, { kind: "discard", cashierId: "u-cashier", supervisorId: "u-manager", scope })
+    await expect(discardOfflineSale(as("u-cashier"), { ...entry, approvalToken: "" })).rejects.toThrow("supervisor must approve")
+    await expect(discardOfflineSale(as("u-cashier"), { ...entry, approvalToken: token({ clientId: newId() }) })).rejects.toThrow("supervisor must approve")
+    const approvalToken = token({ clientId })
+    await expect(discardOfflineSale(as("u-cashier-2"), { ...entry, approvalToken })).rejects.toThrow("another cashier")
+    expect(await discardOfflineSale(as("u-cashier"), { ...entry, approvalToken })).toEqual({ clientId })
+    await expect(discardOfflineSale(as("u-cashier"), { ...entry, approvalToken })).rejects.toThrow("already used")
+    expect(await context.db.collection(C.auditLog).findOne({ kind: "offline_sale.discard", target: clientId })).toMatchObject({ userId: "u-cashier", changes: { approvedBy: { to: "u-manager" } } })
   })
 
   test("only the shift's own cashier can upload its sales", async () => {

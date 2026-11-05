@@ -12,13 +12,18 @@ export const LeaveDialog = ({ person, onClose, onSave }) => {
   const [leave, setLeave] = useState({ from: person.leave?.from ?? localDate(), until: person.leave?.until ?? "", note: person.leave?.note ?? "" })
   const change = (patch) => setLeave((current) => ({ ...current, ...patch }))
 
-  const handleSubmit = (event) => {
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (event) => {
     event.preventDefault()
-    onSave(person, leave)
+    if (saving) return
+    setSaving(true)
+    await onSave(person, leave)
+    setSaving(false)
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && !saving && onClose()}>
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
@@ -41,10 +46,10 @@ export const LeaveDialog = ({ person, onClose, onSave }) => {
             <Input id="leave-note" value={leave.note} onChange={(event) => change({ note: event.target.value })} placeholder="e.g. Annual leave, sick leave" maxLength={120} />
           </Field>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" disabled={saving} onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="submit" pending={saving}>
               <AirplaneTiltIcon />
               Save leave
             </Button>

@@ -18,8 +18,11 @@ export const returnWindowClosed = (sale, days, at) => {
   return deadline !== null && Number(new Date(at)) > deadline
 }
 
-const assertReturnWindow = (sale, days, at) => {
+const claimableSale = (state, saleId, days, at) => {
+  const sale = state.sales.find(({ id }) => id === saleId)
+  if (!sale) throw new Error("Sale not found")
   if (returnWindowClosed(sale, days, at)) throw new Error(`Returns and exchanges close ${days} ${days === 1 ? "day" : "days"} after the sale. This sale is past that.`)
+  return sale
 }
 
 export const PAYMENT_METHODS = ["cash", "card", "jazzcash", "easypaisa", "bank"]
@@ -72,7 +75,6 @@ const fbrRecord = (state, { posId, usin, at, offline, invoiceType, refUsin = nul
     fbr: { posId, usin, invoiceType, refUsin, status: "reported", invoiceNumber: simulatedFiscalNumber(posId, at, fbrSeq), reportedAt: at },
   }
 }
-
 
 export const reportFbr = (state, fbr, at) => (fbr?.status === "pending" ? fbrRecord(state, { ...fbr, at, offline: false }) : { state, fbr })
 
@@ -323,9 +325,7 @@ export const applyRefundRequest = (state, { saleId, lines, reason, method, reque
   const existing = state.refunds.find((refund) => refund.clientId === clientId)
   if (existing) return { state, record: existing }
 
-  const sale = state.sales.find(({ id }) => id === saleId)
-  if (!sale) throw new Error("Sale not found")
-  assertReturnWindow(sale, returnWindowDays, at)
+  const sale = claimableSale(state, saleId, returnWindowDays, at)
   if (!reason?.trim()) throw new Error("A reason is required")
   if (!lines.length) throw new Error("Pick at least one item")
 
@@ -386,12 +386,12 @@ export const applyRefundDecision = (state, { refundId, approve, userId, at, offl
 
   if (approve) {
     for (const item of refund.items.filter(({ restock }) => restock)) {
-      const soldAt = sale?.items.find(({ variantId }) => variantId === item.variantId)?.unitCost
+      const soldCost = sale?.items.find(({ variantId }) => variantId === item.variantId)?.unitCost
       next = moveStock(next, {
         variantId: item.variantId,
         quantity: item.quantity,
         type: "return",
-        unitCost: soldAt ?? variantOrThrow(state, item.variantId).cost,
+        unitCost: soldCost ?? variantOrThrow(state, item.variantId).cost,
         ref: { kind: "Refund", id: refund.id, number: refund.saleNumber },
         userId,
         at,
@@ -438,11 +438,6 @@ const cashSalesFor = (state, shift) =>
 
 const cashRefundsFor = (state, shift) => sumBy(state.refunds.filter(({ payoutShiftId }) => payoutShiftId === shift.id), ({ total }) => total)
 
-export const fbrPending = (state) =>
-  state.sales.filter(({ fbr }) => fbr?.status === "pending").length +
-  state.refunds.filter(({ fbr }) => fbr?.status === "pending").length +
-  (state.exchanges ?? []).filter(({ fbr }) => fbr?.credit.status === "pending").length
-
 const approvedRefundsFor = (state, shift, method) =>
   sumBy(
     state.refunds.filter((refund) => refund.approvedInShiftId === shift.id && refund.status === "approved" && refund.method === method),
@@ -484,7 +479,7 @@ export const shiftSummary = (state, shift) => (shift.status === "closed" && shif
 
 export const NOTE_NEEDED_END = "Count again, or add a note explaining the difference."
 
-export const noteNeededMessage = (noteAbove) =>
+const noteNeededMessage = (noteAbove) =>
   `${noteAbove ? `The count differs from what the till expects by more than Rs ${(noteAbove / 100).toLocaleString("en-PK")}` : "The count does not match what the till expects"}. ${NOTE_NEEDED_END}`
 
 export const applyCloseShift = (state, { shiftId, countedCash, closedBy, note = null, noteAbove = null, at }) => {
@@ -558,9 +553,7 @@ export const applyExchange = (state, { saleId, fromVariantId, toVariantId, quant
   const existing = state.exchanges.find((exchange) => exchange.clientId === clientId)
   if (existing) return { state, record: existing }
 
-  const sale = state.sales.find(({ id }) => id === saleId)
-  if (!sale) throw new Error("Sale not found")
-  assertReturnWindow(sale, returnWindowDays, at)
+  const sale = claimableSale(state, saleId, returnWindowDays, at)
   const item = sale.items.find(({ variantId }) => variantId === fromVariantId)
   if (!item) throw new Error("Item is not on this sale")
   if (!pairCount(quantity) || quantity > refundableQuantity(state, saleId, fromVariantId)) throw new Error("That is more than can still be swapped")

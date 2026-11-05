@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { useState } from "react"
 import { Button } from "@/shared/components/ui/button"
 import { Segmented } from "@/shared/components/ui/segmented"
+import { useUrlState } from "@/shared/hooks/use-url-state"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/components/ui/tabs"
 import { LockKeyIcon } from "@phosphor-icons/react"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/shared/components/ui/field"
@@ -172,6 +173,8 @@ const phoneOptions = PHONE_REQUIRED_CHOICES.map((paisa) => ({ key: keyOf(paisa),
 
 const columnOptions = [3, 4, 5, 6, 7, 8].map((count) => ({ key: String(count), label: String(count) }))
 
+const SETTINGS_TABS = ["shops", "tax", "payments", "discounts", "returns", "receipt", "counter"]
+
 export const SettingsScreen = ({ user }) => {
   const scope = useShopScope(user)
   const shopId = scope === ALL_SHOPS ? null : scope
@@ -186,18 +189,27 @@ export const SettingsScreen = ({ user }) => {
       (error) => toast.error(error.message)
     )
 
-  const handleThreshold = (next) => {
-    const clean = digitsOnly(next, 2)
-    setThresholdDraft(clean)
-    const value = Number(clean)
-    if (clean !== "" && value >= 1 && value !== settings.lowStockThreshold) update({ lowStockThreshold: value })
+  const handleThreshold = (next) => setThresholdDraft(digitsOnly(next, 2))
+
+  const handleThresholdCommit = () => {
+    const value = Number(thresholdDraft)
+    if (thresholdDraft !== "" && value >= 1 && value !== settings.lowStockThreshold) update({ lowStockThreshold: value })
   }
 
   const handleRate = (next) => {
     if (next && !/^(100(\.0{0,2})?|\d{0,2}(\.\d{0,2})?)$/.test(next)) return
     setRateDraft(next)
-    const value = next === "" ? 0 : Number(next)
+  }
+
+  const handleRateCommit = () => {
+    const value = rateDraft === "" ? 0 : Number(rateDraft)
     if (value !== settings.taxRate) update({ taxRate: value })
+  }
+
+  const [tab, setTab] = useUrlState("tab", "shops", SETTINGS_TABS)
+
+  const handleCommitOnEnter = (commit) => (event) => {
+    if (event.key === "Enter") commit()
   }
 
   const rateValid = rateDraft === "" || (Number.isFinite(Number(rateDraft)) && Number(rateDraft) >= 0 && Number(rateDraft) <= 100)
@@ -205,8 +217,8 @@ export const SettingsScreen = ({ user }) => {
   return (
     <div className="space-y-4">
       <ScopeBar shopId={shopId} />
-    <Tabs defaultValue="shops" className="gap-4">
-      <TabsList variant="line" className="w-full justify-start overflow-x-auto">
+    <Tabs value={tab} onValueChange={setTab} className="gap-4">
+      <TabsList variant="line" className="w-full justify-start overflow-x-auto mask-r-from-95%">
         <TabsTrigger value="shops" className="flex-none">Shops</TabsTrigger>
         <TabsTrigger value="tax" className="flex-none">Tax & FBR</TabsTrigger>
         <TabsTrigger value="payments" className="flex-none">Payments</TabsTrigger>
@@ -248,6 +260,8 @@ export const SettingsScreen = ({ user }) => {
                   <InputGroupInput
                     value={rateDraft}
                     onChange={(event) => handleRate(event.target.value)}
+                    onBlur={handleRateCommit}
+                    onKeyDown={handleCommitOnEnter(handleRateCommit)}
                     inputMode="decimal"
                     aria-label="Tax rate percent"
                     aria-invalid={!rateValid}
@@ -403,6 +417,8 @@ export const SettingsScreen = ({ user }) => {
                   id="lowStockThreshold"
                   value={thresholdDraft}
                   onChange={(event) => handleThreshold(event.target.value)}
+                  onBlur={handleThresholdCommit}
+                  onKeyDown={handleCommitOnEnter(handleThresholdCommit)}
                   inputMode="numeric"
                   maxLength={2}
                   placeholder="2"

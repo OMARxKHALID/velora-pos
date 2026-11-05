@@ -65,7 +65,7 @@ const Delta = ({ now, before, label, comparable, short }) => {
 }
 
 const LinkAction = ({ href, children }) => (
-  <Link href={href} className="flex shrink-0 items-center gap-1 text-xs text-gold underline-offset-4 hover:underline">
+  <Link href={href} className="flex shrink-0 items-center gap-1 text-xs text-gold underline-offset-4 hover:underline pointer-coarse:min-h-11">
     {children}
     <ArrowRightIcon className="size-3" />
   </Link>

@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from "bun:test"
 import { hasTestDatabase, useTestDatabase } from "@/test/db"
 import { loadDocuments, seedDocuments } from "@/features/sample-data/lib/seed-documents"
 import { COLLECTIONS as C } from "@/server/db/collections"
-import { updateSettings } from "./service"
+import { updateSettings, updateShopsSettings } from "./service"
 
 const SHOP = "shop-shoes"
 
@@ -37,5 +37,17 @@ describe.skipIf(!hasTestDatabase)("shop settings", () => {
     await context.db.collection(C.registers).updateMany({ shopId: SHOP }, { $set: { fbrPosId: "110014" } })
     expect(await updateSettings(owner(), { fbrEnabled: true })).toMatchObject({ fbrEnabled: true })
     expect(await updateSettings(owner(), { fbrEnabled: false })).toMatchObject({ fbrEnabled: false })
+  })
+
+  test("a change for every shop is saved for all of them or for none", async () => {
+    await context.db.collection(C.shops).insertOne({ _id: "shop-second", code: "SH2", name: "Second Shop", ntn: "", createdAt: new Date() })
+    await context.db.collection(C.settings).insertOne({ _id: "shop-second" })
+    const shopIds = [SHOP, "shop-second"]
+    const deps = { ...owner(), shopIds }
+    await expect(updateShopsSettings(deps, { fbrEnabled: true })).rejects.toThrow("NTN")
+    expect(await context.db.collection(C.settings).countDocuments({ _id: { $in: shopIds }, fbrEnabled: true })).toBe(0)
+    const saved = await updateShopsSettings(deps, { scanBeep: false })
+    expect(saved).toHaveLength(shopIds.length)
+    expect(await context.db.collection(C.settings).countDocuments({ _id: { $in: shopIds }, scanBeep: false })).toBe(shopIds.length)
   })
 })

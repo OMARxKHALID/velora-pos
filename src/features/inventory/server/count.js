@@ -1,8 +1,9 @@
+import "server-only"
 import { z } from "zod"
 import { applyStockCount } from "@/features/ledger/lib/rules"
 import { COLLECTIONS as C, fromDoc } from "@/server/db/collections"
 import { withTransaction } from "@/server/db/transaction"
-import { UserError, parseInput } from "@/shared/lib/errors"
+import { UserError, parseInput, userFacing } from "@/shared/lib/errors"
 import { newId } from "@/shared/lib/id"
 import { moveStockMany, shopVariants } from "./stock"
 
@@ -40,15 +41,13 @@ export const countStock = async ({ db, client, user, shopId, at = new Date() }, 
     const ids = counts.map(({ variantId }) => variantId)
     const variants = await shopVariants(db, session, shopId, ids)
     const rows = await db.collection(C.stock).find({ shopId, variantId: { $in: ids } }, { session }).toArray()
-    let record
-    try {
-      ;({ record } = applyStockCount(
-        { variants: Object.values(variants).map(fromDoc), products: [], stock: await stockWhenCounted(db, session, { shopId, counts, rows, at }), movements: [] },
+    const stock = await stockWhenCounted(db, session, { shopId, counts, rows, at })
+    const { record } = userFacing(() =>
+      applyStockCount(
+        { variants: Object.values(variants).map(fromDoc), products: [], stock, movements: [] },
         { counts: counts.map(({ variantId, counted }) => ({ variantId, counted })), userId: user.id, at, id }
-      ))
-    } catch (error) {
-      throw new UserError(error.message)
-    }
+      )
+    )
     await moveStockMany(
       db,
       session,

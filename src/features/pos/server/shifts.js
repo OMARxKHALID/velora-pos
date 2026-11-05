@@ -1,8 +1,9 @@
+import "server-only"
 import { z } from "zod"
-import { UserError, parseInput } from "@/shared/lib/errors"
+import { UserError, parseInput, userFacing } from "@/shared/lib/errors"
 import { applyCloseShift, applyOpenShift } from "@/features/ledger/lib/rules"
 import { COLLECTIONS as C, fromDoc, toDoc } from "@/server/db/collections"
-import { isDuplicateKey, withTransaction } from "@/server/db/transaction"
+import { findByClientId, findDocs, isDuplicateKey, replayOnDuplicate, withTransaction } from "@/server/db/transaction"
 import { MAX_BLOCKS } from "../lib/receipts"
 import { registerFor, reserveOfflineBlock, shopSettings } from "./register"
 
@@ -14,36 +15,31 @@ const closeSchema = z.object({ shiftId: z.string().min(1).max(64), countedCash: 
 
 export const openShift = async ({ db, client, user, shopId, at = new Date() }, input) => {
   const { openingCash, clientId, registerId } = parseInput(openSchema, input)
-  try {
-    return await withTransaction(client, async (session) => {
-      const existing = await db.collection(C.shifts).findOne({ clientId }, { session })
-      if (existing) return fromDoc(existing)
+  const work = () =>
+    withTransaction(client, async (session) => {
+      const existing = await findByClientId(db, session, C.shifts, clientId)
+      if (existing) return existing
       const register = await registerFor(db, session, shopId, registerId)
-      const open = await db.collection(C.shifts).find({ registerId: register._id, status: "open" }, { session }).toArray()
-      let record
-      try {
-        ;({ record } = applyOpenShift({ shifts: open.map(fromDoc) }, { cashierId: user.id, openingCash, at, clientId, shopId, registerId: register._id, registerCode: register.code }))
-      } catch (error) {
-        throw new UserError(error.message)
-      }
+      const open = await findDocs(db, session, C.shifts, { registerId: register._id, status: "open" })
+      const { record } = userFacing(() => applyOpenShift({ shifts: open }, { cashierId: user.id, openingCash, at, clientId, shopId, registerId: register._id, registerCode: register.code }))
       const block = await reserveOfflineBlock(db, session, register._id)
       const shift = { ...record, receiptBlocks: [block], syncedAt: at }
       await db.collection(C.shifts).insertOne(toDoc(shift), { session })
       return shift
     })
+  try {
+    return await replayOnDuplicate(work, () => findByClientId(db, undefined, C.shifts, clientId))
   } catch (error) {
-    if (!isDuplicateKey(error)) throw error
-    const existing = await db.collection(C.shifts).findOne({ clientId })
-    if (existing) return fromDoc(existing)
-    throw new UserError("A shift is already open on this counter")
+    if (isDuplicateKey(error)) throw new UserError("A shift is already open on this counter")
+    throw error
   }
 }
 
 const shiftLedger = async (db, session, shift) => ({
   shifts: [fromDoc(shift)],
-  sales: (await db.collection(C.sales).find({ shiftId: shift._id }, { session }).toArray()).map(fromDoc),
-  refunds: (await db.collection(C.refunds).find({ $or: [{ payoutShiftId: shift._id }, { approvedInShiftId: shift._id }] }, { session }).toArray()).map(fromDoc),
-  drawerEvents: (await db.collection(C.drawerEvents).find({ shiftId: shift._id }, { session }).toArray()).map(fromDoc),
+  sales: await findDocs(db, session, C.sales, { shiftId: shift._id }),
+  refunds: await findDocs(db, session, C.refunds, { $or: [{ payoutShiftId: shift._id }, { approvedInShiftId: shift._id }] }),
+  drawerEvents: await findDocs(db, session, C.drawerEvents, { shiftId: shift._id }),
 })
 
 export const recountClosedShift = async (db, session, shiftId) => {
@@ -64,12 +60,8 @@ export const closeShift = async ({ db, client, user, shopId, at = new Date() }, 
     const shift = await db.collection(C.shifts).findOne({ _id: shiftId, shopId }, { session })
     if (!shift || shift.status !== "open") throw new UserError("Shift is not open")
     const { cashNoteAbove } = await shopSettings(db, session, shopId)
-    let record
-    try {
-      ;({ record } = applyCloseShift(await shiftLedger(db, session, shift), { shiftId, countedCash, closedBy: user.id, note, noteAbove: cashNoteAbove ?? null, at }))
-    } catch (error) {
-      throw new UserError(error.message)
-    }
+    const ledger = await shiftLedger(db, session, shift)
+    const { record } = userFacing(() => applyCloseShift(ledger, { shiftId, countedCash, closedBy: user.id, note, noteAbove: cashNoteAbove ?? null, at }))
     const closed = { ...record, syncedAt: at }
     await db.collection(C.shifts).replaceOne({ _id: shiftId, status: "open" }, toDoc(closed), { session })
     return closed

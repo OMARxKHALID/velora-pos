@@ -5,16 +5,16 @@ import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ShieldCheckIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
+import { DialogIcon } from "@/shared/components/ui/dialog-icon"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
 import { Segmented } from "@/shared/components/ui/segmented"
-import { approveDiscountAction } from "@/features/auth/actions"
 import { approversOf } from "@/features/staff/lib/people"
 import { useLedgerStore } from "@/features/ledger/store/ledger-store-provider"
 import { managerPinSchema } from "../schemas"
 
-export const ManagerApprovalDialog = ({ shopId, reason, discountPct, onApprove, onClose }) => {
+export const ManagerApprovalDialog = ({ shopId, reason, onCheck, onApprove, onClose }) => {
   const staff = useLedgerStore(({ staff }) => staff)
   const supervisors = approversOf(staff, shopId)
   const offline = useLedgerStore(({ offline }) => offline)
@@ -25,7 +25,7 @@ export const ManagerApprovalDialog = ({ shopId, reason, discountPct, onApprove, 
 
   const handleSubmit = form.handleSubmit(async ({ pin }) => {
     if (!approver) return
-    const result = await approveDiscountAction(approver.id, pin, discountPct).catch(() => ({ error: "Could not reach the server to check the PIN." }))
+    const result = await onCheck(approver.id, pin).catch(() => ({ error: "Could not reach the server to check the PIN." }))
     if (result.ok) return onApprove(result.approvedBy, result.approvalToken)
     form.setError("pin", { message: result.error })
     form.setValue("pin", "")
@@ -38,13 +38,13 @@ export const ManagerApprovalDialog = ({ shopId, reason, discountPct, onApprove, 
       : "There is no active supervisor, so this cannot be approved. Add one in Staff."
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open onOpenChange={(open) => !open && !isSubmitting && onClose()}>
       <DialogContent className="sm:max-w-sm">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
-            <div className="mb-2 flex size-11 items-center justify-center border border-primary/40 text-gold">
-              <ShieldCheckIcon className="size-5" />
-            </div>
+            <DialogIcon>
+              <ShieldCheckIcon />
+            </DialogIcon>
             <DialogTitle>Supervisor approval</DialogTitle>
             <DialogDescription>{reason}</DialogDescription>
           </DialogHeader>
@@ -86,7 +86,7 @@ export const ManagerApprovalDialog = ({ shopId, reason, discountPct, onApprove, 
             )}
           />
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" disabled={isSubmitting} onClick={onClose}>
               Cancel
             </Button>
             <Button type="submit" disabled={!approver || offline} pending={isSubmitting}>

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { PauseIcon } from "@phosphor-icons/react"
 import { Button } from "@/shared/components/ui/button"
+import { DialogIcon } from "@/shared/components/ui/dialog-icon"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/components/ui/dialog"
 import { Field, FieldDescription, FieldLabel } from "@/shared/components/ui/field"
 import { Input } from "@/shared/components/ui/input"
@@ -23,9 +24,9 @@ export const HoldSaleDialog = ({ suggestion, onHold, onClose }) => {
       <DialogContent className="sm:max-w-sm">
         <form onSubmit={handleSubmit} className="space-y-5">
           <DialogHeader>
-            <div className="mb-2 flex size-11 items-center justify-center border border-primary/40 text-gold">
-              <PauseIcon className="size-5" />
-            </div>
+            <DialogIcon>
+              <PauseIcon />
+            </DialogIcon>
             <DialogTitle>Hold this sale</DialogTitle>
             <DialogDescription>Serve the next customer and come back to this cart later.</DialogDescription>
           </DialogHeader>

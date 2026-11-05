@@ -1,3 +1,4 @@
+import "server-only"
 import { offlineNumbers } from "@/features/pos/lib/receipts"
 import { defaultPricingSettings } from "@/features/pricing/lib/pricing"
 import { listRegisters, listShops } from "@/features/shops/server/shops"

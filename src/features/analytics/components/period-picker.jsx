@@ -128,7 +128,7 @@ export const PeriodPicker = ({ range, from, to, error, today, onRangeChange, onD
       aria-pressed={custom}
       aria-label={shown ? `Custom dates, ${spanText(shown)}` : "Pick custom dates"}
       className={cn(
-        "h-9 min-w-0 flex-1 gap-1.5 px-2 text-xs @xs:px-3 active:scale-100 active:not-aria-[haspopup]:translate-y-0 pointer-coarse:h-11 md:flex-none md:pointer-coarse:px-4",
+        "h-9 min-w-0 flex-1 gap-1.5 px-2 text-xs @xs:px-3 active:not-aria-[haspopup]:scale-100 pointer-coarse:h-11 md:flex-none md:pointer-coarse:px-4",
         custom ? "border-primary bg-primary text-primary-foreground hover:bg-primary/80 hover:text-primary-foreground aria-expanded:bg-primary aria-expanded:text-primary-foreground" : "text-muted-foreground",
         error && "border-destructive"
       )}
@@ -158,7 +158,7 @@ export const PeriodPicker = ({ range, from, to, error, today, onRangeChange, onD
         )}
       </div>
       {shown && (
-        <Button variant="outline" onClick={() => handleOpenChange(true)} className="-mt-2 h-11 w-full justify-between gap-3 border-t-0 bg-card px-3 text-left font-normal active:scale-100 active:not-aria-[haspopup]:translate-y-0 md:hidden">
+        <Button variant="outline" onClick={() => handleOpenChange(true)} className="-mt-2 h-11 w-full justify-between gap-3 border-t-0 bg-card px-3 text-left font-normal active:not-aria-[haspopup]:scale-100 md:hidden">
           <span className="flex min-w-0 items-center gap-2">
             <CalendarBlankIcon className="size-4 shrink-0 text-gold" />
             <span className="truncate tabular-nums">{spanText(shown)}</span>

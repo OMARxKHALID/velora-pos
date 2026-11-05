@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { methodLabel } from "@/features/pos/lib/payment-methods"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
@@ -168,7 +169,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
                   <FieldLabel>Refund to</FieldLabel>
                   <Choices label="Refund to" options={methods.map((option) => [option, methodLabels[option]])} value={field.value} onChange={field.onChange} />
                   <FieldDescription>Money goes back the way it was paid.</FieldDescription>
-                  {overCap && <FieldError errors={[{ message: `That is more than was paid by ${field.value}. Refund the rest through the other method.` }]} />}
+                  {overCap && <FieldError errors={[{ message: `That is more than was paid by ${methodLabel(field.value)}. Refund the rest through the other method.` }]} />}
                 </Field>
               )}
             />
@@ -187,7 +188,7 @@ export const RefundRequestDialog = ({ sale, refunds, user, onClose }) => {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter sticky>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>

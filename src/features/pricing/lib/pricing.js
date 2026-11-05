@@ -62,7 +62,7 @@ export const cartTotals = (lines, cartDiscountPct, { productById, variantById },
     const product = productById[variant.productId]
     const gross = variant.price * line.quantity
     const productDiscount = settings.productDiscountEnabled ? lineDiscount(gross, product.discountPct ?? 0) : 0
-    const discount = settings.cartDiscountEnabled ? lineDiscount(gross, cartDiscountPct ?? 0) : 0
+    const discount = settings.cartDiscountEnabled ? Math.min(lineDiscount(gross, cartDiscountPct ?? 0), gross - productDiscount) : 0
     const total = gross - productDiscount - discount
     return { ...line, variant, product, gross, productDiscount, discount, total, tax: lineTax(total, taxRate, inclusive) }
   })
@@ -85,6 +85,8 @@ export const cartTotals = (lines, cartDiscountPct, { productById, variantById },
     total: net + (inclusive ? 0 : taxTotal) + serviceFee,
   }
 }
+
+export const saleLinesOf = (rows) => rows.map(({ variantId, quantity, discount, productDiscount, entry }) => ({ variantId, quantity, discount, productDiscount, entry }))
 
 export const netRevenue = (sale) => sale.total + (sale.cashRounding ?? 0) - (sale.taxTotal ?? 0) - (sale.serviceFee ?? 0)
 

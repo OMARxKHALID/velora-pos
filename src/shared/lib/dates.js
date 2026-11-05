@@ -8,7 +8,7 @@ export const DAY = 24 * 60 * 60 * 1000
 
 export const formatDateTime = (at) => dateTime.format(new Date(at))
 
-export const formatTime = (at) => clock.format(new Date(at))
+const formatTime = (at) => clock.format(new Date(at))
 
 export const formatTimeOrDate = (at, now = Date.now()) => (new Date(at).toDateString() === new Date(now).toDateString() ? formatTime(at) : formatDateTime(at))
 

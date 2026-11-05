@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
-import { NOT_MODIFIED, createLedgerStore, fetchLedger, parseLedger } from "./ledger-store"
+import { parseDatedJson as parseLedger } from "@/shared/lib/dated-json"
+import { NOT_MODIFIED, createLedgerStore, fetchLedger } from "./ledger-store"
 
 const hangingFetch = (counter) => (_url, { signal }) => {
   counter.calls += 1
@@ -74,6 +75,24 @@ test("a sale the server never answers stops waiting and counts as no connection"
   const store = createLedgerStore({ actions: { recordSale: () => new Promise(() => {}) }, loadLedger: async () => snapshot(), timeouts: { recordSale: 20 } })
   await expect(store.getState().recordSale({})).rejects.toThrow("Could not reach the server")
   expect(store.getState().offline).toBe(true)
+})
+
+test("a sale waiting behind another action only starts its timeout once its turn comes", async () => {
+  let dispatcher = Promise.resolve()
+  const oneAtATime = (work) => () => (dispatcher = dispatcher.then(work))
+  const slow = () => new Promise((resolve) => setTimeout(() => resolve({ ok: true, record: { id: "held" } }), 60))
+  const actions = { holdCart: oneAtATime(slow), recordSale: oneAtATime(async () => ({ ok: true, record: { id: "sale-1" } })) }
+  const store = createLedgerStore({ actions, loadLedger: async () => snapshot(), timeouts: { recordSale: 30 } })
+  const [held, sale] = await Promise.all([store.getState().holdCart({}), store.getState().recordSale({})])
+  expect(held).toEqual({ id: "held" })
+  expect(sale).toEqual({ id: "sale-1" })
+  expect(store.getState().offline).toBe(false)
+})
+
+test("a stalled action ahead of a sale cannot block the sale from falling back to offline", async () => {
+  const store = createLedgerStore({ actions: { holdCart: () => new Promise(() => {}), recordSale: () => new Promise(() => {}) }, loadLedger: async () => snapshot(), timeouts: { holdCart: 20, recordSale: 20 } })
+  store.getState().holdCart({}).catch(() => {})
+  await expect(store.getState().recordSale({})).rejects.toThrow("Could not reach the server")
 })
 
 test("dates from the server come back as the times the screens expect", () => {

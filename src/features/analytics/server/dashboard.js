@@ -1,3 +1,4 @@
+import "server-only"
 import { unstable_cache } from "next/cache"
 import { getDb } from "@/server/db/client"
 import { COLLECTIONS as C, fromDoc } from "@/server/db/collections"

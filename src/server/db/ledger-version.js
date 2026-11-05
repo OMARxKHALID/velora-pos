@@ -1,3 +1,4 @@
+import "server-only"
 import { COLLECTIONS as C } from "./collections"
 
 const ALL = "ledger:all"
