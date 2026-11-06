@@ -2,7 +2,17 @@
 
 ## Verdict
 
-**Ready with conditions.** The money-critical paths (sales, refunds, swaps, shifts, FBR, concurrency) are well tested and proven correct, including under real concurrency (double-Pay, same-pair races, an Eid-rush-style load test). No blocker or major finding came out of this review. The conditions are below, plus finishing the browser walkthrough this session could not complete (tooling, not app, failure).
+**Ready with conditions.** The money-critical paths (sales, refunds, swaps, shifts, FBR, concurrency) are well tested and proven correct, including under real concurrency (double-Pay, same-pair races, an Eid-rush-style load test) and live in the browser (sale → PIN-gated discount → return request → supervisor approval → dashboard, all correct). One real, reproducible **minor bug** was found live (held carts, below) — not a blocker, but worth fixing before cashiers rely on holding sales. The other conditions are below, plus finishing the parts of the browser walkthrough this session didn't reach.
+
+### Bug found live: held-cart indicator never lights up on desktop
+
+`src/features/pos/components/cart-panel.jsx:105` calls `heldAt(heldCarts)` with no `registerId` — `heldAt = (heldCarts, registerId) => heldCarts.filter((held) => held.registerId === registerId)` then filters for `registerId === undefined`, which never matches a real held cart. So `heldCount` is always 0 and the held-carts button in the cart panel (`held-carts-button.jsx`) stays disabled forever, regardless of how many carts are actually held.
+
+Reproduced live: held a cart (confirmed saved correctly server-side — `held_carts` collection had the right document, `parkedBy`/`registerId` all correct), but the "No held carts" button in the cart panel stayed disabled and showed no count.
+
+Impact: on a **desktop/wide layout with the cart panel open** (the normal state), this is the *only* held-carts control on screen — the top-bar "bar" variant is hidden whenever `cartOpen` is true (`pos-screen.jsx:323`). So a cashier on desktop has no way to see or resume a held cart while the cart panel is open. The mobile variant (`pos-screen.jsx:339`) is unaffected — it reads `heldCarts.length` from the correctly-filtered value computed in `pos-screen.jsx:71`, not through `cart-panel.jsx`'s broken local computation.
+
+The fix needs a prop threaded through: `CartPanel` (`cart-panel.jsx:95`) doesn't currently receive `registerId`/`shift` at all. Pass the register ID down from `pos-screen.jsx` and use it in the `heldAt()` call at line 105. Not applied — following the "don't fix without asking" rule from this review's brief.
 
 ## 1. Checks run
 
@@ -80,17 +90,25 @@ None of these were committed by this session directly — they were swept into t
 
 Could not use the shared dev server or database (`.env.local` points at a live Atlas cluster shared with your other session — deliberately did not run sell/refund/shift actions against it). Spun up an isolated local MongoDB replica set and a separate dev-server copy (to dodge Next 16's per-directory Turbopack lock) on `http://localhost:3100`, seeded with sample data.
 
-Completed, with screenshots/snapshots confirmed:
-- Signed in as cashier (Hamza), opened a shift.
-- **Sale 1**: scanned Velora Aurum Runner, EU 42, cash, exact change. Receipt rendered correctly — right totals, receipt number `SH1-R1-000039`, barcode, "NOT A TAX INVOICE" (FBR off), correct return-window text.
-- **Sale 2**: added Nike Air Max 90, applied a 15% cart discount (above the cashier's 5% limit) → correctly prompted for supervisor PIN. Wrong PIN → rejected with "Wrong PIN", dialog stayed open. Correct PIN (1234) → approved, discount applied (Rs 4,800 off), total Rs 27,200.
+Completed, with screenshots/snapshots confirmed (across two sessions — `neo` disconnected and was reconnected mid-review; the isolated server was rebuilt from scratch each time, so sample data differs between the two halves):
 
-Not reached — the `browseros-neo` MCP server disconnected (`ECONNREFUSED`) mid-walkthrough (at the split-payment step of Sale 2's checkout), and the built-in browser pane cannot reach a localhost server this session started itself (confirmed — it's a different machine/process from the browser pane). Still open:
-- Completing the split payment and the rest of a shop day (held sale, going offline and selling, return + swap, stock count, shift close, Z-report, dashboard/CSV cross-check in the browser)
+- Signed in as cashier (Hamza), opened a shift.
+- **Cash sale**: scanned Velora Aurum Runner, EU 42, cash, exact change. Receipt rendered correctly — right totals, receipt number, barcode, "NOT A TAX INVOICE" (FBR off), correct return-window text.
+- **Discount + PIN approval**: added Nike Air Max 90, applied a 15% cart discount (above the cashier's 5% limit) → correctly prompted for supervisor PIN. Wrong PIN → rejected with "Wrong PIN", dialog stayed open. Correct PIN (1234) → approved, discount applied correctly.
+- **Held sale**: held a cart — saved correctly server-side, but found the UI bug above (held-carts indicator never activates on desktop).
+- **Return, full loop**: sold an item, opened it from Sales, requested a return as cashier (correctly went to "pending", no self-approve). Navigated to `/refunds` as the same cashier → correctly redirected to `/pos` (role boundary enforced). Signed out, signed in as supervisor Bilal, saw it queued under "To approve," approved it (with the irreversible-action confirmation dialog shown and confirmed) → "Return approved, stock updated," pending count dropped correctly.
+- **Owner dashboard**: signed in as owner Asif, Overview loaded with coherent numbers (sales, profit/margin, cash-short, stock value, best sellers, brand split, a staff signal flagging a cashier for frequent refunds) — nothing inconsistent.
+
+Not reached — ran out of time/budget for this review:
+- Offline selling (going offline mid-shift, selling, reconnecting, confirming single-upload)
+- Swap/exchange flow
+- Stock count screen
+- Shift close and Z-report reconciliation live (proven at the data layer by `reconciliation.db.test.js`, not re-verified in the browser)
+- CSV export live
 - Tablet/phone viewport and slow-network checks
 - Session-expiry-while-offline and browser-kill-and-reopen persistence
 
-The isolated server is still running on port 3100 against `mongodb://127.0.0.1:44425/?replicaSet=testset` / db `velora_phase3` for a follow-up session to pick this up (with `neo` reconnected, or the built-in browser via `preview_start` against a `.claude/launch.json` entry instead of a hand-started server).
+The isolated server can be rebuilt the same way for a follow-up session (spin up `mongodb-memory-server`, `bun run db:seed` against it, copy the repo including `node_modules` to a scratch directory — Next 16's Turbopack refuses symlinked `node_modules`/config files and refuses to run two dev servers against the same project directory — then `bun run dev --port 3100` with the isolated `MONGODB_URI`/`MONGODB_DB`).
 
 ## 5. Go-live checklist
 
@@ -109,10 +127,11 @@ The isolated server is still running on port 3100 against `mongodb://127.0.0.1:4
 - [ ] A fallback plan if the server/internet is down at open (offline selling covers this, but staff should know it's expected to work, not a bug)
 - [ ] Finish the Phase 3 browser walkthrough above before trusting the UI end-to-end in production
 
-## 6. Top 5 risks for launch week
+## 6. Top 6 risks for launch week
 
-1. **Barcode scanner edge cases are genuinely untested** (no test harness can drive it without a DOM library) — the only mitigation available this review is manual testing on the real scanner hardware before go-live. Recommend: test an unknown barcode, a scan while a dialog is open, and a fast double-scan by hand on day one.
-2. **Receipt/58mm/Urdu rendering** is visually confirmed only for the happy path (80mm, English). If the shop uses 58mm paper or non-Latin product names, check those by hand.
-3. **Role-based API route access** is covered at the service layer but not fully at the HTTP-route layer (that needs a real request context). A quick manual check — log in as a cashier, try to hit `/api/dashboard` directly — is cheap insurance.
-4. **Session-expiry-while-offline** and **browser-kill-and-reopen** are unverified live. Both matter in a shop with flaky power/internet. Recommend doing these two checks by hand before trusting offline mode on launch day.
-5. **No real load/perf test** — the concurrency test proves correctness under 120 simultaneous sales, not throughput over the simulated 2-hour Eid rush, and there's no test for a year of data's query performance. Low risk for a single shop at launch, worth revisiting before a second shop or a much larger catalog.
+1. **Held carts are invisible on desktop** (confirmed bug, `cart-panel.jsx:105`) — a cashier holding a sale to serve the next customer has no way to see or resume it from the normal desktop cart-panel view. Fix before go-live if held sales are used regularly; see §1 above.
+2. **Barcode scanner edge cases are genuinely untested** (no test harness can drive it without a DOM library) — the only mitigation available this review is manual testing on the real scanner hardware before go-live. Recommend: test an unknown barcode, a scan while a dialog is open, and a fast double-scan by hand on day one.
+3. **Receipt/58mm/Urdu rendering** is visually confirmed only for the happy path (80mm, English). If the shop uses 58mm paper or non-Latin product names, check those by hand.
+4. **Role-based API route access** is covered at the service layer but not fully at the HTTP-route layer (that needs a real request context) — though page-level access was confirmed live (a cashier hitting `/refunds` is redirected to `/pos`). A quick manual check against the data API routes directly is cheap insurance.
+5. **Session-expiry-while-offline** and **browser-kill-and-reopen** are unverified live. Both matter in a shop with flaky power/internet. Recommend doing these two checks by hand before trusting offline mode on launch day.
+6. **No real load/perf test** — the concurrency test proves correctness under 120 simultaneous sales, not throughput over the simulated 2-hour Eid rush, and there's no test for a year of data's query performance. Low risk for a single shop at launch, worth revisiting before a second shop or a much larger catalog.
