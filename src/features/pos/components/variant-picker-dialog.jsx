@@ -24,16 +24,18 @@ const SizeGrid = ({ product, color, availableFor, onChoose }) => {
         )
         .map((variant) => {
           const left = availableFor(variant.id)
+          const size = String(variant.attributes.size)
+          const isNumeric = /^\d+$/.test(size)
           return (
             <Button
               key={variant.id}
               variant="outline"
               disabled={left < 1}
               onClick={() => onChoose(variant)}
-              className="h-16 flex-col gap-0.5 px-0 hover:border-primary hover:bg-transparent disabled:opacity-35"
+              className="h-auto min-h-16 flex-col gap-0.5 px-1 py-1.5 hover:border-primary hover:bg-transparent disabled:opacity-35"
             >
-              <span className={cn("font-semibold tabular-nums", /^\d+$/.test(variant.attributes.size) ? "text-lg" : "text-sm")}>{variant.attributes.size}</span>
-              <span className={cn("text-xs font-medium", left <= 2 ? "text-warning" : "text-muted-foreground")}>{left < 1 ? "None" : `${left} left`}</span>
+              <span className={cn("line-clamp-1 break-words text-center leading-tight font-semibold tabular-nums", isNumeric ? "text-lg" : size.length > 3 ? "text-2xs" : "text-sm")}>{size}</span>
+              <span className={cn("text-2xs font-medium sm:text-xs", left <= 2 ? "text-warning" : "text-muted-foreground")}>{left < 1 ? "None" : `${left} left`}</span>
             </Button>
           )
         })}

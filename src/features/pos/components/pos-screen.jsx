@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useEffectEvent, useState } from "react"
+import { useEffect, useEffectEvent, useRef, useState } from "react"
 import { BarcodeIcon, CloudArrowUpIcon, CloudSlashIcon, LockKeyIcon, ShoppingBagIcon, SidebarSimpleIcon, VaultIcon, WarningIcon } from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { cn } from "cn"
@@ -157,6 +157,27 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
     if (!open) setScanFocus(false)
   }
 
+  const swipeStartY = useRef(null)
+  const SWIPE_THRESHOLD = 28
+
+  const handleSwipeStart = (event) => {
+    swipeStartY.current = event.touches[0].clientY
+  }
+
+  const handleSwipeUpEnd = (event) => {
+    if (swipeStartY.current === null) return
+    const delta = swipeStartY.current - event.changedTouches[0].clientY
+    swipeStartY.current = null
+    if (delta > SWIPE_THRESHOLD) handleCartSheet(true)
+  }
+
+  const handleSwipeDownEnd = (event) => {
+    if (swipeStartY.current === null) return
+    const delta = event.changedTouches[0].clientY - swipeStartY.current
+    swipeStartY.current = null
+    if (delta > SWIPE_THRESHOLD) handleCartSheet(false)
+  }
+
   const handleOpenScan = () => {
     setScanFocus(true)
     setCartSheetOpen(true)
@@ -238,6 +259,7 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
   const cartPanel = (className, onClose) => (
     <CartPanel
       shopId={shopId}
+      registerId={shift.registerId}
       focusScan={scanFocus}
       lastAdded={lastAdded}
       addTick={addTick}
@@ -299,7 +321,7 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
           </AlertAction>
         </Alert>
       )}
-      <div className="flex items-center gap-x-5 gap-y-1 border bg-card px-3 py-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-x-3 gap-y-1 border bg-card px-3 py-1.5 text-xs text-muted-foreground sm:gap-x-5 sm:py-2">
         <span className="whitespace-nowrap">
           Shift since <span className="font-semibold text-foreground">{formatTimeOrDate(shift.openedAt)}</span>
         </span>
@@ -311,12 +333,12 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
         </span>
         <span className="ml-auto hidden whitespace-nowrap 2xl:inline pointer-coarse:hidden">Scanner ready · F2 to charge</span>
         {register.manualDrawer && (
-          <Button size="sm" variant="ghost" className="ml-auto shrink-0 2xl:ml-0" onClick={() => setDrawerOpen(true)}>
+          <Button size="sm" variant="ghost" className="ml-auto shrink-0 max-sm:w-9 max-sm:px-0 2xl:ml-0" onClick={() => setDrawerOpen(true)}>
             <VaultIcon />
             <span className="max-sm:sr-only">Open drawer</span>
           </Button>
         )}
-        <Button size="sm" variant="ghost" className={cn("aria-disabled:opacity-50", register.manualDrawer ? "shrink-0" : "ml-auto shrink-0 2xl:ml-0")} aria-disabled={Boolean(closeBlockedReason)} onClick={handleCloseShift}>
+        <Button size="sm" variant="ghost" className={cn("aria-disabled:opacity-50 max-sm:w-9 max-sm:px-0", register.manualDrawer ? "shrink-0" : "ml-auto shrink-0 2xl:ml-0")} aria-disabled={Boolean(closeBlockedReason)} onClick={handleCloseShift}>
           <LockKeyIcon />
           <span className="max-sm:sr-only">Close shift</span>
         </Button>
@@ -335,7 +357,12 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
       </div>
 
       {!wide && (
-        <div className="flex shrink-0 items-center gap-2 border bg-card p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <div
+          className="relative flex shrink-0 items-center gap-2 border bg-card p-2 pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+          onTouchStart={handleSwipeStart}
+          onTouchEnd={handleSwipeUpEnd}
+        >
+          <span aria-hidden="true" className="absolute top-1 left-1/2 h-1 w-9 -translate-x-1/2 rounded-full bg-border" />
           {heldCarts.length > 0 && <HeldCartsButton variant="mobile" count={heldCarts.length} onClick={() => setParkedOpen(true)} />}
           <Button type="button" variant="outline" size="icon-lg" className="shrink-0" aria-label="Scan or type a barcode" onClick={handleOpenScan}>
             <BarcodeIcon className="size-5 text-gold" />
@@ -362,12 +389,15 @@ const PosWorkspace = ({ user, shift, register, shopId, onShiftClosed }) => {
 
       {!wide && (
         <Sheet open={cartSheetOpen} onOpenChange={handleCartSheet}>
-          <SheetContent data-scan-through="" side="right" showCloseButton={false} className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md">
+          <SheetContent data-scan-through="" side="bottom" showCloseButton={false} className="gap-0 p-0 data-[side=bottom]:h-[86dvh] data-[side=bottom]:max-h-[86dvh]">
+            <div className="relative shrink-0 pt-2.5 pb-1" onTouchStart={handleSwipeStart} onTouchEnd={handleSwipeDownEnd}>
+              <span aria-hidden="true" className="mx-auto block h-1 w-9 rounded-full bg-border" />
+            </div>
             <SheetHeader className="sr-only">
               <SheetTitle>Cart</SheetTitle>
               <SheetDescription>Items in the current sale</SheetDescription>
             </SheetHeader>
-            {cartPanel("h-full", () => handleCartSheet(false))}
+            {cartPanel("min-h-0 flex-1", () => handleCartSheet(false))}
           </SheetContent>
         </Sheet>
       )}

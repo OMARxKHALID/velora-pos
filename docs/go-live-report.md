@@ -2,9 +2,9 @@
 
 ## Verdict
 
-**Ready with conditions.** The money-critical paths (sales, refunds, swaps, shifts, FBR, concurrency) are well tested and proven correct, including under real concurrency (double-Pay, same-pair races, an Eid-rush-style load test) and live in the browser (sale → PIN-gated discount → return request → supervisor approval → dashboard, all correct). One real, reproducible **minor bug** was found live (held carts, below) — not a blocker, but worth fixing before cashiers rely on holding sales. The other conditions are below, plus finishing the parts of the browser walkthrough this session didn't reach.
+**Ready with conditions.** The money-critical paths (sales, refunds, swaps, shifts, FBR, concurrency) are well tested and proven correct, including under real concurrency (double-Pay, same-pair races, an Eid-rush-style load test) and live in the browser (sale → PIN-gated discount → return request → supervisor approval → dashboard, all correct). One real, reproducible bug was found live (held carts, below) — **since fixed and re-verified live**. A follow-up pass also tightened mobile layout (shift-info bar density, the size-picker grid for long size labels) and added a swipe-up/swipe-down gesture to the mobile cart sheet. The other conditions are below, plus finishing the parts of the browser walkthrough this session didn't reach.
 
-### Bug found live: held-cart indicator never lights up on desktop
+### Bug found live, now fixed: held-cart indicator never lit up on desktop
 
 `src/features/pos/components/cart-panel.jsx:105` calls `heldAt(heldCarts)` with no `registerId` — `heldAt = (heldCarts, registerId) => heldCarts.filter((held) => held.registerId === registerId)` then filters for `registerId === undefined`, which never matches a real held cart. So `heldCount` is always 0 and the held-carts button in the cart panel (`held-carts-button.jsx`) stays disabled forever, regardless of how many carts are actually held.
 
@@ -12,7 +12,25 @@ Reproduced live: held a cart (confirmed saved correctly server-side — `held_ca
 
 Impact: on a **desktop/wide layout with the cart panel open** (the normal state), this is the *only* held-carts control on screen — the top-bar "bar" variant is hidden whenever `cartOpen` is true (`pos-screen.jsx:323`). So a cashier on desktop has no way to see or resume a held cart while the cart panel is open. The mobile variant (`pos-screen.jsx:339`) is unaffected — it reads `heldCarts.length` from the correctly-filtered value computed in `pos-screen.jsx:71`, not through `cart-panel.jsx`'s broken local computation.
 
-The fix needs a prop threaded through: `CartPanel` (`cart-panel.jsx:95`) doesn't currently receive `registerId`/`shift` at all. Pass the register ID down from `pos-screen.jsx` and use it in the `heldAt()` call at line 105. Not applied — following the "don't fix without asking" rule from this review's brief.
+**Fixed**: `CartPanel` now takes a `registerId` prop, passed from `pos-screen.jsx`'s `cartPanel()` helper (`shift.registerId`), and `cart-panel.jsx:105` passes it into `heldAt()`. Re-verified live: after the fix and a reload, a held cart correctly showed "1 held cart" (not disabled) both in the desktop cart panel and the mobile bottom-bar/bottom-sheet variant.
+
+### Also fixed this session, from a live mobile-layout pass (iPhone-XS-width screenshots)
+
+- **Size-picker grid clipping risk for long size labels** (`variant-picker-dialog.jsx`): the size grid used a fixed `h-16` cell with one font size for every non-numeric label. Clothing sizes like "One size" (8 characters, `font-semibold`) or "XXL" could overflow or clip in a ~72px-wide cell at 375px width — not reproducible with the sample catalog (shoe sizes only), but confirmed by measuring real cell width (71.75px) live and checking the label constants in `catalog.js`. Changed to `h-auto min-h-16` with `line-clamp-1 break-words` and a smaller font tier for labels over 3 characters.
+- **Shift-info bar too tall/dense on mobile** (`pos-screen.jsx`): reduced padding and gaps on narrow screens only (`py-1.5`/`gap-x-3` below `sm`, unchanged above it), and tightened the icon-only drawer/close-shift buttons so they don't carry desktop-width padding on mobile. Measured live: bar height 62px → 58px.
+- **Swipe-up-to-open / swipe-down-to-close added for the mobile cart** (`pos-screen.jsx`): the mobile cart sheet was a right-side slide-in; changed to a bottom sheet (`side="bottom"`, `86dvh` tall) with a drag-handle affordance, using the Sheet component's existing slide/fade transition (no new animation dependency). Added touch-gesture detection (plain `touchstart`/`touchend`, no library) on the bottom bar (swipe up opens) and the sheet's handle (swipe down closes). Verified live with synthetic touch events against the real DOM: both gestures work.
+- **Horizontal-overflow audit**: checked `/pos`, `/sales`, `/products`, `/stock`, `/refunds` at 375px width (`document.documentElement.scrollWidth` vs `clientWidth`) — no horizontal scroll found on any of them. Settings, Staff and Stock history were not checked this pass.
+
+All of the above: `bun run lint` clean, `test/screens.smoke.test.jsx` (6 tests) still passes.
+
+### Diagnosed, not fixed: "SOMETHING WENT WRONG" on the live deployment
+
+This is almost certainly the same root cause as the `MongoServerSelectionError` / `ReplicaSetNoPrimary` seen earlier from a dev machine, not a separate app bug — it's an infrastructure issue, not something in this codebase to patch. Two likely causes, in order of likelihood for a Vercel + Atlas setup:
+
+1. **Atlas Network Access doesn't allow Vercel's IPs.** Vercel serverless functions have dynamic outbound IPs that change per invocation/region. If the Atlas cluster's IP Access List doesn't include `0.0.0.0/0` (allow from anywhere) or Vercel's documented IP ranges, connections fail intermittently with exactly this error — explains both the earlier dev-machine timeout and this phone screenshot, from different networks. Check Atlas → Network Access.
+2. **The Atlas cluster is an M0 (free tier) cluster that auto-pauses after inactivity.** A paused cluster refuses connections until it wakes (which can take ~1 minute), producing the same symptom on the first request after idle time. Check the cluster's tier and pause history in Atlas.
+
+The code side is already doing the right thing for serverless — `src/server/db/client.js` caches the `MongoClient` on `globalThis` across invocations in the same warm lambda, which is the standard Vercel+MongoDB pattern. No code change recommended here; this needs checking in the Atlas dashboard.
 
 ## 1. Checks run
 
@@ -129,7 +147,7 @@ The isolated server can be rebuilt the same way for a follow-up session (spin up
 
 ## 6. Top 6 risks for launch week
 
-1. **Held carts are invisible on desktop** (confirmed bug, `cart-panel.jsx:105`) — a cashier holding a sale to serve the next customer has no way to see or resume it from the normal desktop cart-panel view. Fix before go-live if held sales are used regularly; see §1 above.
+1. ~~Held carts invisible on desktop~~ — **fixed and verified live**, see §1 above.
 2. **Barcode scanner edge cases are genuinely untested** (no test harness can drive it without a DOM library) — the only mitigation available this review is manual testing on the real scanner hardware before go-live. Recommend: test an unknown barcode, a scan while a dialog is open, and a fast double-scan by hand on day one.
 3. **Receipt/58mm/Urdu rendering** is visually confirmed only for the happy path (80mm, English). If the shop uses 58mm paper or non-Latin product names, check those by hand.
 4. **Role-based API route access** is covered at the service layer but not fully at the HTTP-route layer (that needs a real request context) — though page-level access was confirmed live (a cashier hitting `/refunds` is redirected to `/pos`). A quick manual check against the data API routes directly is cheap insurance.

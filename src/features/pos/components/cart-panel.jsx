@@ -92,7 +92,7 @@ const CartLine = ({ row, highlight, tick, canAdd, onQuantity, onRemove }) => {
   )
 }
 
-export const CartPanel = ({ shopId, lastAdded, addTick, availableFor, onScan, onCharge, onHold, onOpenHeld, onClose, focusScan = false, className }) => {
+export const CartPanel = ({ shopId, registerId, lastAdded, addTick, availableFor, onScan, onCharge, onHold, onOpenHeld, onClose, focusScan = false, className }) => {
   const lines = useCartStore(({ lines }) => lines)
   const discountPct = useCartStore(({ discountPct }) => discountPct)
   const approvedBy = useCartStore(({ approvedBy }) => approvedBy)
@@ -102,7 +102,7 @@ export const CartPanel = ({ shopId, lastAdded, addTick, availableFor, onScan, on
   const setDiscount = useCartStore(({ setDiscount }) => setDiscount)
   const clear = useCartStore(({ clear }) => clear)
   const restore = useCartStore(({ restore }) => restore)
-  const heldCount = useLedgerStore(({ heldCarts }) => heldAt(heldCarts).length)
+  const heldCount = useLedgerStore(({ heldCarts }) => heldAt(heldCarts, registerId).length)
   const settings = useSettingsFor(shopId)
   const cashierLimitPct = settings.cashierDiscountPct ?? 5
   const discountSteps = [0, ...discountStepsOf(settings)]
