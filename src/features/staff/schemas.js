@@ -7,6 +7,7 @@ export const passwordSchema = z.string().min(8, { error: "Use at least 8 charact
 const usernameSchema = z.string().trim().toLowerCase().regex(USERNAME_PATTERN, { error: "3 to 30 letters, digits, dots, dashes or underscores" })
 
 export const accountSchema = z.object({
+  name: name.optional(),
   username: usernameSchema,
   email: z.union([z.literal(""), z.email({ error: "Enter a valid email" })]).transform((email) => email.toLowerCase()),
   password: z.union([z.literal(""), passwordSchema]).default(""),

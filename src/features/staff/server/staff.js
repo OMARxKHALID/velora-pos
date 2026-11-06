@@ -214,13 +214,13 @@ export const removeStaff = async ({ auth, db, headers }, id) => {
 }
 
 export const updateAccount = async ({ auth, db, headers, ownerId }, id, input) => {
-  const { username, email: requested, password } = parseInput(accountSchema, input)
+  const { name, username, email: requested, password } = parseInput(accountSchema, input)
   const person = await personById(db, id)
   if (!person || person.removedAt) throw new UserError("This person is not on the team.")
   const email = requested || `${username}@${PLACEHOLDER_EMAIL_DOMAIN}`
   if (await db.collection(C.users).findOne({ username, _id: { $ne: id } }, { projection: { _id: 1 } })) throw new UserError(`The username ${username} is taken.`)
   if (await db.collection(C.users).findOne({ email, _id: { $ne: id } }, { projection: { _id: 1 } })) throw new UserError("Another person already uses that email.")
-  await db.collection(C.users).updateOne({ _id: id }, { $set: { username, displayUsername: username, email, updatedAt: new Date() } })
+  await db.collection(C.users).updateOne({ _id: id }, { $set: { ...(name && { name }), username, displayUsername: username, email, updatedAt: new Date() } })
   if (!password) return {}
   await auth.api.setUserPassword({ headers, body: { userId: id, newPassword: password } })
   if (id !== ownerId) {

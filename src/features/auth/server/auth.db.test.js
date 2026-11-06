@@ -118,8 +118,8 @@ describe.skipIf(!hasTestDatabase)("accounts, staff and approvals", () => {
     const owner = await as("asif")
     const ownerId = (await context.db.collection(C.users).findOne({ username: "asif" }))._id
     const { id } = await createStaff(owner, { name: "Renamed Later", role: "cashier", username: "renameme", password: "rename-pass-1" })
-    await updateAccount(owner, id, { username: "Renamed", email: "Renamed@Velora.pk", password: "" })
-    expect(await context.db.collection(C.users).findOne({ _id: id })).toMatchObject({ username: "renamed", email: "renamed@velora.pk" })
+    await updateAccount(owner, id, { name: "Renamed Person", username: "Renamed", email: "Renamed@Velora.pk", password: "" })
+    expect(await context.db.collection(C.users).findOne({ _id: id })).toMatchObject({ name: "Renamed Person", username: "renamed", email: "renamed@velora.pk" })
     expect(await signIn("renamed", "rename-pass-1")).not.toBeNull()
     await expect(updateAccount(owner, id, { username: "asif", email: "", password: "" })).rejects.toThrow("taken")
     await expect(updateAccount(owner, id, { username: "renamed", email: "", password: "short" })).rejects.toThrow("8 characters")

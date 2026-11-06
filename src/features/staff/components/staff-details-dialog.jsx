@@ -19,18 +19,23 @@ const Fact = ({ label, children }) => (
 )
 
 const AccountForm = ({ person, pending, onSaveAccount }) => {
+  const [name, setName] = useState(person.name ?? "")
   const [username, setUsername] = useState(person.username ?? "")
   const [email, setEmail] = useState(person.email ?? "")
   const [password, setPassword] = useState("")
-  const changed = username !== (person.username ?? "") || email !== (person.email ?? "") || password
+  const changed = name !== (person.name ?? "") || username !== (person.username ?? "") || email !== (person.email ?? "") || password
   const handleSubmit = async (event) => {
     event.preventDefault()
-    const result = await onSaveAccount(person, { username, email, password })
+    const result = await onSaveAccount(person, { name, username, email, password })
     if (!result?.error) setPassword("")
   }
   return (
     <form onSubmit={handleSubmit} className="space-y-3 border-t pt-3">
-      <p className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Sign-in details</p>
+      <p className="text-xs font-semibold tracking-label text-muted-foreground uppercase">Name and sign-in details</p>
+      <div className="space-y-1.5">
+        <Label htmlFor="account-name">Name</Label>
+        <Input id="account-name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="off" maxLength={60} required />
+      </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="account-username">Username</Label>
